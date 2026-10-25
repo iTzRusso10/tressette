@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#7FD0FF">
+<meta name="theme-color" content="#4A9FEA">
 <link rel="icon" type="image/png" sizes="32x32" href="icone/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icone/icona-192.png">
 <link rel="apple-touch-icon" href="icone/apple-touch-icon.png">
@@ -465,6 +465,76 @@ body::before{-webkit-mask-image:none;mask-image:none;animation:drift 60s linear 
 @keyframes panelIn{0%{opacity:0;transform:translateY(40px) scale(.85)}60%{opacity:1;transform:translateY(-6px) scale(1.02)}100%{transform:none}}
 @media (prefers-reduced-motion: reduce){body::before,#amb i,.hero h1 span,.fan .hc,.tag.turn,.code,.card.win .inner,.card.legal .inner{animation:none!important}}
 </style>
+<style id="premium">
+/* Premium layer: same bounce, richer materials. Deeper sky, emerald felt with a polished gold rim, navy and gold accents, layered soft shadows. */
+:root{
+  --gold-1:#FFF1B8; --gold-2:#F2C451; --gold-3:#C98E1E; --gold-4:#8A5A0B;
+  --navy:#16213F; --navy-2:#24345E;
+  --felt-hi:#3FCF86; --felt:#159A5A; --felt-lo:#0B6B3D;
+  --sky-hi:#4A9FEA; --sky-lo:#E3F4FF;
+  --shadow-soft:0 1px 2px rgba(16,33,63,.06),0 6px 14px rgba(16,33,63,.10),0 18px 36px rgba(16,33,63,.10);
+}
+body{background:radial-gradient(120% 70% at 50% 0%,#6FB9F5 0%,var(--sky-hi) 30%,#8FCFFF 62%,var(--sky-lo) 100%)}
+body::before{opacity:.85;filter:blur(1.5px)}
+#amb i{opacity:.35}
+
+.ibtn,.sc{background:linear-gradient(180deg,#FFFFFF,#F4F8FC);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.05),var(--shadow-soft)}
+.ibtn:active{transform:translateY(2px) scale(.97);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.06),0 2px 6px rgba(16,33,63,.12)}
+.sc .big{color:var(--navy)}
+.sc .hand{box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.sc .pg{background:linear-gradient(90deg,color-mix(in srgb,var(--c) 55%,#fff),var(--c))}
+
+.ring{background:
+   radial-gradient(ellipse 70% 55% at 50% 30%,rgba(255,255,255,.18),transparent 70%),
+   repeating-radial-gradient(circle at 50% 50%,rgba(0,0,0,.025) 0 2px,transparent 2px 4px),
+   radial-gradient(ellipse 80% 70% at 50% 40%,var(--felt-hi) 0%,var(--felt) 55%,var(--felt-lo) 100%);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.18),inset 0 -20px 40px rgba(0,40,20,.35),inset 0 0 0 2px rgba(0,0,0,.12),
+    0 0 0 3px var(--gold-4),0 0 0 6px var(--gold-2),0 0 0 9px var(--gold-1),0 0 0 12px var(--gold-3),
+    0 14px 0 12px #A87318,0 30px 50px 12px rgba(16,40,90,.35)}
+.ring .sheen{background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.28),transparent 70%)}
+.ring span{color:rgba(255,236,170,.55);text-shadow:0 1px 0 rgba(0,0,0,.2)}
+
+.face{box-shadow:0 0 0 1px rgba(16,33,63,.08),0 2px 3px rgba(16,33,63,.12),0 10px 22px rgba(10,60,30,.25)}
+.card.sel .front{box-shadow:0 0 0 3px var(--gold-2),0 0 0 5px rgba(255,241,184,.9),0 14px 30px rgba(201,142,30,.45)}
+@keyframes winGlow{from{box-shadow:0 0 0 3px var(--gold-2),0 8px 18px rgba(201,142,30,.35)}to{box-shadow:0 0 0 5px var(--gold-1),0 0 0 7px var(--gold-3),0 14px 34px rgba(201,142,30,.6)}}
+
+.tag{background:linear-gradient(180deg,#FFFFFF,#F3F7FB);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.06),var(--shadow-soft)}
+.tag .av{background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.55),transparent 50%),var(--c);box-shadow:0 0 0 2px #fff,0 0 0 4px color-mix(in srgb,var(--c) 35%,#fff),0 4px 10px color-mix(in srgb,var(--c) 40%,transparent)}
+.tag .n{color:var(--navy)}
+.tag.turn{box-shadow:0 0 0 2px var(--c),0 0 0 5px color-mix(in srgb,var(--c) 25%,transparent),var(--shadow-soft)}
+.deckc,.chip{box-shadow:0 0 0 1px rgba(16,33,63,.06),0 4px 10px rgba(16,33,63,.15)}
+.chip[aria-pressed="true"]{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));color:var(--navy)}
+#pick,.toast{background:linear-gradient(180deg,#FFFFFF,#F6F9FC);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.06),0 10px 30px rgba(16,33,63,.22)}
+.toast b{background:linear-gradient(180deg,#E9A92A,#B57510);-webkit-background-clip:text;background-clip:text;color:transparent}
+.float{color:var(--gold-2);-webkit-text-stroke:4px var(--navy)}
+.bubble{background:linear-gradient(180deg,#FF7C93,var(--coral));box-shadow:0 0 0 2px #fff,0 6px 14px rgba(255,94,122,.4)}
+
+.overlay{background:rgba(40,90,150,.35)}
+.panel{background:linear-gradient(180deg,#FFFFFF 0%,#F7FAFD 100%);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.06),0 30px 70px rgba(16,40,90,.35),0 10px 20px rgba(16,40,90,.12)}
+.panel h2{color:var(--navy)}
+.btn.primary{background:linear-gradient(180deg,#45D98A 0%,#1DB866 55%,#14A157 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.12),0 4px 0 #0E7F43,0 14px 26px rgba(20,161,87,.35)}
+.btn.primary::before{content:"";position:absolute;inset:2px 2px 50% 2px;border-radius:18px 18px 40% 40%/18px 18px 12px 12px;background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));pointer-events:none}
+.btn.primary:active{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 0 #0E7F43,0 6px 12px rgba(20,161,87,.3)}
+.btn.ghost{color:var(--navy);border:0;background:linear-gradient(180deg,var(--gold-1),var(--gold-2));box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 4px 0 var(--gold-3),0 12px 22px rgba(201,142,30,.3)}
+.btn.ghost:active{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 0 var(--gold-3)}
+.btn.plain{background:#fff;box-shadow:0 0 0 1px rgba(16,33,63,.07),0 3px 8px rgba(16,33,63,.08)}
+.btn.plain:active{transform:scale(.98);box-shadow:0 0 0 1px rgba(16,33,63,.07)}
+
+.hero h1{-webkit-text-stroke:0;filter:drop-shadow(0 2px 0 #9C6512) drop-shadow(0 8px 14px rgba(16,40,90,.35))}
+.hero h1 span,.hero h1 span:nth-child(3n+1),.hero h1 span:nth-child(3n+2),.hero h1 span:nth-child(3n){color:transparent;background:linear-gradient(180deg,#FFFBEA 0%,var(--gold-1) 25%,var(--gold-2) 55%,var(--gold-3) 100%);-webkit-background-clip:text;background-clip:text}
+.hero .tagline{color:var(--navy);opacity:.8}
+.lbl{color:var(--navy);opacity:.75}
+.mode,.seat,.switch{background:linear-gradient(180deg,#FFFFFF,#F5F9FC);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,33,63,.05),var(--shadow-soft)}
+.mode:active{box-shadow:0 0 0 1px rgba(16,33,63,.06)}
+.mode[aria-checked="true"]{box-shadow:0 0 0 2px var(--gold-2),0 0 0 5px rgba(242,196,81,.3),0 14px 30px rgba(201,142,30,.25)}
+.seg{background:#E9F0F7;box-shadow:inset 0 1px 3px rgba(16,33,63,.08)}
+.seg button[aria-pressed="true"]{background:linear-gradient(180deg,var(--navy-2),var(--navy));color:#fff;box-shadow:0 3px 8px rgba(16,33,63,.3)}
+.switch input:checked{background:linear-gradient(180deg,#2DCB78,#14A157)}
+.code{color:var(--navy);text-shadow:0 3px 0 var(--gold-2)}
+.trow.top{box-shadow:0 0 0 2px var(--c),0 10px 22px rgba(16,33,63,.12)}
+.rank span{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));box-shadow:0 2px 0 var(--gold-3)}
+.rules h3{color:var(--navy-2)}
+</style>
 
 <div id="amb" aria-hidden="true"></div>
 <div id="app">
@@ -843,7 +913,7 @@ function faceSVG(c){
   const idx = `<rect x="3" y="3" width="15" height="25" rx="3" fill="#FFFEFA"/><text x="10.5" y="16" text-anchor="middle" font-family="Fredoka,Nunito,system-ui,sans-serif" font-weight="900" font-size="${r === 10 ? 12 : 15}" letter-spacing="${r === 10 ? -0.8 : 0}" fill="${ink}">${RLAB[r]}</text>${pip(s, 10.5, 22.5, 9)}`;
   return `<svg viewBox="0 0 100 162" xmlns="http://www.w3.org/2000/svg"><rect x=".5" y=".5" width="99" height="161" rx="8.5" fill="#FFFEFA" stroke="#D6CCBA"/>${body}${idx}</svg>`;
 }
-const BACK = `<svg viewBox="0 0 100 162" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bkg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7A8F"/><stop offset="1" stop-color="#F0435F"/></linearGradient><pattern id="bkp" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.8" fill="#fff" fill-opacity=".28"/><circle cx="9" cy="9" r="1.8" fill="#fff" fill-opacity=".28"/></pattern></defs><rect width="100" height="162" rx="8" fill="#fff"/><rect x="5" y="5" width="90" height="152" rx="5.5" fill="url(#bkg)"/><rect x="5" y="5" width="90" height="152" rx="5.5" fill="url(#bkp)"/><circle cx="50" cy="81" r="22" fill="#FFD23F" stroke="#fff" stroke-width="3.5"/><text x="50" y="87.5" text-anchor="middle" font-family="Fredoka,Nunito,sans-serif" font-weight="700" font-size="17" fill="#1E2A4A">3·7</text></svg>`;
+const BACK = `<svg viewBox="0 0 100 162" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bkg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E4A8F"/><stop offset=".55" stop-color="#1B2C5C"/><stop offset="1" stop-color="#121D3D"/></linearGradient><linearGradient id="bkgold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1B8"/><stop offset=".5" stop-color="#F2C451"/><stop offset="1" stop-color="#C98E1E"/></linearGradient><pattern id="bkp" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M5 1.5L8.5 5L5 8.5L1.5 5Z" fill="none" stroke="#F2C451" stroke-opacity=".28" stroke-width=".7"/></pattern></defs><rect width="100" height="162" rx="8" fill="#fff"/><rect x="4.5" y="4.5" width="91" height="153" rx="5.5" fill="url(#bkg)"/><rect x="4.5" y="4.5" width="91" height="153" rx="5.5" fill="url(#bkp)"/><rect x="9" y="9" width="82" height="144" rx="3.5" fill="none" stroke="url(#bkgold)" stroke-width="1.4"/><circle cx="50" cy="81" r="21" fill="url(#bkgold)"/><circle cx="50" cy="81" r="17.5" fill="#1B2C5C"/><text x="50" y="87" text-anchor="middle" font-family="Fredoka,Nunito,sans-serif" font-weight="700" font-size="15" fill="#F2C451">3·7</text></svg>`;
 
 /* ---------------- DOM refs ---------------- */
 const boardEl = $('#board'), cardsEl = $('#cards'), tagsEl = $('#tags'), fxEl = $('#fx'), toastsEl = $('#toasts');
