@@ -553,7 +553,7 @@ body::before{background:
       <h3>In quattro</h3>
       <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l'ultima carta che ho di questo seme).</p>
       <h3>Cappotto</h3>
-      <p>Se in una mano un giocatore (o una coppia) prende tutti gli 11 punti, compresa l'ultima presa, e gli avversari restano a zero, vince subito la partita. Si può disattivare dal menu.</p>
+      <p>Solo nella partita a perdere: se in una mano un giocatore prende tutti gli 11 punti, compresa l'ultima presa, e gli altri restano a zero, vince subito la partita. Si può disattivare dal menu.</p>
       <h3>Accusi</h3>
       <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>
       <h3>A perdere</h3>
@@ -1225,7 +1225,7 @@ function startMatch(){
   S = {
     mode: cfg.mode, n,
     seats: cfg.seats.slice(0, n).map((s,i) => ({name: (s.name || '').trim().slice(0, 16) || (i ? (s.type === 'cpu' ? CPU_NAMES[i-1] : 'Giocatore ' + (i+1)) : 'Tu'), type: i === 0 ? 'human' : (s.type === 'online' ? 'remote' : s.type)})),
-    level: cfg.level, target: cfg.target, accusi: cfg.accusi && cfg.mode !== 'perdere', cappotto: cfg.cappotto !== false && cfg.mode !== 'perdere',
+    level: cfg.level, target: cfg.target, accusi: cfg.accusi && cfg.mode !== 'perdere', cappotto: cfg.cappotto !== false && cfg.mode === 'perdere',
     match: new Array(cfg.mode === '4' ? 2 : n).fill(0), handNo: 0,
     dealer: (Math.random()*n)|0, viewer: 0, hideHands: false, finished: false, h: null,
     online: isHost() ? {code: NET.code, peers: NET.seatPeer, names: NET.names} : null
@@ -1527,7 +1527,7 @@ function renderMenu(){
   $('#targetLbl').textContent = cfg.mode === 'perdere' ? 'Si perde a' : 'Si vince a';
   $('#accusiRow').hidden = cfg.mode === 'perdere';
   $('#accusiChk').checked = !!cfg.accusi;
-  $('#cappRow').hidden = cfg.mode === 'perdere';
+  $('#cappRow').hidden = cfg.mode !== 'perdere';
   $('#cappChk').checked = cfg.cappotto !== false;
   const humansN = cfg.seats.slice(0, n).filter((s,i) => i === 0 || s.type === 'human').length;
   const onl = cfg.seats.slice(1, n).some(s => s.type === 'online');
