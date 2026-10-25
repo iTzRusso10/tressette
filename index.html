@@ -489,6 +489,10 @@ body::before{background:
         <button class="linkbtn" id="deckClear">Rimuovi le immagini caricate</button>
       </div>
     </section>
+    <label class="switch" id="cappRow">
+      <span><span class="t">Cappotto</span><br><span class="d">Chi prende tutti gli 11 punti di una mano vince subito la partita</span></span>
+      <input type="checkbox" id="cappChk">
+    </label>
     <label class="switch" id="accusiRow">
       <span><span class="t">Accusi</span><br><span class="d">Napoletana e buongioco, dichiarati a inizio mano</span></span>
       <input type="checkbox" id="accusiChk">
@@ -536,6 +540,8 @@ body::before{background:
       <p>Dieci carte a testa. Dopo ogni presa si pesca dal mazzo, prima chi ha preso. Le carte pescate si mostrano all'avversario.</p>
       <h3>In quattro</h3>
       <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l'ultima carta che ho di questo seme).</p>
+      <h3>Cappotto</h3>
+      <p>Se in una mano un giocatore (o una coppia) prende tutti gli 11 punti, compresa l'ultima presa, e gli avversari restano a zero, vince subito la partita. Si può disattivare dal menu.</p>
       <h3>Accusi</h3>
       <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>
       <h3>A perdere</h3>
@@ -1207,7 +1213,7 @@ function startMatch(){
   S = {
     mode: cfg.mode, n,
     seats: cfg.seats.slice(0, n).map((s,i) => ({name: (s.name || '').trim().slice(0, 16) || (i ? (s.type === 'cpu' ? CPU_NAMES[i-1] : 'Giocatore ' + (i+1)) : 'Tu'), type: i === 0 ? 'human' : (s.type === 'online' ? 'remote' : s.type)})),
-    level: cfg.level, target: cfg.target, accusi: cfg.accusi && cfg.mode !== 'perdere',
+    level: cfg.level, target: cfg.target, accusi: cfg.accusi && cfg.mode !== 'perdere', cappotto: cfg.cappotto !== false && cfg.mode !== 'perdere',
     match: new Array(cfg.mode === '4' ? 2 : n).fill(0), handNo: 0,
     dealer: (Math.random()*n)|0, viewer: 0, hideHands: false, finished: false, h: null,
     online: isHost() ? {code: NET.code, peers: NET.seatPeer, names: NET.names} : null
@@ -1359,8 +1365,13 @@ async function endHand(g){
   await wait(450); if (g !== GEN) return;
   const h = S.h, rows = handResult();
   rows.forEach(r => S.match[r.t] += r.total);
-  const out = matchOutcome();
+  let out = matchOutcome(), capp = -1;
+  if (S.cappotto){
+    const c = rows.find(r => r.ult && rows.every(o => o === r || (o.cardsT === 0 && !o.ult)));
+    if (c){ capp = c.t; out = {winners: [c.t], losers: [], cappotto: true}; }
+  }
   h.over = true; h.result = {rows, out};
+  if (capp >= 0){ toast(`<b>Cappotto!</b><br>${esc(S.mode === '4' ? teamLabel(capp) : nameOf(capp))} prende tutti i punti`, 3200); sfx('pts'); }
   if (out) S.finished = true;
   save(); renderHud(); renderTags();
   showSummary(true);
@@ -1421,7 +1432,8 @@ function showSummary(fresh){
     const wl = out.winners.map(t => S.mode === '4' ? teamLabel(t) : nameOf(t)).join(' e ');
     const meWin = out.winners.includes(teamOf(S.viewer));
     title = single && meWin ? (S.mode === '4' ? 'Avete vinto!' : 'Hai vinto!') : (single && S.mode !== 'perdere' ? 'Hanno vinto loro' : `Vince ${wl}`);
-    if (S.mode === 'perdere') sub = `${out.losers.map(nameOf).join(' e ')} ha superato i ${S.target} punti`;
+    if (out.cappotto){ title = (single && meWin ? (S.mode === '4' ? 'Cappotto! Avete vinto' : 'Cappotto! Hai vinto') : `Cappotto di ${wl}`); sub = single && meWin ? `${S.mode === '4' ? 'Avete' : 'Hai'} preso tutti gli 11 punti della mano: partita vinta.` : `${wl} ${S.mode === '4' ? 'hanno' : 'ha'} preso tutti gli 11 punti della mano: partita vinta.`; }
+    else if (S.mode === 'perdere') sub = `${out.losers.map(nameOf).join(' e ')} ha superato i ${S.target} punti`;
     else sub = `${S.match.join(' a ')} dopo ${S.handNo} ${S.handNo === 1 ? 'mano' : 'mani'}`;
     if (fresh && (!single || meWin)){ confetti(); sfx('win'); }
   }
@@ -1503,6 +1515,8 @@ function renderMenu(){
   $('#targetLbl').textContent = cfg.mode === 'perdere' ? 'Si perde a' : 'Si vince a';
   $('#accusiRow').hidden = cfg.mode === 'perdere';
   $('#accusiChk').checked = !!cfg.accusi;
+  $('#cappRow').hidden = cfg.mode === 'perdere';
+  $('#cappChk').checked = cfg.cappotto !== false;
   const humansN = cfg.seats.slice(0, n).filter((s,i) => i === 0 || s.type === 'human').length;
   const onl = cfg.seats.slice(1, n).some(s => s.type === 'online');
   $('#startBtn').textContent = onl ? 'Crea la stanza online' : humansN > 1 ? 'Distribuisci · passa e gioca' : 'Distribuisci le carte';
@@ -1524,6 +1538,7 @@ $('#seatRows').addEventListener('input', e => { const i = +e.target.dataset.i; i
 $('#levelSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.level = b.dataset.v; saveCfg(); renderMenu(); });
 $('#targetSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.target = +b.dataset.v; saveCfg(); renderMenu(); });
 $('#accusiChk').addEventListener('change', e => { cfg.accusi = e.target.checked; saveCfg(); });
+$('#cappChk').addEventListener('change', e => { cfg.cappotto = e.target.checked; saveCfg(); });
 $('#startBtn').onclick = () => { audio(); const n = cfg.mode === '2' ? 2 : 4; if (cfg.seats.slice(1, n).some(s => s.type === 'online')) hostRoom(); else { leaveOnline(); startMatch(); } };
 $('#resumeBtn').onclick = () => { audio(); resumeFromMenu(); };
 
