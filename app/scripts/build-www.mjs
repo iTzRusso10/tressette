@@ -19,9 +19,10 @@ let html = await readFile(join(root, 'index.html'), 'utf8');
 const sw = /<script>if \('serviceWorker' in navigator\)[^<]*<\/script>\n?/;
 if (!sw.test(html)) throw new Error('Service worker registration not found in index.html');
 html = html.replace(sw, '');
-const charset = '<meta charset="utf-8">';
-if (!html.includes(charset)) throw new Error('charset meta not found in index.html');
-html = html.replace(charset, charset + '\n<script src="native.js"></script>');
+// After the viewport meta, so the opening animation measures the real screen size.
+const viewport = /<meta name="viewport"[^>]*>/;
+if (!viewport.test(html)) throw new Error('viewport meta not found in index.html');
+html = html.replace(viewport, m => m + '\n<script src="native.js"></script>');
 await writeFile(join(www, 'index.html'), html);
 
 await build({

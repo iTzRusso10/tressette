@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0B1226">
 <link rel="icon" type="image/png" sizes="32x32" href="icone/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icone/icona-192.png">
@@ -19,6 +19,12 @@
 <meta name="description" content="Tressette, Briscola e Scopa con le carte napoletane: contro il computer o online con gli amici.">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}body{font:14px system-ui}[hidden]{display:none!important}img{max-width:100%}</style>
 <script>window.TRESSETTE_DECK = "carte/";</script>
+<script>
+// No pinch zoom (iOS ignores user-scalable=no in Safari) and no long-press menu outside text fields.
+['gesturestart','gesturechange','gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), {passive: false}));
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, {passive: false});
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input,textarea')) e.preventDefault(); });
+</script>
 </head>
 <body>
 <title>Tressette Napoletano</title>
@@ -171,7 +177,7 @@ button:focus-visible,input:focus-visible,.card:focus-visible{outline:2px solid v
 .seat{display:flex;gap:8px;align-items:center;padding:7px 7px 7px 12px;border-radius:14px;background:var(--glass);border:1px solid var(--hair)}
 .seat .who{flex:1;min-width:0}
 .seat .pos{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.seat input{display:block;width:100%;background:transparent;border:0;color:var(--text);font:700 15px var(--f-ui);padding:2px 0;outline:none;-webkit-user-select:text;user-select:text}
+.seat input{display:block;width:100%;background:transparent;border:0;color:var(--text);font:700 16px var(--f-ui);padding:2px 0;outline:none;-webkit-user-select:text;user-select:text}
 .seat input:focus-visible{outline:none;box-shadow:0 1px 0 var(--lemon)}
 .seg{display:inline-flex;padding:3px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid var(--hair);flex:none}
 .seg button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:12.5px;padding:7px 10px;border-radius:9px}
@@ -674,6 +680,11 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 .ring{border-radius:var(--rr,50%)}
 .ring::before{border-radius:calc(var(--rr,50%) + 16px)}
 .ring .sheen{inset:3% 10% auto;border-radius:var(--rr,50%)}
+/* Feel like an app, not a page: no double-tap or pinch zoom, no long-press menus, no page bounce. */
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
+body{overscroll-behavior:none;-webkit-touch-callout:none}
+img,svg,.card,.face{-webkit-touch-callout:none;-webkit-user-drag:none}
+input,textarea{-webkit-touch-callout:default;-webkit-user-select:text;user-select:text}
 @keyframes tileIn{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.game,.card.tgt .inner{animation:none!important}}
 </style>

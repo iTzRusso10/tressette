@@ -5,9 +5,19 @@ import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { playIntro } from './intro.js';
 
 const native = Capacitor.isNativePlatform();
 const platform = Capacitor.getPlatform();
+
+// Opening animation: in the app on every cold start; on the web only with ?intro (handy for previewing it).
+if (native || /[?&]intro\b/.test(location.search)) {
+  playIntro({
+    onReady: () => { if (native) SplashScreen.hide({ fadeOutDuration: 150 }).catch(() => {}); },
+    haptic: () => { if (native) Haptics.impact({ style: ImpactStyle.Light }).catch(() => {}); },
+  });
+}
 if (native) {
   document.documentElement.classList.add('native', 'native-' + platform);
   // Light status-bar text on the dark table.

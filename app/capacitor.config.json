@@ -17,9 +17,9 @@
       "initialViewportFitValueHint": "cover"
     },
     "SplashScreen": {
-      "launchShowDuration": 1200,
+      "launchShowDuration": 3000,
       "launchAutoHide": true,
-      "launchFadeOutDuration": 300,
+      "launchFadeOutDuration": 150,
       "backgroundColor": "#0B1226",
       "showSpinner": false
     }
