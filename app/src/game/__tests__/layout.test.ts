@@ -36,8 +36,19 @@ function box(p: Place, g: Geometry) {
   return { x0: p.x - bw / 2, x1: p.x + bw / 2, y0: p.y - bh / 2, y1: p.y + bh / 2 };
 }
 
+function tagRects(m: Match, g: Geometry) {
+  return Array.from({ length: m.n }, (_, p) => g.tags[sideOf(m, 0, p)]).map(t => {
+    const left = t.a === 'l' ? t.x : t.a === 'r' ? t.x - TAG_W : t.x - TAG_W / 2;
+    return { x0: left, x1: left + TAG_W, y0: t.y, y1: t.y + TAG_H };
+  });
+}
+
+const hits = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) =>
+  a.x0 < b.x1 - 1 && b.x0 < a.x1 - 1 && a.y0 < b.y1 - 1 && b.y0 < a.y1 - 1;
+
 function check(m: Match, g: Geometry, slots: Map<number, number>, where: string) {
   const places = layoutCards({ m, viewer: 0, g, selected: null, slots });
+  const tags = tagRects(m, g);
   const h = m.h!;
   const f = g.felt;
   const onTable = m.game === 'scopa' ? h.table : h.trick.map(e => e.c);
@@ -47,6 +58,7 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
     expect(b.x1, `${where}: carta ${c} esce a destra dal panno`).toBeLessThanOrEqual(f.x + f.w + 1);
     expect(b.y0, `${where}: carta ${c} esce in alto dal panno`).toBeGreaterThanOrEqual(f.y - 1);
     expect(b.y1, `${where}: carta ${c} esce in basso dal panno`).toBeLessThanOrEqual(f.y + f.h + 1);
+    tags.forEach((t, i) => expect(hits(b, t), `${where}: carta ${c} copre il nome ${i}`).toBe(false));
   }
   for (const c of h.hands[0]) {
     const b = box(places[c], g);
@@ -62,20 +74,13 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
     expect(b.y1, `${where}: le carte in alto coprono il nome`).toBeLessThanOrEqual(g.tags.t.y + 1);
   }
   // The names fit inside the column and don't overlap each other.
-  const tags = Array.from({ length: m.n }, (_, p) => g.tags[sideOf(m, 0, p)]).map(t => {
-    const left = t.a === 'l' ? t.x : t.a === 'r' ? t.x - TAG_W : t.x - TAG_W / 2;
-    return { x0: left, x1: left + TAG_W, y0: t.y, y1: t.y + TAG_H };
-  });
   tags.forEach(t => {
     expect(t.x0).toBeGreaterThanOrEqual(0);
     expect(t.x1).toBeLessThanOrEqual(g.W);
   });
   for (let i = 0; i < tags.length; i++)
     for (let j = i + 1; j < tags.length; j++) {
-      const a = tags[i];
-      const b = tags[j];
-      const overlap = a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-      expect(overlap, `${where}: due nomi si sovrappongono`).toBe(false);
+      expect(hits(tags[i], tags[j]), `${where}: due nomi si sovrappongono`).toBe(false);
     }
   expect(f.y, `${where}: il panno sale sotto il nome in alto`).toBeGreaterThanOrEqual(g.tags.t.y + TAG_H);
   expect(f.y + f.h, `${where}: il panno scende sotto il tuo nome`).toBeLessThanOrEqual(g.tags.b.y);

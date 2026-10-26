@@ -37,6 +37,8 @@ export interface Geometry {
   cw: number;
   ch: number;
   felt: Rect;
+  /** Where cards are played: the felt, minus the side players' names in four. */
+  area: Rect;
   topBar: number;
   tags: Record<Side, TagPos>;
   deck: { x: number; y: number; s: number };
@@ -95,16 +97,20 @@ export function measure(m: Match, W: number, H: number): Geometry {
   const feltBottom = myTagY - 6;
   const felt: Rect = { x: left + PAD, y: feltTop, w: colW - 2 * PAD, h: Math.max(120, feltBottom - feltTop) };
 
+  // In four the side players' names sit on the felt's top corners: cards are played below them.
+  const band = m.n === 4 ? TAG_H + 16 : 0;
+  const area: Rect = { x: felt.x, y: felt.y + band, w: felt.w, h: felt.h - band - (m.n === 4 ? 4 : 0) };
+
   // Cards on the table.
   let ts: number;
   if (m.game === 'scopa') {
-    const fitW = (felt.w - 24) / (4 * cw * 1.06);
-    const fitH = (felt.h - 16) / (3 * ch * 1.04);
+    const fitW = (area.w - 24) / (4 * cw * 1.06);
+    const fitH = (area.h - 16) / (3 * ch * 1.04);
     ts = Math.min(0.8, fitW, fitH);
   } else {
     // Two cards one above the other (offset 0.58 or 0.6 of a card each way), plus a margin.
-    const fitH = (felt.h - 16) / (ch * 2.24);
-    const fitW = (felt.w - 24) / (cw * (m.n === 2 ? 1.2 : 3));
+    const fitH = (area.h - 16) / (ch * 2.24);
+    const fitW = (area.w - 24) / (cw * (m.n === 2 ? 1.2 : 3));
     ts = Math.min(1, fitH, fitW);
   }
 
@@ -117,7 +123,7 @@ export function measure(m: Match, W: number, H: number): Geometry {
   };
   const ds = Math.min(0.5, os * 1.15);
   const deck = { x: left + PAD + (cw * ds) / 2 + 6, y: oppTop + (ch * ds) / 2, s: ds };
-  return { W, H, cw, ch, felt, topBar: TOP_BAR, tags, deck, os, ts, handTop, rowGap, cx, colW };
+  return { W, H, cw, ch, felt, area, topBar: TOP_BAR, tags, deck, os, ts, handTop, rowGap, cx, colW };
 }
 
 /** Scopa: each card on the table keeps its slot until it is taken, so nothing jumps around. */
@@ -148,8 +154,8 @@ function scopaSlot(g: Geometry, slot: number, rowsNeeded: number) {
   const sh = g.ch * g.ts * (rows > 3 ? 0.78 : 1.04);
   const col = slot % cols;
   const row = Math.floor(slot / cols);
-  const x = g.felt.x + g.felt.w / 2 + (col - (cols - 1) / 2) * sw;
-  const y = g.felt.y + g.felt.h / 2 + (row - (rows - 1) / 2) * sh;
+  const x = g.area.x + g.area.w / 2 + (col - (cols - 1) / 2) * sw;
+  const y = g.area.y + g.area.h / 2 + (row - (rows - 1) / 2) * sh;
   return { x, y };
 }
 
@@ -252,8 +258,8 @@ export function layoutCards({ m, viewer, g, selected, slots }: LayoutInput): Rec
     }
   }
 
-  const fx = g.felt.x + g.felt.w / 2;
-  const fy = g.felt.y + g.felt.h / 2;
+  const fx = g.area.x + g.area.w / 2;
+  const fy = g.area.y + g.area.h / 2;
 
   // The trick: each card lands in front of whoever played it.
   if (m.game !== 'scopa') {
