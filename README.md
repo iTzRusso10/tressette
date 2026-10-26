@@ -9,3 +9,5 @@ Tre giochi con le carte napoletane in un'unica pagina web, installabile sul tele
 - Carte napoletane incluse (cartella `carte/`); si può anche usare il mazzo disegnato o la foto del proprio mazzo
 
 Gioca: https://itzrusso10.github.io/tressette/
+
+App per iPhone e Android: vedi [app/README.md](app/README.md).

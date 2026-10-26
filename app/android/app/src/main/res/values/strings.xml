@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Napoletane</string>
+    <string name="title_activity_main">Napoletane</string>
+    <string name="package_name">it.giusepperussodev.napoletane</string>
+    <string name="custom_url_scheme">it.giusepperussodev.napoletane</string>
+</resources>

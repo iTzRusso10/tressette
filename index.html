@@ -23,9 +23,7 @@
 <body>
 <title>Tressette Napoletano</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
 /* Layout: one-screen card table. A cobalt majolica table at night; hands fan in from the edges toward a gilded centre ring where the trick lands. */
 :root{
@@ -899,7 +897,7 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 
 <canvas id="confetti" hidden></canvas>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="vendor/peerjs.min.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1726,6 +1724,7 @@ function tone(f, dur, vol, when = 0, type = 'sine'){
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
 }
 function sfx(k){
+  if (window.nativeFx) try { window.nativeFx(k); } catch(e) {}
   if (isHost() && k !== 'tick' && k !== 'nope') NET.fx.push({k:'s', s:k});
   if (!AC || muted) return;
   if (k === 'card') noise(0.09, 3400, 1700, 0.4);
