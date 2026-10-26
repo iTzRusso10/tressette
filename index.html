@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tressette">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta property="og:title" content="Tressette">
 <meta property="og:description" content="Gioca a tressette con le carte napoletane, anche online con gli amici.">
 <meta property="og:image" content="https://itzrusso10.github.io/tressette/icone/icona-512.png">
@@ -624,6 +624,8 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 .btn.danger{background:linear-gradient(180deg,#FF7A8F,#E8445F);color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 0 #A82640,0 12px 24px rgba(232,68,95,.35)}
 .btn.danger:active{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 0 #A82640}
 .btn.plain.quit{color:#FF8FA3}
+#levelBox[hidden] + div{grid-column:1 / -1}
+#menu{background:radial-gradient(90% 60% at 50% 30%,rgba(22,35,74,.94),rgba(5,7,15,.97));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 @keyframes glowShift{from{transform:translate(0,0)}to{transform:translate(-3%,2%)}}
 </style>
 
@@ -1790,7 +1792,7 @@ function renderMenu(){
   }
   $('#seatRows').innerHTML = html;
   const anyCpu = cfg.seats.slice(1, n).some(s => s.type === 'cpu');
-  $('#levelBox').style.visibility = anyCpu ? 'visible' : 'hidden';
+  $('#levelBox').hidden = !anyCpu;
   $('#levelSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cfg.level)));
   $('#targetSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === cfg.target)));
   $('#targetLbl').textContent = cfg.mode === 'perdere' ? 'Si perde a' : 'Si vince a';
