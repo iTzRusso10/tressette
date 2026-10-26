@@ -685,6 +685,12 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:10
 body{overscroll-behavior:none;-webkit-touch-callout:none}
 img,svg,.card,.face{-webkit-touch-callout:none;-webkit-user-drag:none}
 input,textarea{-webkit-touch-callout:default;-webkit-user-select:text;user-select:text}
+.tag.turn{animation:none}
+.tag .s{position:relative}
+.tag .s .dots{position:absolute;left:0;top:50%;transform:translateY(-50%);visibility:hidden}
+.tag .s.th .st{visibility:hidden}
+.tag .s.th .dots{visibility:visible}
+.tag .st{white-space:nowrap}
 @keyframes tileIn{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.game,.card.tgt .inner{animation:none!important}}
 </style>
@@ -743,6 +749,10 @@ input,textarea{-webkit-touch-callout:default;-webkit-user-select:text;user-selec
       <section>
         <h2 class="lbl">Modalità</h2>
         <div class="modes" role="radiogroup" aria-label="Modalità di gioco"></div>
+      </section>
+      <section id="perdNBox" hidden>
+        <h2 class="lbl">Giocatori</h2>
+        <div class="seg" id="perdNSeg"><button data-n="2">In due</button><button data-n="4">In quattro</button></div>
       </section>
       <section>
         <h2 class="lbl">Al tavolo</h2>
@@ -1106,7 +1116,7 @@ const GAMES = {
   scopa: {name: 'Scopa', modes: ['2','4'], targets: [11,16,21], tlabel: 'Si vince a', desc: 'Prendi dal tavolo per valore o per somma e spazzalo tutto per fare scopa.', fan: [16,6,26]}
 };
 const MODEINFO = {
-  tressette: {'2': ['In due','Uno contro uno, si pesca dal mazzo.'], '4': ['In quattro','A coppie, col compagno di fronte.'], 'perdere': ['A perdere','In quattro, vince chi prende meno.']},
+  tressette: {'2': ['In due','Uno contro uno, si pesca dal mazzo.'], '4': ['In quattro','A coppie, col compagno di fronte.'], 'perdere': ['A perdere','In due o in quattro, vince chi prende meno.']},
   briscola: {'2': ['In due','Uno contro uno, tre carte a testa.'], '4': ['In quattro','A coppie, col compagno di fronte.']},
   scopa: {'2': ['In due','Uno contro uno, quattro carte in tavola.'], '4': ['In quattro','A coppie, col compagno di fronte.']}
 };
@@ -1125,6 +1135,9 @@ try { const c = JSON.parse(localStorage.getItem(CFGKEY)); if (c && c.seats && c.
 if (!cfg.game) cfg.game = 'tressette';
 cfg.g = Object.assign({tressette: {mode: cfg.mode || '2', target: cfg.target || 21}, briscola: {mode: '2', target: 1}, scopa: {mode: '2', target: 11}}, cfg.g || {});
 // A perdere a hand is worth 21 points (Asso di bastoni 11), so the only limit is 31.
+// Players at the table: a perdere can be played in two or in four, each for themselves.
+const cfgN = () => cfg.mode === '2' ? 2 : cfg.mode === 'perdere' ? (cfg.perdN === 2 ? 2 : 4) : 4;
+const posl = i => (cfg.mode === 'perdere' && cfgN() === 2 ? POSL['2'] : POSL[cfg.mode])[i];
 const targetsFor = (game, mode) => game === 'tressette' && mode === 'perdere' ? [31] : GAMES[game].targets;
 const effTarget = () => { const t = targetsFor(cfg.game, cfg.mode); return t.includes(cfg.target) ? cfg.target : t[0]; };
 function syncGame(){ const gg = cfg.g[cfg.game]; cfg.mode = gg.mode; cfg.target = gg.target; if (!GAMES[cfg.game].modes.includes(cfg.mode)) cfg.mode = gg.mode = GAMES[cfg.game].modes[0]; if (!GAMES[cfg.game].targets.includes(cfg.target)) cfg.target = gg.target = GAMES[cfg.game].targets[0]; }
@@ -1452,64 +1465,70 @@ function measure(){
   const cy = (topY + ch*os*0.5 + handTop)/2;
   const spv = Math.min(cw*os*0.5, (H*0.34)/9);
   G = {W, H, cw, ch, hs, os, handH, handTop, two, rowGap, baseY, topY, cy, cx:W/2, ts: n === 4 ? 1.06 : 1.16, spv, deckX: Math.max(cw*0.55 + 2, W/2 - W*0.32)};
-  G.rcy = cy; G.sy = cy;
-  if (S && S.game && S.game !== 'tressette' && n === 4){
-    const sideTagY = topY + ch*os/2 + 6 + 46 + 8;
-    G.sy = sideTagY + 46 + 10 + spv + cw*os/2;
-    G.tTop = sideTagY + 46 + 6; G.tBot = handTop - 64;
-    G.cy = (G.tTop + G.tBot)/2;
-  } else { G.tTop = null; }
+  G.rcy = cy; G.sy = cy; G.tTop = null;
+  if (S && S.game && n === 4){
+    // Left and right players: tag at the top of a column between the top tag and yours, hand right under it.
+    const k = handCount(), colTop = tagPos('t').y + TAGH + 8, colBot = tagPos('b').y - 10;
+    const handTop0 = colTop + TAGH + 8;
+    G.spv = Math.max(6, Math.min(cw*os*0.5, (colBot - handTop0 - cw*os)/Math.max(1, k - 1)));
+    G.sideTagY = colTop;
+    G.sy = handTop0 + G.spv*(k - 1)/2 + cw*os/2;
+    G.tTop = colTop + TAGH + 6; G.tBot = handTop - 64;
+    const f = feltBox();
+    G.sideX = Math.max(ch*os*0.5 - 6, f.x - ch*os*0.5 - 14);
+  }
+  if (S && S.game){ const f = feltBox(); G.cy = G.rcy = f.y + f.h/2; G.fx = f.x; }
   G.bw = cw*Math.max(1, hs); G.bh = ch*Math.max(1, hs); G.bs = Math.max(1, hs);
   rootStyle.setProperty('--cw', G.bw + 'px'); rootStyle.setProperty('--ch', G.bh + 'px');
 }
-function handCount(p){
-  if (!S || !S.h || p === undefined) return 10;
-  const h = S.h; let k = h.hands[p] ? h.hands[p].length : 10;
-  if (h.reveal && p === S.viewer) k += h.reveal.filter(e => e.p === p).length;
-  return Math.max(1, k);
-}
+// Name tags and the felt are placed for a full hand, so they never move while cards are played.
+function handCount(){ return S && gameOf() !== 'tressette' ? 3 : 10; }
 const TAGH = 46;
 function tagPos(side, p){
   const {W, cx, cy, baseY, topY, ch, cw, os, spv, hs} = G;
-  const k = handCount(p === undefined && side === 'b' && S ? S.viewer : p);
+  const k = handCount();
   if (side === 'b'){
     const twoRows = G.two && k > 5;
     const top = (twoRows ? G.handTop : baseY - ch*hs/2) - (G.two ? 6 : 9);
-    return {x:0, y: top - TAGH - 8, a:'l'};
+    return {x: G.W >= 700 && G.fx ? G.fx : 0, y: top - TAGH - 8, a:'l'};
   }
   if (side === 't') return {x:cx, y: topY + ch*os/2 + 6, a:'c'};
-  const half = spv*(k - 1)/2 + cw*os/2;
-  const y = Math.max(topY + ch*os/2 + TAGH + 14, G.sy - half - TAGH - 6);
-  return side === 'l' ? {x:0, y, a:'l'} : {x:W, y, a:'r'};
+  const y = G.sideTagY != null ? G.sideTagY : Math.max(topY + ch*os/2 + TAGH + 14, G.sy - spv*(k - 1)/2 - cw*os/2 - TAGH - 6);
+  const ex = G.sideX != null ? Math.max(0, G.sideX - ch*os/2) : 0;
+  return side === 'l' ? {x:ex, y, a:'l'} : {x:W - ex, y, a:'r'};
 }
 /* The felt: a rounded table that fills the space between the top player's tag and yours. */
 function feltBox(){
   const W = G.W, top = tagPos('t').y + TAGH/2, bottom = tagPos('b').y + 10;
-  const h = Math.max(120, bottom - top), w = Math.min(W - 28, 1000, Math.max(300, h*2.6));
+  const h = Math.max(120, bottom - top);
+  let w = Math.min(W - 28, 1000, Math.max(300, h*2.6));
+  if (S && S.n === 4 && W >= 700) w = Math.min(w, W - 2*(G.ch*G.os + 40));
   return {x: (W - w)/2, y: top, w, h, r: Math.max(34, Math.min(w, h)*0.2)};
 }
 function anchorPt(tp){ return {x: tp.a === 'l' ? tp.x + 64 : tp.a === 'r' ? tp.x - 64 : tp.x, y: tp.y + 19}; }
 function trickOff(side){
   const {cw, ch, ts} = G;
-  if (S.n === 2) return side === 'b' ? [cw*ts*0.3, ch*ts*0.17] : [-cw*ts*0.3, -ch*ts*0.17];
-  return {b:[0, ch*ts*0.33], t:[0, -ch*ts*0.33], l:[-cw*ts*0.66, 0], r:[cw*ts*0.66, 0]}[side];
+  if (S.n === 2) return side === 'b' ? [cw*ts*0.34, ch*ts*0.2] : [-cw*ts*0.34, -ch*ts*0.2];
+  return {b:[0, ch*ts*0.42], t:[0, -ch*ts*0.42], l:[-cw*ts*0.8, 0], r:[cw*ts*0.8, 0]}[side];
 }
 const jit = c => (((c*53) % 13) - 6) * 0.9;
 const hk = c => (c*17 + 7) % 41;
 const handSort = (a,b) => { const g = gameOf(); if (g === 'scopa') return rankOf(a) - rankOf(b) || suitOf(a) - suitOf(b); return suitOf(a) - suitOf(b) || (g === 'briscola' ? bpw(b) - bpw(a) : pw(b) - pw(a)); };
 let sopts = null;
 
+// The deck sits off the felt, top left, at the size of the top player's cards.
+const hasDeck = () => gameOf() !== 'tressette' || S.n === 2;
+const deckScale = () => Math.min(1, G.os*1.2);
 function origin(){
-  if (gameOf() === 'scopa'){ const d = G.cw*G.os/2; return {x: Math.max(16 + d, feltBox().x + d + 6), y: G.topY + 2}; }
-  if (gameOf() === 'tressette') return S.n === 2 ? {x:G.deckX, y:G.cy} : {x:G.cx, y:G.cy};
-  if (S.n === 2) return {x:G.deckX, y:G.cy};
-  return {x: G.W - G.ch*G.os - 10 - G.cw*0.42, y: G.tBot - G.ch*0.39 - 22};
+  if (!hasDeck()) return {x:G.cx, y:G.cy};
+  const ds = deckScale(), d = G.cw*ds/2;
+  return {x: Math.max(16 + d, feltBox().x + d + 6), y: Math.max(G.topY + 2, G.ch*ds/2 + 6)};
 }
 function tableSlots(count){
   const {W, cw, ch, os, hs} = G, n = S.n, f = feltBox();
   const pad = Math.max(14, f.r*0.28);
   let left = f.x + pad, right = f.x + f.w - pad;
-  if (n === 4){ left = Math.max(left, ch*os + 10); right = Math.min(right, W - ch*os - 10); }
+  if (n === 4){ left = Math.max(left, G.sideX + ch*os/2 + 10); right = Math.min(right, W - G.sideX - ch*os/2 - 10); }
   const top = n === 4 && G.tTop != null ? Math.max(G.tTop, f.y + TAGH/2 + 10) : f.y + TAGH/2 + 10, bottom = f.y + f.h - pad;
   const aw = Math.max(cw, right - left), ah = Math.max(ch*0.6, bottom - top);
   // Table cards keep one size, smaller than the hand, in rows with felt around them; they only shrink when the table is crowded.
@@ -1567,9 +1586,9 @@ function layout(){
         const sp = Math.min(cw*os*0.56, (W*0.62)/Math.max(1, k));
         o = {x: cx - t*sp, y: topY - t*t*0.45, r: 180 + t*2.2, s: os, up: false, z: 100 + i};
       } else if (side === 'l'){
-        o = {x: ch*os*0.5 - 6, y: G.sy + t*spv, r: 90 + t*2, s: os, up: false, z: 100 + i};
+        o = {x: G.sideX, y: G.sy + t*spv, r: 90 + t*2, s: os, up: false, z: 100 + i};
       } else {
-        o = {x: W - ch*os*0.5 + 6, y: G.sy - t*spv, r: -90 + t*2, s: os, up: false, z: 100 + i};
+        o = {x: W - G.sideX, y: G.sy - t*spv, r: -90 + t*2, s: os, up: false, z: 100 + i};
       }
       place[c] = o;
       const el = cardEls[c];
@@ -1581,9 +1600,9 @@ function layout(){
     });
   }
   const o0 = origin();
-  const dsc = game === 'scopa' ? os : (game !== 'tressette' && n === 4) ? 0.78 : 1;
+  const dsc = hasDeck() ? deckScale() : 1;
   h.deck.forEach((c,i) => { place[c] = {x: o0.x - i*0.22, y: o0.y - i*0.32, r: 0, s: dsc, up: false, z: 50 + i}; cardEls[c].classList.toggle('stk', i < h.deck.length - 2); });
-  if (game === 'briscola' && h.brisc !== null && h.deck.length && h.deck[0] === h.brisc) place[h.brisc] = {x: o0.x + (n === 4 ? -1 : 1)*cw*0.62*dsc, y: o0.y, r: 90, s: dsc, up: true, z: 45};
+  if (game === 'briscola' && h.brisc !== null && h.deck.length && h.deck[0] === h.brisc) place[h.brisc] = {x: o0.x + cw*0.62*dsc, y: o0.y, r: 90, s: dsc, up: true, z: 45};
   const tgt = new Set(sopts && selected !== null ? [].concat(...sopts) : []);
   if (game === 'scopa'){
     const slots = tableSlots(Math.max(1, (h.table || []).length));
@@ -1617,7 +1636,7 @@ function layout(){
   if (ts2){ ringEl.style.setProperty('--ta', ({b:180, t:0, r:90, l:270})[ts2] + 'deg'); ringEl.style.setProperty('--tc', TEAMC[teamOf(h.turn)]); ringEl.classList.add('on'); } else ringEl.classList.remove('on');
   if ((n === 2 || game !== 'tressette') && h.deck.length){
     deckcEl.hidden = false; deckcEl.textContent = h.deck.length;
-    deckcEl.style.transform = game === 'scopa' ? `translate(${o0.x + cw*dsc/2 + 10}px,${o0.y}px) translateY(-50%)` : `translate(${o0.x}px,${o0.y + ch*0.5*dsc + 10}px) translateX(-50%)`;
+    deckcEl.style.transform = `translate(${o0.x}px,${o0.y + ch*dsc/2}px) translate(-50%,-50%)`;
   } else deckcEl.hidden = true;
   toastsEl.style.top = (n === 2 ? topY + ch*os/2 + 56 : topY + ch*os/2 + 54) + 'px';
   if (isHost()) scheduleBroadcast();
@@ -1665,14 +1684,28 @@ function renderTags(){
     el.style.transform = `translate(${tp.x}px,${tp.y}px) translateX(${tp.a === 'l' ? '0' : tp.a === 'r' ? '-100%' : '-50%'})`;
     el.classList.toggle('turn', !h.over && h.turn === p && h.trick.length < S.n);
     const sub = el.querySelector('.s');
-    if (thinking === p) sub.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>`;
-    else if (isHost() && S.seats[p].type === 'remote'){ const on = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]); sub.textContent = on ? `online · ${tagStat(p)}` : 'scollegato'; }
-    else sub.textContent = `${S.seats[p].type === 'cpu' && !el.classList.contains('side') ? 'CPU · ' : ''}${tagStat(p)}`;
+    const remote = isHost() && S.seats[p].type === 'remote';
+    const pre = remote ? 'online · ' : S.seats[p].type === 'cpu' && !el.classList.contains('side') && gameOf() !== 'scopa' ? 'CPU · ' : '';
+    let text;
+    if (remote){ const on = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]); text = on ? `online · ${tagStat(p)}` : 'scollegato'; }
+    else text = pre + tagStat(p);
+    // The status text stays in place (hidden) under the thinking dots, so the tag keeps its width.
+    sub.classList.toggle('th', thinking === p);
+    sub.innerHTML = `<span class="st">${esc(text)}</span><span class="dots"><i></i><i></i><i></i></span>`;
+    // Lock the width to the longest status this seat can show, so a centred tag never shifts.
+    const key = sd + pre;
+    if (el.dataset.mk !== key){
+      el.dataset.mk = key; el.style.minWidth = '';
+      const st = sub.firstChild, keep = st.textContent;
+      let w = 0;
+      for (const t of [pre + (gameOf() === 'scopa' ? '40 carte · 10 scope' : 'prese 20'), keep, remote ? 'scollegato' : '']){ st.textContent = t; w = Math.max(w, el.offsetWidth); }
+      st.textContent = keep; el.dataset.mw = w; el.style.minWidth = w + 'px';
+    } else if (el.offsetWidth > +el.dataset.mw){ el.dataset.mw = el.offsetWidth; el.style.minWidth = el.offsetWidth + 'px'; }
   });
 }
 function tagStat(p){
   const h = S.h, g = gameOf();
-  if (g === 'scopa') return h.scope[p] ? `${h.scope[p] === 1 ? '1 scopa' : h.scope[p] + ' scope'} · ${h.capt[p].length} carte` : `${h.capt[p].length} carte`;
+  if (g === 'scopa') return `${h.capt[p].length} carte · ${h.scope[p] === 1 ? '1 scopa' : h.scope[p] + ' scope'}`;
   return `prese ${h.tricks[p]}`;
 }
 function renderHud(){
@@ -1761,7 +1794,7 @@ function clearSave(){ try { localStorage.removeItem(KEY); } catch(e) {} }
 function startMatch(){
   GEN++; setPaused(false); clearBubbles(); fxEl.innerHTML = ''; toastsEl.innerHTML = '';
   syncGame();
-  const n = cfg.mode === '2' ? 2 : 4;
+  const n = cfgN();
   S = {
     game: cfg.game, mode: cfg.mode, n,
     seats: cfg.seats.slice(0, n).map((s,i) => ({name: (s.name || '').trim().slice(0, 16) || (i ? (s.type === 'cpu' ? CPU_NAMES[i-1] : 'Giocatore ' + (i+1)) : 'Tu'), type: i === 0 ? 'human' : (s.type === 'online' ? 'remote' : s.type)})),
@@ -2118,7 +2151,7 @@ $('#pauseBtn').addEventListener('click', () => {
   if (!S){ openMenu(); return; }
   if (!isGuest()) setPaused(true);
   $('#pNew').firstChild.textContent = isGuest() ? 'Esci dalla stanza ' : 'Esci dalla partita ';
-  $('#pauseSub').textContent = `${GAMES[gameOf()].name} · ${NET.code ? 'stanza ' + NET.code + ' · ' : ''}${S.mode === '2' ? 'in due' : S.mode === '4' ? 'in quattro a coppie' : 'a perdere'} · mano ${S.handNo}`;
+  $('#pauseSub').textContent = `${GAMES[gameOf()].name} · ${NET.code ? 'stanza ' + NET.code + ' · ' : ''}${S.mode === '2' ? 'in due' : S.mode === '4' ? 'in quattro a coppie' : S.n === 2 ? 'a perdere in due' : 'a perdere'} · mano ${S.handNo}`;
   $('#pLast').firstChild.textContent = gameOf() === 'scopa' ? 'Ultima presa ' : 'Ultima presa ';
   $('#pLast').disabled = !(S.h && S.h.last);
   $('#pSoundV').textContent = muted ? 'no' : 'sì';
@@ -2157,7 +2190,7 @@ $('#pLast').onclick = () => {
 $('#ltClose').onclick = () => { $('#lastTrick').hidden = true; $('#pause').hidden = false; };
 
 let rulesBack = null;
-const RULES = {tressette: '\n      <h3>Forza delle carte</h3>\n      <div class="rank"><span>3</span><span>2</span><span>1</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><em>dalla più forte · 1 Asso, 8 Fante, 9 Cavallo, 10 Re</em></div>\n      <p>Non c\'è briscola. Chi apre sceglie il seme e gli altri devono rispondere a seme. Se non ce l\'hai, giochi la carta che vuoi, ma non prendi. Prende la carta più forte del seme uscito.</p>\n      <h3>Punti</h3>\n      <p>L\'Asso vale 1 punto. Tre, Due, Re, Cavallo e Fante valgono ⅓ ciascuno (tre figure fanno un punto). Le altre carte non valgono niente. Chi prende l\'ultima mano guadagna 1 punto. In ogni mano ci sono 11 punti; i terzi avanzati non contano.</p>\n      <h3>In due</h3>\n      <p>Dieci carte a testa. Dopo ogni presa si pesca dal mazzo, prima chi ha preso. Le carte pescate si mostrano all\'avversario.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l\'ultima carta che ho di questo seme).</p>\n      <h3>Cappotto</h3>\n      <p>Solo nella partita a perdere: se in una mano un giocatore prende tutti i punti, compresa l\'ultima presa, e gli altri restano a zero, vince subito la partita. Si può disattivare dal menu.</p>\n      <h3>Accusi</h3>\n      <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>\n      <h3>A perdere</h3>\n      <p>In quattro, ognuno per sé, con le stesse regole di presa. L\'Asso di bastoni vale 11 punti, quindi in ogni mano ce ne sono 21. Conviene liberarsi delle carte forti e degli Assi, soprattutto di quello di bastoni. Chi raggiunge il limite perde la partita; vince chi ha meno punti.</p>\n    ', briscola: '\n      <h3>Lo scopo</h3>\n      <p>Fare più di 60 punti sui 120 del mazzo. Chi vince la mano guadagna una partita; a 60 pari nessuno.</p>\n      <h3>Forza e punti</h3>\n      <div class="rank"><span>1</span><span>3</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>2</span><em>dalla più forte</em></div>\n      <p>Asso 11 punti, Tre 10, Re 4, Cavallo 3, Fante 2. Le altre carte non valgono niente.</p>\n      <h3>La briscola</h3>\n      <p>Si danno tre carte a testa e si scopre una carta: il suo seme è la briscola e comanda su tutti gli altri. La carta scoperta resta sotto il mazzo e la pesca l\'ultimo.</p>\n      <h3>Come si prende</h3>\n      <p>Non c\'è obbligo di rispondere a seme. Prende la briscola più alta; se non ci sono briscole, la carta più alta del seme uscito per primo. Dopo ogni presa si pesca una carta, prima chi ha preso.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte. I punti della coppia si sommano.</p>', scopa: "\n      <h3>Lo scopo</h3>\n      <p>Prendere più carte possibile dal tavolo e fare scope. Si gioca fino a 11 punti (o 16, 21).</p>\n      <h3>Il valore delle carte</h3>\n      <p>Ogni carta vale il suo numero: Asso 1, poi 2 fino a 7, Fante 8, Cavallo 9, Re 10.</p>\n      <h3>Come si prende</h3>\n      <p>Si danno tre carte a testa e quattro vanno in tavola. Al tuo turno giochi una carta: prendi la carta in tavola con lo stesso valore, oppure più carte la cui somma fa quel valore. Se c'è una carta uguale, devi prendere quella. Se non puoi prendere, la carta resta in tavola.</p>\n      <h3>Scopa</h3>\n      <p>Se prendi tutte le carte del tavolo fai scopa: un punto. All'ultima giocata della mano la scopa non vale. Le carte rimaste alla fine vanno a chi ha preso per ultimo.</p>\n      <h3>I punti della mano</h3>\n      <p>Un punto per ogni scopa, più un punto a testa per: più carte, più denari, il Settebello (il 7 di denari) e la Primiera (la somma più alta delle carte migliori per seme: 7 vale 21, 6 vale 18, Asso 16, 5 vale 15, 4 vale 14, 3 vale 13, 2 vale 12, figure 10).</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte: carte e scope della coppia si sommano.</p>"};
+const RULES = {tressette: '\n      <h3>Forza delle carte</h3>\n      <div class="rank"><span>3</span><span>2</span><span>1</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><em>dalla più forte · 1 Asso, 8 Fante, 9 Cavallo, 10 Re</em></div>\n      <p>Non c\'è briscola. Chi apre sceglie il seme e gli altri devono rispondere a seme. Se non ce l\'hai, giochi la carta che vuoi, ma non prendi. Prende la carta più forte del seme uscito.</p>\n      <h3>Punti</h3>\n      <p>L\'Asso vale 1 punto. Tre, Due, Re, Cavallo e Fante valgono ⅓ ciascuno (tre figure fanno un punto). Le altre carte non valgono niente. Chi prende l\'ultima mano guadagna 1 punto. In ogni mano ci sono 11 punti; i terzi avanzati non contano.</p>\n      <h3>In due</h3>\n      <p>Dieci carte a testa. Dopo ogni presa si pesca dal mazzo, prima chi ha preso. Le carte pescate si mostrano all\'avversario.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l\'ultima carta che ho di questo seme).</p>\n      <h3>Cappotto</h3>\n      <p>Solo nella partita a perdere: se in una mano un giocatore prende tutti i punti, compresa l\'ultima presa, e gli altri restano a zero, vince subito la partita. Si può disattivare dal menu.</p>\n      <h3>Accusi</h3>\n      <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>\n      <h3>A perdere</h3>\n      <p>In due o in quattro, ognuno per sé, con le stesse regole di presa; in due si pesca dal mazzo dopo ogni presa. L\'Asso di bastoni vale 11 punti, quindi in ogni mano ce ne sono 21. Conviene liberarsi delle carte forti e degli Assi, soprattutto di quello di bastoni. Chi raggiunge il limite perde la partita; vince chi ha meno punti.</p>\n    ', briscola: '\n      <h3>Lo scopo</h3>\n      <p>Fare più di 60 punti sui 120 del mazzo. Chi vince la mano guadagna una partita; a 60 pari nessuno.</p>\n      <h3>Forza e punti</h3>\n      <div class="rank"><span>1</span><span>3</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>2</span><em>dalla più forte</em></div>\n      <p>Asso 11 punti, Tre 10, Re 4, Cavallo 3, Fante 2. Le altre carte non valgono niente.</p>\n      <h3>La briscola</h3>\n      <p>Si danno tre carte a testa e si scopre una carta: il suo seme è la briscola e comanda su tutti gli altri. La carta scoperta resta sotto il mazzo e la pesca l\'ultimo.</p>\n      <h3>Come si prende</h3>\n      <p>Non c\'è obbligo di rispondere a seme. Prende la briscola più alta; se non ci sono briscole, la carta più alta del seme uscito per primo. Dopo ogni presa si pesca una carta, prima chi ha preso.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte. I punti della coppia si sommano.</p>', scopa: "\n      <h3>Lo scopo</h3>\n      <p>Prendere più carte possibile dal tavolo e fare scope. Si gioca fino a 11 punti (o 16, 21).</p>\n      <h3>Il valore delle carte</h3>\n      <p>Ogni carta vale il suo numero: Asso 1, poi 2 fino a 7, Fante 8, Cavallo 9, Re 10.</p>\n      <h3>Come si prende</h3>\n      <p>Si danno tre carte a testa e quattro vanno in tavola. Al tuo turno giochi una carta: prendi la carta in tavola con lo stesso valore, oppure più carte la cui somma fa quel valore. Se c'è una carta uguale, devi prendere quella. Se non puoi prendere, la carta resta in tavola.</p>\n      <h3>Scopa</h3>\n      <p>Se prendi tutte le carte del tavolo fai scopa: un punto. All'ultima giocata della mano la scopa non vale. Le carte rimaste alla fine vanno a chi ha preso per ultimo.</p>\n      <h3>I punti della mano</h3>\n      <p>Un punto per ogni scopa, più un punto a testa per: più carte, più denari, il Settebello (il 7 di denari) e la Primiera (la somma più alta delle carte migliori per seme: 7 vale 21, 6 vale 18, Asso 16, 5 vale 15, 4 vale 14, 3 vale 13, 2 vale 12, figure 10).</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte: carte e scope della coppia si sommano.</p>"};
 function openRules(back, game){
   game = game || cfg.game || 'tressette'; rulesBack = back;
   $('#rulesTitle').textContent = 'Come si gioca a ' + GAMES[game].name;
@@ -2205,11 +2238,11 @@ function renderMenu(){
   $('#targetSeg').innerHTML = targetsFor(cfg.game, cfg.mode).map(v => `<button data-v="${v}">${v}</button>`).join('');
   cfg.seats.forEach((st, i) => { if (i && st.type === 'human'){ st.type = 'cpu'; if (/^Giocatore \d$/.test(st.name) || !st.name) st.name = CPU_NAMES[i - 1]; } });
   document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === cfg.mode)));
-  const n = cfg.mode === '2' ? 2 : 4;
+  const n = cfgN();
   let html = '';
   for (let i=0;i<n;i++){
     const s = cfg.seats[i];
-    html += `<div class="seat"><div class="who"><div class="pos">${POSL[cfg.mode][i]}</div><input id="seatName${i}" data-i="${i}" maxlength="16" value="${esc(s.name)}" aria-label="Nome: ${POSL[cfg.mode][i]}" autocomplete="off"></div>` +
+    html += `<div class="seat"><div class="who"><div class="pos">${posl(i)}</div><input id="seatName${i}" data-i="${i}" maxlength="16" value="${esc(s.name)}" aria-label="Nome: ${posl(i)}" autocomplete="off"></div>` +
       (i ? `<div class="seg" data-i="${i}"><button data-t="cpu" aria-pressed="${s.type === 'cpu'}">Computer</button><button data-t="online" aria-pressed="${s.type === 'online'}">Online</button></div>` : '') + `</div>`;
   }
   $('#seatRows').innerHTML = html;
@@ -2221,6 +2254,8 @@ function renderMenu(){
   $('#accusiRow').hidden = cfg.game !== 'tressette' || cfg.mode === 'perdere';
   $('#accusiChk').checked = !!cfg.accusi;
   $('#cappRow').hidden = cfg.game !== 'tressette' || cfg.mode !== 'perdere';
+  $('#perdNBox').hidden = cfg.mode !== 'perdere';
+  $('#perdNSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === cfgN())));
   $('#cappChk').checked = cfg.cappotto !== false;
   const humansN = cfg.seats.slice(0, n).filter((s,i) => i === 0 || s.type === 'human').length;
   const onl = cfg.seats.slice(1, n).some(s => s.type === 'online');
@@ -2243,8 +2278,9 @@ $('#seatRows').addEventListener('input', e => { const i = +e.target.dataset.i; i
 $('#levelSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.level = b.dataset.v; saveCfg(); renderMenu(); });
 $('#targetSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || targetsFor(cfg.game, cfg.mode).length < 2) return; cfg.target = cfg.g[cfg.game].target = +b.dataset.v; saveCfg(); renderMenu(); });
 $('#accusiChk').addEventListener('change', e => { cfg.accusi = e.target.checked; saveCfg(); });
+$('#perdNSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.perdN = +b.dataset.n; saveCfg(); sfx('tick'); renderMenu(); });
 $('#cappChk').addEventListener('change', e => { cfg.cappotto = e.target.checked; saveCfg(); });
-$('#startBtn').onclick = () => { audio(); const n = cfg.mode === '2' ? 2 : 4; if (cfg.seats.slice(1, n).some(s => s.type === 'online')) hostRoom(); else { leaveOnline(); startMatch(); } };
+$('#startBtn').onclick = () => { audio(); const n = cfgN(); if (cfg.seats.slice(1, n).some(s => s.type === 'online')) hostRoom(); else { leaveOnline(); startMatch(); } };
 $('#resumeBtn').onclick = () => { audio(); resumeFromMenu(); };
 
 function openMenu(){
@@ -2765,7 +2801,7 @@ function netState(){
     h: h ? {hands: h.hands, deck: h.deck, trick: h.trick, turn: h.turn, terzi: h.terzi, tricks: h.tricks, capt: h.capt, accusi: h.accusi, signal: h.signal, over: h.over, ultima: h.ultima, last: h.last, reveal: h.reveal, result: h.result, glow: h.glow, table: h.table, brisc: h.brisc, trump: h.trump, pts: h.pts, scope: h.scope, lastCap: h.lastCap, glowSet: h.glowSet, inPlay: h.inPlay} : null};
 }
 function lobbyState(){
-  const n = cfg.mode === '2' ? 2 : 4, present = new Set(NET.room ? NET.room.peers().map(p => p.peer) : []);
+  const n = cfgN(), present = new Set(NET.room ? NET.room.peers().map(p => p.peer) : []);
   const players = [...Array(n).keys()].map(i => {
     const st = cfg.seats[i];
     if (i === 0) return {name: cfg.seats[0].name, ok: true};
@@ -2813,7 +2849,7 @@ function wireHost(){
     const present = new Set(Rm.peers().map(x => x.peer));
     let seat = Object.keys(NET.seatPeer).find(k => NET.seatPeer[k] === m.peer);
     if (seat === undefined){
-      const n = NET.inGame && S ? S.n : (cfg.mode === '2' ? 2 : 4);
+      const n = NET.inGame && S ? S.n : (cfgN());
       const isRemote = i => NET.inGame && S ? S.seats[i].type === 'remote' : cfg.seats[i].type === 'online';
       const free = [...Array(n).keys()].filter(i => i > 0 && isRemote(i) && (!NET.seatPeer[i] || !present.has(NET.seatPeer[i])));
       const pick = free.find(i => NET.names[i] === name) ?? free[0];
@@ -2865,10 +2901,10 @@ async function rehost(o){
 function renderLobby(){
   if ($('#online').hidden || !isHost()) return;
   $('#onCode').textContent = NET.code;
-  const n = cfg.mode === '2' ? 2 : 4, present = new Set(NET.room ? NET.room.peers().map(p => p.peer) : []);
+  const n = cfgN(), present = new Set(NET.room ? NET.room.peers().map(p => p.peer) : []);
   let html = '', ready = true;
   for (let i=1;i<n;i++){
-    const st = cfg.seats[i], pos = POSL[cfg.mode][i];
+    const st = cfg.seats[i], pos = posl(i);
     if (st.type === 'online'){
       const ok = !!NET.seatPeer[i] && present.has(NET.seatPeer[i]); if (!ok) ready = false;
       html += `<div class="sline"><span>${esc(pos)}</span>${ok ? `<span class="ok">${esc(NET.names[i])} è dentro</span>` : `<span class="wait">in attesa…</span>`}</div>`;
