@@ -619,6 +619,8 @@ html{background:#05070F}
 .tag.side .n{font-size:13.5px}
 .tag.side .s{font-size:10.5px}
 .tag{transition:transform .45s var(--pop),box-shadow .3s}
+html.fullfix,html.fullfix body{height:var(--fullh)}
+html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;height:var(--fullh)}
 @keyframes glowShift{from{transform:translate(0,0)}to{transform:translate(-3%,2%)}}
 </style>
 
@@ -2587,8 +2589,22 @@ function peerGuest(name){
 
 function boot(){
   measure();
-  openMenu();
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY)); } catch(e) {}
+  if (saved && saved.h && !saved.finished){ $('#menu').hidden = true; restore(saved); }
+  else openMenu();
 }
+/* iPhone home-screen app: the viewport can come up short by the status-bar height; size to the full screen */
+(function fullScreenFix(){
+  const sa = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if (!sa) return;
+  const fix = () => {
+    const portrait = innerHeight >= innerWidth, h = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
+    if (h > innerHeight + 4){ document.documentElement.style.setProperty('--fullh', h + 'px'); document.documentElement.classList.add('fullfix'); }
+    else { document.documentElement.style.removeProperty('--fullh'); document.documentElement.classList.remove('fullfix'); }
+    if (S && S.h){ measure(); layout(); renderTags(); }
+  };
+  fix(); addEventListener('resize', fix); addEventListener('orientationchange', () => setTimeout(fix, 300));
+})();
 window.claude?.hot?.snapshot?.(() => ({S}));
 const hot = window.claude?.hot;
 if (hot && hot.ready) hot.ready(d => { if (d && d.S && d.S.h){ $('#menu').hidden = true; restore(d.S); } else boot(); });
