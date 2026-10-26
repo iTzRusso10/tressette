@@ -1,10 +1,11 @@
-# Tressette
+# Napoletane: Tressette, Briscola, Scopa
 
-Il tressette con le carte napoletane, in un'unica pagina web.
+Tre giochi con le carte napoletane in un'unica pagina web, installabile sul telefono.
 
-- In due, in quattro a coppie o a perdere
+- **Tressette**: in due, in quattro a coppie o a perdere (con cappotto), accusi e segnali
+- **Briscola**: in due o in quattro a coppie, si vince con più di 60 punti
+- **Scopa**: in due o in quattro a coppie, scope, carte, denari, settebello e primiera
 - Contro il computer (tre livelli) o online con gli amici tramite codice stanza
-- Accusi, segnali (busso, striscio, volo), punteggio fino a 11, 21 o 31
-- Carte napoletane incluse (cartella `carte/`); si può anche usare il mazzo disegnato o caricare la foto del proprio mazzo
+- Carte napoletane incluse (cartella `carte/`); si può anche usare il mazzo disegnato o la foto del proprio mazzo
 
 Gioca: https://itzrusso10.github.io/tressette/

@@ -1,7 +1,7 @@
 {
-  "name": "Tressette",
+  "name": "Napoletane: Tressette, Briscola, Scopa",
   "short_name": "Tressette",
-  "description": "Tressette con le carte napoletane: in due, in quattro o a perdere, contro il computer o online con gli amici.",
+  "description": "Tressette, Briscola e Scopa con le carte napoletane, contro il computer o online con gli amici.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",

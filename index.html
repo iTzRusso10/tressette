@@ -16,7 +16,7 @@
 <meta property="og:description" content="Gioca a tressette con le carte napoletane, anche online con gli amici.">
 <meta property="og:image" content="https://itzrusso10.github.io/tressette/icone/icona-512.png">
 <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
-<meta name="description" content="Tressette con le carte napoletane: in due, in quattro o a perdere, contro il computer o online con gli amici.">
+<meta name="description" content="Tressette, Briscola e Scopa con le carte napoletane: contro il computer o online con gli amici.">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}body{font:14px system-ui}[hidden]{display:none!important}img{max-width:100%}</style>
 <script>window.TRESSETTE_DECK = "carte/";</script>
 </head>
@@ -628,6 +628,54 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 #menu{background:radial-gradient(90% 60% at 50% 30%,rgba(22,35,74,.94),rgba(5,7,15,.97));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 @keyframes glowShift{from{transform:translate(0,0)}to{transform:translate(-3%,2%)}}
 </style>
+<style id="v3">
+/* Multi-game shell: home with game tiles, per-game setup, scopa capture chooser. */
+#homeView,#setupView{display:flex;flex-direction:column;gap:18px}
+#homeView[hidden],#setupView[hidden]{display:none}
+.hero h1{font-size:clamp(42px,13vw,72px)}
+.games{display:flex;flex-direction:column;gap:12px}
+.game{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 14px 14px 10px;border-radius:24px;border:0;color:var(--text);
+  background:var(--panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 0 0 1px var(--edge-soft),var(--shadow-soft);
+  transition:transform .25s var(--pop),box-shadow .25s;animation:tileIn .6s var(--pop) backwards}
+.game:nth-child(2){animation-delay:.08s}.game:nth-child(3){animation-delay:.16s}
+.game:active{transform:scale(.97)}
+@media (hover:hover){.game:hover{transform:translateY(-3px);box-shadow:0 0 0 1.5px var(--gold-2),0 0 26px rgba(242,196,81,.22),var(--shadow-soft)}.game:hover .mf{transform:translateX(calc(var(--k)*20px)) rotate(calc(var(--k)*13deg)) translateY(-4px)}}
+.g-fan{position:relative;flex:none;width:92px;height:84px}
+.mf{position:absolute;left:50%;top:6px;width:46px;height:74px;margin-left:-23px;transform-origin:50% 120%;transform:translateX(calc(var(--k)*15px)) rotate(calc(var(--k)*10deg));transition:transform .35s var(--pop)}
+.mf .face{position:absolute;inset:0;--cw:46px;border-radius:5px}
+.g-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.g-n{font-family:var(--f-display);font-weight:700;font-size:22px;line-height:1.1;background:linear-gradient(180deg,var(--gold-1),var(--gold-2) 60%,var(--gold-3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.g-d{font-size:13px;line-height:1.35;color:var(--muted);font-weight:600}
+.g-m{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:var(--mint);margin-top:2px}
+.g-go{flex:none;width:22px;height:22px;color:var(--gold-2);opacity:.8}
+.home-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.home-actions .btn.plain{flex-direction:column;align-items:flex-start;gap:2px;font-size:15px;padding:14px 16px}
+.home-actions .btn.plain small{font-size:12px}
+.setup-head{display:flex;align-items:center;gap:12px;padding-top:6px}
+.setup-head .ibtn{width:46px;height:46px;flex:none}
+.sh-t{flex:1;min-width:0}
+.sh-k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--gold-1);opacity:.75}
+.sh-t h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1.05;background:linear-gradient(180deg,#FFFBEA,var(--gold-2) 60%,var(--gold-3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sh-fan{position:relative;flex:none;width:80px;height:70px}
+.sh-fan .mf{width:38px;height:62px;margin-left:-19px;top:2px}
+.sh-fan .mf .face{--cw:38px}
+#choice{position:absolute;left:0;top:0;transform:translateX(-50%);z-index:970;width:min(94%,440px);display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 12px 12px;border-radius:20px;
+  background:var(--panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 0 1px var(--edge),0 18px 40px rgba(0,0,0,.5);animation:pop .4s var(--pop) both}
+.ch-t{font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--gold-1)}
+.ch-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.ch-o{display:flex;align-items:center;gap:4px;padding:6px 8px;border-radius:14px;border:0;background:rgba(255,255,255,.07);color:var(--muted);box-shadow:0 0 0 1px var(--edge-soft);transition:transform .15s var(--pop),background .2s}
+.ch-o:active{transform:scale(.95)}
+@media (hover:hover){.ch-o:hover{background:rgba(242,196,81,.16)}}
+.ch-o i{font-style:normal;font-weight:800;color:var(--gold-2)}
+.mini-c{position:relative;display:block;width:34px;height:55px;border-radius:4px;overflow:hidden;--cw:34px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.mini-c svg,.mini-c img{width:100%;height:100%;display:block;object-fit:cover}
+.card.tgt .front{box-shadow:0 0 0 3px var(--gold-2),0 0 22px rgba(242,196,81,.55)}
+.card.tgt .inner{animation:jumpCard .55s var(--pop) infinite alternate}
+.trow .bd span{white-space:nowrap}
+@keyframes tileIn{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.game,.card.tgt .inner{animation:none!important}}
+</style>
+
 
 <div id="amb" aria-hidden="true"></div>
 <div id="app">
@@ -649,6 +697,7 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
       <button class="chip" data-sig="Volo" aria-pressed="false">Volo</button>
     </div>
     <div id="pick" hidden></div>
+    <div id="choice" hidden></div>
     <div id="toasts" aria-live="polite"></div>
     <div id="fx"></div>
   </main>
@@ -656,47 +705,67 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 
 <div id="menu" class="overlay">
   <div class="menu-inner">
-    <div class="hero">
-      <div class="fan" id="heroFan"></div>
-      <h1 aria-label="Tressette"><span style="--i:0" aria-hidden="true">T</span><span style="--i:1" aria-hidden="true">r</span><span style="--i:2" aria-hidden="true">e</span><span style="--i:3" aria-hidden="true">s</span><span style="--i:4" aria-hidden="true">s</span><span style="--i:5" aria-hidden="true">e</span><span style="--i:6" aria-hidden="true">t</span><span style="--i:7" aria-hidden="true">t</span><span style="--i:8" aria-hidden="true">e</span></h1>
-      <p class="tagline">Carte napoletane · il gioco del tre e del sette</p>
+    <div id="homeView">
+      <div class="hero">
+        <div class="fan" id="heroFan"></div>
+        <h1 aria-label="Napoletane"><span style="--i:0" aria-hidden="true">N</span><span style="--i:1" aria-hidden="true">a</span><span style="--i:2" aria-hidden="true">p</span><span style="--i:3" aria-hidden="true">o</span><span style="--i:4" aria-hidden="true">l</span><span style="--i:5" aria-hidden="true">e</span><span style="--i:6" aria-hidden="true">t</span><span style="--i:7" aria-hidden="true">a</span><span style="--i:8" aria-hidden="true">n</span><span style="--i:9" aria-hidden="true">e</span></h1>
+        <p class="tagline">Tressette · Briscola · Scopa</p>
+      </div>
+      <button class="btn ghost" id="resumeBtn" hidden>Riprendi la partita</button>
+      <section>
+        <h2 class="lbl">Scegli il gioco</h2>
+        <div class="games" id="gameList"></div>
+      </section>
+      <div class="home-actions">
+        <button class="btn plain" id="joinOpen"><span>Entra in una stanza</span><small>ho un codice</small></button>
+        <button class="btn plain" id="settingsOpen"><span>Mazzo e suono</span><small>impostazioni</small></button>
+      </div>
     </div>
-    <button class="btn ghost" id="resumeBtn" hidden>Riprendi la partita</button>
-    <section>
-      <h2 class="lbl">Modalità</h2>
-      <div class="modes" role="radiogroup" aria-label="Modalità di gioco">
-        <button class="mode" role="radio" data-mode="2">
-          <svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#FF8A6B"/></svg>
-          <span class="mt">In due</span><span class="md">Uno contro uno, si pesca dal mazzo.</span>
-        </button>
-        <button class="mode" role="radio" data-mode="4">
-          <svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#F2C230"/><circle cx="5" cy="11" r="2" fill="#FF8A6B"/><circle cx="29" cy="11" r="2" fill="#FF8A6B"/></svg>
-          <span class="mt">In quattro</span><span class="md">A coppie, col compagno di fronte.</span>
-        </button>
-        <button class="mode" role="radio" data-mode="perdere">
-          <svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#6FD3C7"/><circle cx="5" cy="11" r="2" fill="#C9A8FF"/><circle cx="29" cy="11" r="2" fill="#FF8A6B"/></svg>
-          <span class="mt">A perdere</span><span class="md">In quattro, vince chi prende meno.</span>
-        </button>
+    <div id="setupView" hidden>
+      <div class="setup-head">
+        <button class="ibtn" id="backHome" aria-label="Torna alla scelta del gioco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="sh-t"><span class="sh-k">Nuova partita</span><h2 id="setupTitle">Tressette</h2></div>
+        <div class="sh-fan" id="setupFan"></div>
       </div>
-    </section>
-    <section>
-      <h2 class="lbl">Al tavolo</h2>
-      <div class="seats" id="seatRows"></div>
-    </section>
-    <section class="opts">
-      <div id="levelBox">
-        <h2 class="lbl">Computer</h2>
-        <div class="seg" id="levelSeg">
-          <button data-v="facile">Facile</button><button data-v="medio">Medio</button><button data-v="difficile">Esperto</button>
+      <section>
+        <h2 class="lbl">Modalità</h2>
+        <div class="modes" role="radiogroup" aria-label="Modalità di gioco"></div>
+      </section>
+      <section>
+        <h2 class="lbl">Al tavolo</h2>
+        <div class="seats" id="seatRows"></div>
+      </section>
+      <section class="opts">
+        <div id="levelBox">
+          <h2 class="lbl">Computer</h2>
+          <div class="seg" id="levelSeg">
+            <button data-v="facile">Facile</button><button data-v="medio">Medio</button><button data-v="difficile">Esperto</button>
+          </div>
         </div>
-      </div>
-      <div>
-        <h2 class="lbl" id="targetLbl">Si vince a</h2>
-        <div class="seg" id="targetSeg">
-          <button data-v="11">11</button><button data-v="21">21</button><button data-v="31">31</button>
+        <div>
+          <h2 class="lbl" id="targetLbl">Si vince a</h2>
+          <div class="seg" id="targetSeg"></div>
         </div>
-      </div>
-    </section>
+      </section>
+      <label class="switch" id="cappRow">
+        <span><span class="t">Cappotto</span><br><span class="d">Chi prende tutti gli 11 punti di una mano vince subito la partita</span></span>
+        <input type="checkbox" id="cappChk">
+      </label>
+      <label class="switch" id="accusiRow">
+        <span><span class="t">Accusi</span><br><span class="d">Napoletana e buongioco, dichiarati a inizio mano</span></span>
+        <input type="checkbox" id="accusiChk">
+      </label>
+      <button class="btn primary" id="startBtn">Distribuisci le carte</button>
+      <button class="linkbtn" id="rulesLink">Come si gioca</button>
+    </div>
+  </div>
+</div>
+
+<div id="settings" class="overlay" hidden>
+  <div class="panel">
+    <h2>Mazzo e suono</h2>
+    <p class="sub">Valgono per tutti e tre i giochi.</p>
+    <div class="stack">
     <section>
       <h2 class="lbl">Mazzo</h2>
       <div class="seg wide" id="deckSeg"><button data-v="napoletane" id="deckNap" hidden>Napoletane</button><button data-v="disegnato">Disegnato</button><button data-v="mio">Le mie immagini</button></div>
@@ -726,17 +795,10 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
         <button class="linkbtn" id="deckClear">Rimuovi le immagini caricate</button>
       </div>
     </section>
-    <label class="switch" id="cappRow">
-      <span><span class="t">Cappotto</span><br><span class="d">Chi prende tutti gli 11 punti di una mano vince subito la partita</span></span>
-      <input type="checkbox" id="cappChk">
-    </label>
-    <label class="switch" id="accusiRow">
-      <span><span class="t">Accusi</span><br><span class="d">Napoletana e buongioco, dichiarati a inizio mano</span></span>
-      <input type="checkbox" id="accusiChk">
-    </label>
-    <button class="btn primary" id="startBtn">Distribuisci le carte</button>
-    <button class="btn ghost" id="joinOpen">Ho un codice: entra in una stanza</button>
-    <button class="linkbtn" id="rulesLink">Come si gioca</button>
+      <label class="switch"><span><span class="t">Suono</span><br><span class="d">Carte, prese e punti</span></span><input type="checkbox" id="soundChk"></label>
+    </div>
+    <div style="height:14px"></div>
+    <button class="btn primary" id="settingsClose">Fatto</button>
   </div>
 </div>
 
@@ -776,25 +838,9 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 
 <div id="rules" class="overlay" hidden>
   <div class="panel">
-    <h2>Come si gioca</h2>
-    <p class="sub">Tressette con 40 carte napoletane</p>
-    <div class="rules">
-      <h3>Forza delle carte</h3>
-      <div class="rank"><span>3</span><span>2</span><span>1</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><em>dalla più forte · 1 Asso, 8 Fante, 9 Cavallo, 10 Re</em></div>
-      <p>Non c'è briscola. Chi apre sceglie il seme e gli altri devono rispondere a seme. Se non ce l'hai, giochi la carta che vuoi, ma non prendi. Prende la carta più forte del seme uscito.</p>
-      <h3>Punti</h3>
-      <p>L'Asso vale 1 punto. Tre, Due, Re, Cavallo e Fante valgono ⅓ ciascuno (tre figure fanno un punto). Le altre carte non valgono niente. Chi prende l'ultima mano guadagna 1 punto. In ogni mano ci sono 11 punti; i terzi avanzati non contano.</p>
-      <h3>In due</h3>
-      <p>Dieci carte a testa. Dopo ogni presa si pesca dal mazzo, prima chi ha preso. Le carte pescate si mostrano all'avversario.</p>
-      <h3>In quattro</h3>
-      <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l'ultima carta che ho di questo seme).</p>
-      <h3>Cappotto</h3>
-      <p>Solo nella partita a perdere: se in una mano un giocatore prende tutti gli 11 punti, compresa l'ultima presa, e gli altri restano a zero, vince subito la partita. Si può disattivare dal menu.</p>
-      <h3>Accusi</h3>
-      <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>
-      <h3>A perdere</h3>
-      <p>In quattro, ognuno per sé, con le stesse regole di presa. Conviene liberarsi delle carte forti e degli Assi. Chi raggiunge il limite perde la partita; vince chi ha meno punti.</p>
-    </div>
+    <h2 id="rulesTitle">Come si gioca</h2>
+    <p class="sub" id="rulesSub">Con le 40 carte napoletane</p>
+    <div class="rules" id="rulesBody"></div>
     <div style="height:16px"></div>
     <button class="btn primary" id="rulesClose">Ho capito</button>
   </div>
@@ -1038,11 +1084,32 @@ const cardEls = ALL.map(c => {
 (function amb(){ const n = RM ? 0 : 16; let h = ''; for (let i=0;i<n;i++){ h += `<i style="--x:${(Math.random()*100).toFixed(1)}%;--s:${(4 + Math.random()*10).toFixed(1)}px;--d:${(14 + Math.random()*16).toFixed(1)}s;--dl:${(-Math.random()*25).toFixed(1)}s;--dx:${((Math.random() - .5)*120).toFixed(0)}px"></i>`; } document.getElementById('amb').innerHTML = h; })();
 $('#curtainBack').innerHTML = `<div class="face" style="position:relative;width:100%;height:100%">${BACK}</div>`;
 
+/* ---------------- games ---------------- */
+const GAMES = {
+  tressette: {name: 'Tressette', modes: ['2','4','perdere'], targets: [11,21,31], tlabel: 'Si vince a', desc: 'Il gioco del tre e del sette: si risponde a seme, contano Assi e figure.', fan: [2,11,20]},
+  briscola: {name: 'Briscola', modes: ['2','4'], targets: [1,2,3], tlabel: 'Partite da vincere', desc: 'Tre carte in mano e un seme che comanda: chi fa più di 60 punti vince.', fan: [10,22,39]},
+  scopa: {name: 'Scopa', modes: ['2','4'], targets: [11,16,21], tlabel: 'Si vince a', desc: 'Prendi dal tavolo per valore o per somma e spazzalo tutto per fare scopa.', fan: [16,6,26]}
+};
+const MODEINFO = {
+  tressette: {'2': ['In due','Uno contro uno, si pesca dal mazzo.'], '4': ['In quattro','A coppie, col compagno di fronte.'], 'perdere': ['A perdere','In quattro, vince chi prende meno.']},
+  briscola: {'2': ['In due','Uno contro uno, tre carte a testa.'], '4': ['In quattro','A coppie, col compagno di fronte.']},
+  scopa: {'2': ['In due','Uno contro uno, quattro carte in tavola.'], '4': ['In quattro','A coppie, col compagno di fronte.']}
+};
+const gameOf = () => (S && S.game) || 'tressette';
+const BPTS = [0,11,0,10,0,0,0,0,2,3,4], BPOW = [0,10,1,9,2,3,4,5,6,7,8];
+const bp = c => BPTS[rankOf(c)], bpw = c => BPOW[rankOf(c)];
+const sval = c => rankOf(c);
+const PRIM = [0,16,12,13,14,15,18,21,10,10,10];
+const SETTEBELLO = 16;
+
 /* ---------------- state ---------------- */
 const KEY = 'tressette.partita.v1', CFGKEY = 'tressette.impostazioni.v1', SNDKEY = 'tressette.suono.v1';
 const CPU_NAMES = ['Gennaro','Carmela','Salvatore'];
 let cfg = {mode:'2', seats:[{name:'Tu',type:'human'},{name:'Gennaro',type:'cpu'},{name:'Carmela',type:'cpu'},{name:'Salvatore',type:'cpu'}], level:'medio', target:21, accusi:true, deck: typeof window.TRESSETTE_DECK === 'string' ? 'napoletane' : 'disegnato'};
 try { const c = JSON.parse(localStorage.getItem(CFGKEY)); if (c && c.seats && c.seats.length === 4) cfg = Object.assign(cfg, c); } catch(e) {}
+if (!cfg.game) cfg.game = 'tressette';
+cfg.g = Object.assign({tressette: {mode: cfg.mode || '2', target: cfg.target || 21}, briscola: {mode: '2', target: 1}, scopa: {mode: '2', target: 11}}, cfg.g || {});
+function syncGame(){ const gg = cfg.g[cfg.game]; cfg.mode = gg.mode; cfg.target = gg.target; if (!GAMES[cfg.game].modes.includes(cfg.mode)) cfg.mode = gg.mode = GAMES[cfg.game].modes[0]; if (!GAMES[cfg.game].targets.includes(cfg.target)) cfg.target = gg.target = GAMES[cfg.game].targets[0]; }
 const custom = {fronts: {}, back: null};
 const saveCfg = () => { try { localStorage.setItem(CFGKEY, JSON.stringify(cfg)); } catch(e) {} };
 
@@ -1090,6 +1157,142 @@ function findAccusi(hand){
     if (ids.length >= 3) res.push({label:(ids.length===4?'Quattro ':'Tris di ') + (r===1?'Assi':r===2?'Due':'Tre'), pts:ids.length, cards:ids});
   }
   return res;
+}
+
+function legalG(hand, trick){ return gameOf() === 'tressette' ? legal(hand, trick) : hand.slice(); }
+function winBriscola(trick, trump){
+  let b = trick[0];
+  for (let i=1;i<trick.length;i++){ const e = trick[i], bs = suitOf(b.c), es = suitOf(e.c); if (es === bs ? bpw(e.c) > bpw(b.c) : es === trump) b = e; }
+  return b;
+}
+function winTrick(trick){ return gameOf() === 'briscola' ? winBriscola(trick, S.h.trump) : winEntry(trick); }
+function scopaOptions(c, table){
+  const v = sval(c);
+  const singles = table.filter(x => sval(x) === v).map(x => [x]);
+  if (singles.length) return singles;
+  const res = [];
+  const rec = (i, sum, cur) => {
+    if (sum === v){ if (cur.length >= 2) res.push(cur.slice()); return; }
+    if (sum > v) return;
+    for (let j=i;j<table.length;j++){ cur.push(table[j]); rec(j + 1, sum + sval(table[j]), cur); cur.pop(); }
+  };
+  rec(0, 0, []);
+  return res;
+}
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+
+/* ---------------- briscola computer ---------------- */
+function briscolaPolicy(st, p){
+  const hand = st.hands[p], trick = st.trick, trump = st.trump, n = st.n;
+  const isT = c => suitOf(c) === trump;
+  const cost = c => bp(c)*3 + (isT(c) ? 14 + bpw(c) : 0) + bpw(c)*0.3;
+  if (!trick.length) return minBy(hand, cost);
+  const cur = winBriscola(trick, trump), last = trick.length === n - 1;
+  const tp = trick.reduce((a,e) => a + bp(e.c), 0);
+  const mate = st.mode === '4' && (cur.p % 2) === (p % 2);
+  if (mate){
+    const strong = last || (isT(cur.c) ? bpw(cur.c) >= 8 : (bpw(cur.c) >= 9 && trick.length >= 2));
+    if (strong){ const loads = hand.filter(c => !isT(c)); if (loads.length) return minBy(loads, c => -bp(c)); }
+    return minBy(hand, cost);
+  }
+  const beats = hand.filter(c => winBriscola(trick.concat([{p, c}]), trump).p === p);
+  if (beats.length){
+    const same = beats.filter(c => !isT(c));
+    if (same.length && (last || n === 2)) return minBy(same, c => -bp(c));
+    if (same.length && tp + Math.max(...same.map(bp)) >= 10) return minBy(same, c => -bp(c));
+    if (tp >= 10 || (last && tp >= 4)) return minBy(beats, c => (isT(c) ? 5 + bpw(c) + bp(c)*2 : bp(c)));
+  }
+  return minBy(hand, cost);
+}
+function simBriscola(st, first){
+  let c = first;
+  for (;;){
+    const p = st.turn;
+    if (c === undefined) c = briscolaPolicy(st, p);
+    const hh = st.hands[p]; hh.splice(hh.indexOf(c), 1);
+    st.trick.push({p, c}); c = undefined;
+    if (st.trick.length === st.n){
+      const w = winBriscola(st.trick, st.trump).p;
+      for (const e of st.trick) st.pts[w] += bp(e.c);
+      st.trick = [];
+      for (let k=0;k<st.n;k++){ if (!st.deck.length) break; st.hands[(w + k) % st.n].push(st.deck.pop()); }
+      if (st.hands.every(x => !x.length)) return;
+      st.turn = w;
+    } else st.turn = (p + 1) % st.n;
+  }
+}
+function chooseBriscola(p){
+  const h = S.h, hand = h.hands[p];
+  if (hand.length === 1) return hand[0];
+  const base = {hands: h.hands, trick: h.trick, trump: h.trump, n: S.n, mode: S.mode};
+  if (S.level === 'facile'){ if (Math.random() < 0.4) return hand[(Math.random()*hand.length)|0]; return briscolaPolicy(base, p); }
+  const D = S.level === 'medio' ? 24 : 90, n = S.n;
+  const seen = new Set(h.played); hand.forEach(c => seen.add(c)); h.trick.forEach(e => seen.add(e.c));
+  const briscIn = h.deck.length && h.deck[0] === h.brisc;
+  if (briscIn) seen.add(h.brisc);
+  const pool = ALL.filter(c => !seen.has(c));
+  const need = h.hands.map((hh, q) => q === p ? 0 : hh.length);
+  const voids = h.hands.map(() => [false, false, false, false]);
+  const score = new Float64Array(hand.length);
+  for (let d=0; d<D; d++){
+    const deal = dealPool(pool, need, h.deck.length - (briscIn ? 1 : 0), voids, p);
+    for (let i=0;i<hand.length;i++){
+      const st = {hands: h.hands.map((hh, q) => q === p ? hh.slice() : deal.out[q].slice()), deck: (briscIn ? [h.brisc] : []).concat(deal.deck), trick: h.trick.map(e => ({p: e.p, c: e.c})), turn: p, trump: h.trump, n, mode: S.mode, pts: new Array(n).fill(0)};
+      simBriscola(st, hand[i]);
+      let v = 0; for (let q=0;q<n;q++) v += (S.mode === '4' ? q % 2 === p % 2 : q === p) ? st.pts[q] : -st.pts[q];
+      score[i] += v;
+    }
+  }
+  let bi = 0; for (let i=1;i<hand.length;i++) if (score[i] > score[bi]) bi = i;
+  return hand[bi];
+}
+
+/* ---------------- scopa computer ---------------- */
+function scopaMoves(hand, table){
+  const mv = [];
+  for (const c of hand){ const o = scopaOptions(c, table); if (o.length) o.forEach(t => mv.push({c, take: t})); else mv.push({c, take: []}); }
+  return mv;
+}
+function chooseScopa(p){
+  const h = S.h, hand = h.hands[p];
+  const moves = scopaMoves(hand, h.table);
+  if (S.level === 'facile' && Math.random() < 0.35) return moves[(Math.random()*moves.length)|0];
+  const lastPlay = !h.deck.length && h.hands.reduce((a, x) => a + x.length, 0) === 1;
+  const visible = new Set(h.played.concat(h.table, hand));
+  h.capt.forEach(cc => cc.forEach(c => visible.add(c)));
+  const unseen = v => ALL.filter(c => sval(c) === v && !visible.has(c)).length;
+  const expert = S.level === 'difficile';
+  const danger = rest => {
+    if (!rest.length) return 0;
+    const sum = rest.reduce((a, x) => a + sval(x), 0);
+    let d = 0;
+    if (sum <= 10){ const u = expert ? unseen(sum) : 2; d += u ? 45*Math.min(1, u/2.5) : 0; }
+    if (rest.includes(SETTEBELLO)){ const u = expert ? unseen(7) : 2; d += 12*Math.min(1, u/2); }
+    rest.forEach(x => { if (rankOf(x) === 7) d += 2; });
+    return d;
+  };
+  const val = cs => cs.length*1.6 + cs.filter(x => suitOf(x) === 1).length*3.5 + (cs.includes(SETTEBELLO) ? 30 : 0) + cs.filter(x => rankOf(x) === 7).length*6 + cs.filter(x => rankOf(x) === 6).length*2.5 + cs.filter(x => rankOf(x) === 1).length*1.5;
+  let best = null, bs = -1e9;
+  for (const m of moves){
+    let sc;
+    if (m.take.length){
+      const rest = h.table.filter(x => !m.take.includes(x));
+      sc = 10 + val(m.take.concat([m.c]));
+      if (!rest.length && !lastPlay) sc += 120; else sc -= danger(rest);
+    } else {
+      const rest = h.table.concat([m.c]);
+      sc = -danger(rest) - val([m.c])*1.2 + (rankOf(m.c) >= 8 ? 1.5 : 0);
+    }
+    sc += Math.random()*0.5;
+    if (sc > bs){ bs = sc; best = m; }
+  }
+  return best;
+}
+function chooseMoveG(p){
+  const game = gameOf();
+  if (game === 'scopa') return chooseScopa(p);
+  if (game === 'briscola') return {c: chooseBriscola(p)};
+  return {c: chooseCard(p)};
 }
 
 /* ---------------- computer players ---------------- */
@@ -1231,6 +1434,13 @@ function measure(){
   const cy = (topY + ch*os*0.5 + handTop)/2;
   const spv = Math.min(cw*os*0.5, (H*0.34)/9);
   G = {W, H, cw, ch, hs, os, handH, handTop, two, rowGap, baseY, topY, cy, cx:W/2, ts: n === 4 ? 1.06 : 1.16, spv, deckX: Math.max(cw*0.55 + 2, W/2 - W*0.32)};
+  G.rcy = cy; G.sy = cy;
+  if (S && S.game && S.game !== 'tressette' && n === 4){
+    const sideTagY = topY + ch*os/2 + 6 + 46 + 8;
+    G.sy = sideTagY + 46 + 10 + spv + cw*os/2;
+    G.tTop = sideTagY + 46 + 6; G.tBot = handTop - 64;
+    G.cy = (G.tTop + G.tBot)/2;
+  } else { G.tTop = null; }
   G.bw = cw*Math.max(1, hs); G.bh = ch*Math.max(1, hs); G.bs = Math.max(1, hs);
   rootStyle.setProperty('--cw', G.bw + 'px'); rootStyle.setProperty('--ch', G.bh + 'px');
 }
@@ -1251,7 +1461,7 @@ function tagPos(side, p){
   }
   if (side === 't') return {x:cx, y: topY + ch*os/2 + 6, a:'c'};
   const half = spv*(k - 1)/2 + cw*os/2;
-  const y = Math.max(topY + ch*os/2 + TAGH + 14, cy - half - TAGH - 6);
+  const y = Math.max(topY + ch*os/2 + TAGH + 14, G.sy - half - TAGH - 6);
   return side === 'l' ? {x:0, y, a:'l'} : {x:W, y, a:'r'};
 }
 function anchorPt(tp){ return {x: tp.a === 'l' ? tp.x + 64 : tp.a === 'r' ? tp.x - 64 : tp.x, y: tp.y + 19}; }
@@ -1262,9 +1472,28 @@ function trickOff(side){
 }
 const jit = c => (((c*53) % 13) - 6) * 0.9;
 const hk = c => (c*17 + 7) % 41;
-const handSort = (a,b) => suitOf(a) - suitOf(b) || pw(b) - pw(a);
+const handSort = (a,b) => { const g = gameOf(); if (g === 'scopa') return rankOf(a) - rankOf(b) || suitOf(a) - suitOf(b); return suitOf(a) - suitOf(b) || (g === 'briscola' ? bpw(b) - bpw(a) : pw(b) - pw(a)); };
+let sopts = null;
 
-function origin(){ return S.n === 2 ? {x:G.deckX, y:G.cy} : {x:G.cx, y:G.cy}; }
+function origin(){
+  if (gameOf() === 'tressette') return S.n === 2 ? {x:G.deckX, y:G.cy} : {x:G.cx, y:G.cy};
+  if (S.n === 2) return {x:G.deckX, y:G.cy};
+  return {x: G.W - G.ch*G.os - 10 - G.cw*0.42, y: G.tBot - G.ch*0.39 - 22};
+}
+function tableSlots(count){
+  const {W, cw, ch, ts, os, cy, cx, topY, handTop} = G, n = S.n;
+  const o = origin();
+  let left = n === 2 ? o.x + cw*0.62 + 8 : ch*os + 8, right = W - (n === 2 ? 8 : ch*os + 8);
+  if (right - left < cw*3) { left = 8; right = W - 8; }
+  const top = G.tTop != null ? G.tTop + 4 : topY + ch*os/2 + 56, bottom = G.tTop != null ? (n === 4 ? G.tBot - (S.game === 'scopa' ? ch*0.85 : 0) : G.tBot) : handTop - 60;
+  const area = Math.max(1, right - left);
+  let scale = ts, cols = Math.max(1, Math.min(count, Math.floor(area/(cw*scale*1.06)))), rows = Math.ceil(count/Math.max(1, cols));
+  while (rows*ch*scale*1.05 > (bottom - top) && scale > 0.6){ scale -= 0.05; cols = Math.max(1, Math.min(count, Math.floor(area/(cw*scale*1.06)))); rows = Math.ceil(count/cols); }
+  const mx = (left + right)/2, my = (top + bottom)/2, sx = cw*scale*1.08, sy = ch*scale*1.05;
+  const out = [];
+  for (let i=0;i<count;i++){ const r = Math.floor(i/cols), inRow = Math.min(cols, count - r*cols), c = i - r*cols; out.push({x: mx + (c - (inRow - 1)/2)*sx, y: my + (r - (rows - 1)/2)*sy, s: scale}); }
+  return out;
+}
 function applyPlace(el, o){
   const {bw, bh, bs} = G;
   el.style.transform = `translate3d(${(o.x - bw/2).toFixed(1)}px,${(o.y - bh/2).toFixed(1)}px,0) rotate(${(o.r||0).toFixed(2)}deg) scale(${((o.s||1)/bs).toFixed(4)})`;
@@ -1283,7 +1512,8 @@ function layout(){
   const h = S.h, n = S.n, {W, cw, ch, hs, os, baseY, topY, cy, cx, ts, spv} = G;
   const place = {};
   const myTurn = awaitingSeat !== null && awaitingSeat === S.viewer && !S.hideHands;
-  const legalSet = myTurn ? new Set(legal(h.hands[S.viewer], h.trick)) : null;
+  const game = gameOf();
+  const legalSet = myTurn ? new Set(legalG(h.hands[S.viewer], h.trick)) : null;
   for (let p=0;p<n;p++){
     const side = sideOf(p), isView = p === S.viewer && !S.hideHands;
     const own = h.reveal && p === S.viewer ? h.reveal.filter(e => e.p === p).map(e => e.c) : [];
@@ -1305,9 +1535,9 @@ function layout(){
         const sp = Math.min(cw*os*0.56, (W*0.62)/Math.max(1, k));
         o = {x: cx - t*sp, y: topY - t*t*0.45, r: 180 + t*2.2, s: os, up: false, z: 100 + i};
       } else if (side === 'l'){
-        o = {x: ch*os*0.5 - 6, y: cy + t*spv, r: 90 + t*2, s: os, up: false, z: 100 + i};
+        o = {x: ch*os*0.5 - 6, y: G.sy + t*spv, r: 90 + t*2, s: os, up: false, z: 100 + i};
       } else {
-        o = {x: W - ch*os*0.5 + 6, y: cy - t*spv, r: -90 + t*2, s: os, up: false, z: 100 + i};
+        o = {x: W - ch*os*0.5 + 6, y: G.sy - t*spv, r: -90 + t*2, s: os, up: false, z: 100 + i};
       }
       place[c] = o;
       const el = cardEls[c];
@@ -1319,7 +1549,16 @@ function layout(){
     });
   }
   const o0 = origin();
-  h.deck.forEach((c,i) => { place[c] = {x: o0.x - i*0.22, y: o0.y - i*0.32, r: 0, s: 1, up: false, z: 50 + i}; cardEls[c].classList.toggle('stk', i < h.deck.length - 2); });
+  const dsc = (game !== 'tressette' && n === 4) ? 0.78 : 1;
+  h.deck.forEach((c,i) => { place[c] = {x: o0.x - i*0.22, y: o0.y - i*0.32, r: 0, s: dsc, up: false, z: 50 + i}; cardEls[c].classList.toggle('stk', i < h.deck.length - 2); });
+  if (game === 'briscola' && h.brisc !== null && h.deck.length && h.deck[0] === h.brisc) place[h.brisc] = {x: o0.x + (n === 4 ? -1 : 1)*cw*0.62*dsc, y: o0.y, r: 90, s: dsc, up: true, z: 45};
+  const tgt = new Set(sopts && selected !== null ? [].concat(...sopts) : []);
+  if (game === 'scopa'){
+    const slots = tableSlots(Math.max(1, (h.table || []).length));
+    (h.table || []).forEach((c,i) => { const sl = slots[i]; place[c] = {x: sl.x, y: sl.y, r: jit(c)*0.4, s: sl.s, up: true, z: 150 + i}; });
+    if (h.inPlay){ const base = place[h.inPlay.on]; if (base) place[h.inPlay.c] = {x: base.x + cw*base.s*0.32, y: base.y + ch*base.s*0.2, r: 6, s: base.s, up: true, z: 330}; }
+  }
+  ALL.forEach(c => cardEls[c].classList.toggle('tgt', tgt.has(c)));
   ALL.forEach(c => { if (!h.deck.includes(c)) cardEls[c].classList.remove('stk'); });
   h.trick.forEach((e,i) => { const off = trickOff(sideOf(e.p)); place[e.c] = {x: cx + off[0], y: cy + off[1], r: jit(e.c), s: ts, up: true, z: 300 + i}; });
   if (h.reveal){ const shown = h.reveal.filter(e => e.p !== S.viewer); shown.forEach((e,i) => { place[e.c] = {x: cx + (shown.length > 1 ? (i ? 1 : -1)*cw*ts*0.62 : 0), y: cy, r: i ? 3 : -3, s: ts*1.12, up: true, z: 600 + i}; }); }
@@ -1332,7 +1571,7 @@ function layout(){
     el.style.transitionDelay = dealDelay && dealDelay[c] !== undefined ? (dealDelay[c]*T.deal) + 'ms' : '0ms';
     if (!o){ el.classList.add('gone'); continue; }
     applyPlace(el, o);
-    el.classList.toggle('win', S.h.glow === c);
+    el.classList.toggle('win', S.h.glow === c || !!(S.h.glowSet && S.h.glowSet.includes(c)));
     const inHand = h.hands.some(hh => hh.includes(c));
     if (!inHand){ el.classList.remove('legal','dim','sel'); el.tabIndex = -1; }
   }
@@ -1340,20 +1579,28 @@ function layout(){
   const rh = Math.max(120, G.handTop - (topY + ch*os/2) - 26), rw = Math.min(W - 4, Math.max(rh*0.9, Math.min(rh*1.5, 760)));
   ringEl.style.width = rw + 'px'; ringEl.style.height = rh + 'px';
   ringEl.style.setProperty('--rd', Math.min(rw, rh) + 'px');
-  ringEl.style.transform = `translate(${cx - rw/2}px,${cy - rh/2}px)`;
+  ringEl.style.transform = `translate(${cx - rw/2}px,${G.rcy - rh/2}px)`;
   const ts2 = !h.over && h.trick.length < n ? sideOf(h.turn) : null;
   if (ts2){ ringEl.style.setProperty('--ta', ({b:180, t:0, r:90, l:270})[ts2] + 'deg'); ringEl.style.setProperty('--tc', TEAMC[teamOf(h.turn)]); ringEl.classList.add('on'); } else ringEl.classList.remove('on');
-  if (n === 2 && h.deck.length){
+  if ((n === 2 || game !== 'tressette') && h.deck.length){
     deckcEl.hidden = false; deckcEl.textContent = h.deck.length;
-    deckcEl.style.transform = `translate(${o0.x}px,${o0.y + ch*0.5 + 10}px) translateX(-50%)`;
+    deckcEl.style.transform = `translate(${o0.x}px,${o0.y + ch*0.5*dsc + 10}px) translateX(-50%)`;
   } else deckcEl.hidden = true;
   toastsEl.style.top = (n === 2 ? topY + ch*os/2 + 56 : topY + ch*os/2 + 54) + 'px';
   if (isHost()) scheduleBroadcast();
   const bt = tagPos('b');
   const pickEl = $('#pick');
-  if (selected !== null && myTurn && h.hands[S.viewer].includes(selected)){
+  const choiceEl = $('#choice');
+  if (game === 'scopa' && selected !== null && myTurn && sopts && sopts.length > 1){
+    pickEl.hidden = true;
+    choiceEl.innerHTML = `<span class="ch-t">Cosa prendi con ${esc(cardName(selected))}?</span><div class="ch-row">` + sopts.map((o, i) => `<button class="ch-o" data-i="${i}">${o.map(c => `<span class="mini-c">${faceHTML(c)}</span>`).join('<i>+</i>')}</button>`).join('') + `</div>`;
+    choiceEl.hidden = false;
+    choiceEl.style.left = (W/2) + 'px'; choiceEl.style.top = Math.max(8, bt.y - choiceEl.offsetHeight - 6) + 'px';
+  } else choiceEl.hidden = true;
+  if (selected !== null && myTurn && h.hands[S.viewer].includes(selected) && !(game === 'scopa' && sopts && sopts.length > 1)){
     const wasHidden = pickEl.hidden;
-    pickEl.innerHTML = `<b>${esc(cardName(selected))}</b><span>tocca ancora per giocarla</span>`;
+    const hint = game === 'scopa' ? (sopts && sopts.length ? 'tocca ancora per prendere' : 'tocca ancora per calarla') : 'tocca ancora per giocarla';
+    pickEl.innerHTML = `<b>${esc(cardName(selected))}</b><span>${hint}</span>`;
     pickEl.hidden = false;
     const pwid = pickEl.offsetWidth, px = Math.max(pwid/2, Math.min(W - pwid/2, place[selected].x));
     pickEl.style.left = px + 'px'; pickEl.style.top = (bt.y - 44) + 'px';
@@ -1386,17 +1633,24 @@ function renderTags(){
     el.classList.toggle('turn', !h.over && h.turn === p && h.trick.length < S.n);
     const sub = el.querySelector('.s');
     if (thinking === p) sub.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>`;
-    else if (isHost() && S.seats[p].type === 'remote'){ const on = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]); sub.textContent = on ? `online · prese ${h.tricks[p]}` : 'scollegato'; }
-    else sub.textContent = `${S.seats[p].type === 'cpu' && !el.classList.contains('side') ? 'CPU · ' : ''}prese ${h.tricks[p]}`;
+    else if (isHost() && S.seats[p].type === 'remote'){ const on = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]); sub.textContent = on ? `online · ${tagStat(p)}` : 'scollegato'; }
+    else sub.textContent = `${S.seats[p].type === 'cpu' && !el.classList.contains('side') ? 'CPU · ' : ''}${tagStat(p)}`;
   });
+}
+function tagStat(p){
+  const h = S.h, g = gameOf();
+  if (g === 'scopa') return h.scope[p] ? `${h.scope[p] === 1 ? '1 scopa' : h.scope[p] + ' scope'} · ${h.capt[p].length} carte` : `${h.capt[p].length} carte`;
+  return `prese ${h.tricks[p]}`;
 }
 function renderHud(){
   if (!S) { scoresEl.innerHTML = ''; return; }
   const nt = nTeams(), h = S.h; let html = '';
   for (let t=0;t<nt;t++){
-    const live = h ? teamSeats(t).reduce((a,p) => a + h.terzi[p], 0) : 0;
+    const gm = gameOf();
+    const live = h && gm === 'tressette' ? teamSeats(t).reduce((a,p) => a + h.terzi[p], 0) : 0;
+    const liveB = h && gm === 'briscola' && h.pts ? teamSeats(t).reduce((a,p) => a + h.pts[p], 0) : 0;
     const lab = nt > 2 ? nameOf(t) : (S.mode === '4' && humans() <= 1 ? (t === teamOf(S.viewer) ? 'Noi' : 'Loro') + ' · ' + teamLabel(t) : teamLabel(t));
-    html += `<div class="sc ${nt > 2 ? 'compact' : ''}" style="--c:${TEAMC[t]}"><div class="nm"><span class="dot"></span><span class="lb">${esc(lab)}</span></div><div class="vals"><span class="big">${S.match[t]}</span><span class="of">/${S.target}</span><span class="hand" title="Punti presi in questa mano">${live ? '+' + fmtT(live) : ''}</span></div><i class="pg" style="width:${Math.min(100, S.match[t]/S.target*100)}%"></i></div>`;
+    html += `<div class="sc ${nt > 2 ? 'compact' : ''}" style="--c:${TEAMC[t]}"><div class="nm"><span class="dot"></span><span class="lb">${esc(lab)}</span></div><div class="vals"><span class="big">${S.match[t]}</span><span class="of">/${S.target}</span><span class="hand" title="Punti presi in questa mano">${live ? '+' + fmtT(live) : liveB ? liveB + ' pt' : ''}</span></div><i class="pg" style="width:${Math.min(100, S.match[t]/S.target*100)}%"></i></div>`;
   }
   const prevV = [...scoresEl.querySelectorAll('.big')].map(e => e.textContent);
   scoresEl.innerHTML = html;
@@ -1472,11 +1726,12 @@ function clearSave(){ try { localStorage.removeItem(KEY); } catch(e) {} }
 
 function startMatch(){
   GEN++; setPaused(false); clearBubbles(); fxEl.innerHTML = ''; toastsEl.innerHTML = '';
+  syncGame();
   const n = cfg.mode === '2' ? 2 : 4;
   S = {
-    mode: cfg.mode, n,
+    game: cfg.game, mode: cfg.mode, n,
     seats: cfg.seats.slice(0, n).map((s,i) => ({name: (s.name || '').trim().slice(0, 16) || (i ? (s.type === 'cpu' ? CPU_NAMES[i-1] : 'Giocatore ' + (i+1)) : 'Tu'), type: i === 0 ? 'human' : (s.type === 'online' ? 'remote' : s.type)})),
-    level: cfg.level, target: cfg.target, accusi: cfg.accusi && cfg.mode !== 'perdere', cappotto: cfg.cappotto !== false && cfg.mode === 'perdere',
+    level: cfg.level, target: cfg.target, accusi: cfg.game === 'tressette' && cfg.accusi && cfg.mode !== 'perdere', cappotto: cfg.game === 'tressette' && cfg.cappotto !== false && cfg.mode === 'perdere',
     match: new Array(cfg.mode === '4' ? 2 : n).fill(0), handNo: 0,
     dealer: (Math.random()*n)|0, viewer: 0, hideHands: false, finished: false, h: null,
     online: isHost() ? {code: NET.code, peers: NET.seatPeer, names: NET.names} : null
@@ -1489,12 +1744,21 @@ function startMatch(){
 async function newHand(){
   const g = GEN, n = S.n;
   S.handNo++;
+  const game = gameOf();
   const deck = shuffle(ALL.slice()), hands = [...Array(n)].map(() => []), dealIdx = {};
-  let k = 0;
-  for (let r=0;r<10;r++) for (let j=1;j<=n;j++){ const p = (S.dealer + j) % n, c = deck.pop(); hands[p].push(c); dealIdx[c] = k++; }
+  let k = 0, table = [], brisc = null;
+  const per = game === 'tressette' ? 10 : 3;
+  for (let r=0;r<per;r++) for (let j=1;j<=n;j++){ const p = (S.dealer + j) % n, c = deck.pop(); hands[p].push(c); dealIdx[c] = k++; }
+  if (game === 'scopa'){
+    table = deck.splice(-4);
+    while (table.filter(c => rankOf(c) === 10).length >= 3){ deck.push(...table); shuffle(deck); table = deck.splice(-4); }
+    table.forEach(c => dealIdx[c] = k++);
+  }
+  if (game === 'briscola'){ brisc = deck.pop(); deck.unshift(brisc); dealIdx[brisc] = k++; }
   S.h = {hands, deck, trick: [], turn: (S.dealer + 1) % n, terzi: new Array(n).fill(0), tricks: new Array(n).fill(0),
     capt: hands.map(() => []), played: [], voids: hands.map(() => [false,false,false,false]), known: hands.map(() => []),
-    accusi: [], signal: null, over: false, ultima: -1, last: null, reveal: null, result: null};
+    accusi: [], signal: null, over: false, ultima: -1, last: null, reveal: null, result: null,
+    table, brisc, trump: brisc === null ? -1 : suitOf(brisc), pts: new Array(n).fill(0), scope: new Array(n).fill(0), lastCap: -1, glowSet: null};
   if (multiHuman()){ S.hideHands = true; S.viewer = 0; } else { S.hideHands = false; S.viewer = 0; }
   if (S.accusi) hands.forEach((hh,p) => findAccusi(hh).forEach(a => { S.h.accusi.push({p, label: a.label, pts: a.pts}); a.cards.forEach(c => S.h.known[p].push(c)); }));
   selected = null; awaitingSeat = null;
@@ -1506,7 +1770,8 @@ async function newHand(){
   await wait(k*T.deal + 650);
   if (g !== GEN) return;
   dealDelay = null; cardEls.forEach(el => el.style.transitionDelay = '0ms');
-  toast(`<b>Mano ${S.handNo}</b><br>Distribuisce ${esc(nameOf(S.dealer))}, apre ${esc(nameOf(S.h.turn))}`, 2200);
+  if (game === 'briscola') toast(`<b>Mano ${S.handNo}</b><br>La briscola è <b>${SUIT[S.h.trump].name}</b> · apre ${esc(nameOf(S.h.turn))}`, 2600);
+  else toast(`<b>Mano ${S.handNo}</b><br>Distribuisce ${esc(nameOf(S.dealer))}, apre ${esc(nameOf(S.h.turn))}`, 2200);
   if (S.h.accusi.length){
     await wait(900); if (g !== GEN) return;
     for (const a of S.h.accusi){ toast(`<b>${esc(nameOf(a.p))} accusa</b><br>${esc(a.label)} · +${a.pts}`, 2600); floatAt(a.p, '+' + a.pts); sfx('pts'); await wait(700); if (g !== GEN) return; }
@@ -1514,6 +1779,14 @@ async function newHand(){
   runLoop();
 }
 const handOver = () => { const h = S.h; return !h.trick.length && !h.deck.length && h.hands.every(x => !x.length); };
+async function dealRound(g){
+  const h = S.h, n = S.n, idx = {}; let k = 0;
+  for (let r=0;r<3;r++) for (let j=1;j<=n;j++){ if (!h.deck.length) break; const p = (S.dealer + j) % n, c = h.deck.pop(); h.hands[p].push(c); idx[c] = k++; }
+  dealDelay = idx; layout(); sfx('deal');
+  await wait(k*T.deal*1.4 + 600); dealDelay = null; cardEls.forEach(el => el.style.transitionDelay = '0ms');
+  if (g !== GEN) return;
+  if (!h.deck.length) toast('<b>Ultima mano</b><br>Le carte del mazzo sono finite', 1800);
+}
 const nextHumanAfter = p => { for (let k=1;k<=S.n;k++){ const q = (p + k) % S.n; if (S.seats[q].type === 'human') return q; } return p; };
 
 async function runLoop(){
@@ -1524,25 +1797,26 @@ async function runLoop(){
     if (handOver()){ await endHand(g); return; }
     const p = h.turn;
     save(); renderHud(); renderTags();
+    if (gameOf() === 'scopa' && h.hands.every(x => !x.length) && h.deck.length){ await dealRound(g); continue; }
     if (S.seats[p].type === 'remote'){
       thinking = p; renderTags();
       const r = await awaitRemote(p);
       if (g !== GEN || !r) return;
       thinking = -1;
-      await playCard(p, r.c, r.sig, g);
+      await doMove(p, r, g);
       continue;
     }
     if (S.seats[p].type === 'cpu'){
       thinking = p; renderTags();
       const t0 = performance.now();
       await wait(40);
-      const c = chooseCard(p);
+      const mv = chooseMoveG(p);
       const spent = performance.now() - t0;
       await wait(Math.max(0, T.cpuMin + Math.random()*(T.cpuMax - T.cpuMin) - spent));
       if (g !== GEN) return;
       thinking = -1;
-      const sig = (S.mode === '4' && !h.trick.length) ? cpuSignal(p, c) : null;
-      await playCard(p, c, sig, g);
+      mv.sig = (gameOf() === 'tressette' && S.mode === '4' && !h.trick.length) ? cpuSignal(p, mv.c) : null;
+      await doMove(p, mv, g);
     } else {
       if (multiHuman()){
         if (S.viewer !== p){
@@ -1554,13 +1828,42 @@ async function runLoop(){
       const r = await awaitHuman(p);
       if (g !== GEN || !r) return;
       if (multiHuman() && nextHumanAfter(p) !== p) S.hideHands = true;
-      await playCard(p, r.c, r.sig, g);
+      await doMove(p, r, g);
     }
   }
 }
-async function playCard(p, c, sig, g){
+function doMove(p, mv, g){ return gameOf() === 'scopa' ? playScopa(p, mv.c, mv.take || [], g) : playCard(p, mv.c, mv.sig, g); }
+async function playScopa(p, c, take, g){
   const h = S.h;
-  if (h.trick.length && suitOf(c) !== suitOf(h.trick[0].c)) h.voids[p][suitOf(h.trick[0].c)] = true;
+  h.hands[p] = h.hands[p].filter(x => x !== c); h.played.push(c);
+  selected = null; sopts = null;
+  if (take.length){
+    h.inPlay = {p, c, on: take[0]};
+    sfx('card'); layout(); renderTags();
+    await wait(T.play); if (g !== GEN) return;
+    h.glowSet = take.concat([c]); layout();
+    await wait(T.look*0.75); if (g !== GEN) return;
+    h.glowSet = null; h.inPlay = null;
+    h.table = h.table.filter(x => !take.includes(x));
+    h.capt[p].push(c, ...take); h.lastCap = p;
+    h.last = {trick: [{p, c}].concat(take.map(x => ({p: -1, c: x}))), w: p};
+    const lastPlay = !h.deck.length && h.hands.every(x => !x.length);
+    const scopa = !h.table.length && !lastPlay;
+    if (scopa) h.scope[p]++;
+    sfx('sweep'); layout(); renderTags(); renderHud();
+    if (scopa){ floatAt(p, 'Scopa!'); toast(`<b>Scopa!</b><br>${esc(nameOf(p))} spazza il tavolo`, 2000); sfx('pts'); }
+    else if (take.includes(SETTEBELLO) || c === SETTEBELLO){ floatAt(p, 'Settebello!'); sfx('pts'); }
+    await wait(T.collect); if (g !== GEN) return;
+  } else {
+    h.table.push(c);
+    sfx('card'); layout(); renderTags();
+    await wait(T.play + 150); if (g !== GEN) return;
+  }
+  h.turn = (p + 1) % S.n;
+}
+async function playCard(p, c, sig, g){
+  const h = S.h, game = gameOf();
+  if (game === 'tressette' && h.trick.length && suitOf(c) !== suitOf(h.trick[0].c)) h.voids[p][suitOf(h.trick[0].c)] = true;
   h.hands[p] = h.hands[p].filter(x => x !== c);
   h.known[p] = h.known[p].filter(x => x !== c);
   h.trick.push({p, c}); h.played.push(c);
@@ -1570,21 +1873,28 @@ async function playCard(p, c, sig, g){
   await wait(T.play);
   if (g !== GEN) return;
   if (h.trick.length === S.n){
-    const w = winEntry(h.trick);
+    const w = winTrick(h.trick);
     h.glow = w.c; layout();
     await wait(T.look); if (g !== GEN) return;
     h.glow = -1;
-    let pts = 0; for (const e of h.trick) pts += tz(e.c);
-    h.terzi[w.p] += pts; h.tricks[w.p]++;
+    let pts = 0; for (const e of h.trick) pts += game === 'briscola' ? bp(e.c) : tz(e.c);
+    if (game === 'briscola') h.pts[w.p] += pts; else h.terzi[w.p] += pts;
+    h.tricks[w.p]++;
     h.capt[w.p].push(...h.trick.map(e => e.c));
     h.last = {trick: h.trick.slice(), w: w.p};
     h.trick = []; h.turn = w.p; h.signal = null; clearBubbles();
-    const last = !h.deck.length && h.hands.every(x => !x.length);
+    const last = game === 'tressette' && !h.deck.length && h.hands.every(x => !x.length);
     if (last){ h.terzi[w.p] += 3; h.ultima = w.p; }
     sfx('sweep'); layout(); renderTags(); renderHud();
-    if (pts || last){ floatAt(w.p, '+' + fmtT(pts + (last ? 3 : 0)) + (last ? ' ultima' : '')); sfx('pts'); }
+    if (game === 'briscola'){ if (pts >= 10){ floatAt(w.p, '+' + pts); sfx('pts'); } }
+    else if (pts || last){ floatAt(w.p, '+' + fmtT(pts + (last ? 3 : 0)) + (last ? ' ultima' : '')); sfx('pts'); }
     await wait(T.collect); if (g !== GEN) return;
-    if (S.n === 2 && h.deck.length){
+    if (game === 'briscola' && h.deck.length){
+      for (let k=0;k<S.n;k++){ if (!h.deck.length) break; const q = (w.p + k) % S.n, d = h.deck.pop(); h.hands[q].push(d); layout(); sfx('card'); await wait(T.play*0.55); if (g !== GEN) return; }
+      if (!h.deck.length) toast('<b>Mazzo finito</b><br>Si giocano le ultime carte', 1600);
+      await wait(T.play*0.4); if (g !== GEN) return;
+    }
+    else if (game === 'tressette' && S.n === 2 && h.deck.length){
       const o = 1 - w.p, a = h.deck.pop(), b = h.deck.pop();
       h.reveal = [{c: a, p: w.p}, {c: b, p: o}];
       layout(); sfx('card');
@@ -1614,9 +1924,28 @@ function handResult(){
   }
   return rows;
 }
+function briscolaResult(){
+  const h = S.h, rows = [];
+  for (let t=0;t<nTeams();t++){ const seats = teamSeats(t); rows.push({t, pts: seats.reduce((a,p) => a + h.pts[p], 0), tricks: seats.reduce((a,p) => a + h.tricks[p], 0)}); }
+  rows.forEach(r => r.total = r.pts > 60 ? 1 : 0);
+  return rows;
+}
+function scopaResult(){
+  const h = S.h, rows = [];
+  for (let t=0;t<nTeams();t++){
+    const seats = teamSeats(t), cards = [].concat(...seats.map(p => h.capt[p]));
+    let prim = 0; for (let su=0;su<4;su++){ const v = cards.filter(c => suitOf(c) === su).map(c => PRIM[rankOf(c)]); prim += v.length ? Math.max(...v) : 0; }
+    rows.push({t, scope: seats.reduce((a,p) => a + h.scope[p], 0), cards: cards.length, den: cards.filter(c => suitOf(c) === 1).length, sb: cards.includes(SETTEBELLO), prim});
+  }
+  const award = key => { const mx = Math.max(...rows.map(r => r[key])); const w = rows.filter(r => r[key] === mx); return w.length === 1 ? w[0].t : -1; };
+  const wc = award('cards'), wd = award('den'), wp = award('prim');
+  rows.forEach(r => { r.pCards = r.t === wc ? 1 : 0; r.pDen = r.t === wd ? 1 : 0; r.pPrim = r.t === wp ? 1 : 0; r.pSb = r.sb ? 1 : 0; r.total = r.scope + r.pCards + r.pDen + r.pPrim + r.pSb; });
+  return rows;
+}
 function matchOutcome(){
   const m = S.match, tg = S.target, mx = Math.max(...m);
   if (mx < tg) return null;
+  if (gameOf() === 'briscola') return {winners: m.map((v,i) => v >= tg ? i : -1).filter(i => i >= 0), losers: []};
   if (S.mode === 'perdere'){
     const mn = Math.min(...m);
     return {winners: m.map((v,i) => v === mn ? i : -1).filter(i => i >= 0), losers: m.map((v,i) => v >= tg ? i : -1).filter(i => i >= 0)};
@@ -1626,7 +1955,14 @@ function matchOutcome(){
 }
 async function endHand(g){
   await wait(450); if (g !== GEN) return;
-  const h = S.h, rows = handResult();
+  const h = S.h, game = gameOf();
+  if (game === 'scopa' && h.table.length){
+    const q = h.lastCap >= 0 ? h.lastCap : S.dealer;
+    toast(`Le carte rimaste in tavola vanno a <b>${esc(nameOf(q))}</b>`, 2000);
+    h.capt[q].push(...h.table); h.table = []; sfx('sweep'); layout(); renderTags();
+    await wait(T.collect + 500); if (g !== GEN) return;
+  }
+  const rows = game === 'scopa' ? scopaResult() : game === 'briscola' ? briscolaResult() : handResult();
   rows.forEach(r => S.match[r.t] += r.total);
   let out = matchOutcome(), capp = -1;
   if (S.cappotto){
@@ -1648,7 +1984,7 @@ function awaitHuman(p){
   });
 }
 function syncSigbar(){
-  const show = S && S.mode === '4' && awaitingSeat !== null && awaitingSeat === S.viewer && !S.h.trick.length && !S.hideHands;
+  const show = S && gameOf() === 'tressette' && S.mode === '4' && awaitingSeat !== null && awaitingSeat === S.viewer && !S.h.trick.length && !S.hideHands;
   sigbarEl.hidden = !show;
   sigbarEl.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sig === pendingSig)));
 }
@@ -1659,19 +1995,31 @@ sigbarEl.addEventListener('click', e => {
 function onCardClick(c){
   if (!S || awaitingSeat === null || awaitingSeat !== S.viewer || S.hideHands || paused) return;
   const h = S.h; if (!h.hands[S.viewer].includes(c)) return;
-  const L = legal(h.hands[S.viewer], h.trick);
+  if (gameOf() === 'scopa'){
+    const opts = scopaOptions(c, h.table);
+    if (selected === c && opts.length <= 1){ resolveHuman({c, take: opts[0] || []}); return; }
+    if (selected !== c && lastPtr === 'mouse' && opts.length <= 1){ resolveHuman({c, take: opts[0] || []}); return; }
+    selected = c; sopts = opts; sfx('tick'); layout(); return;
+  }
+  const L = legalG(h.hands[S.viewer], h.trick);
   if (!L.includes(c)){
     const el = cardEls[c]; el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); sfx('nope');
     toast(`Devi rispondere a <b>${SUIT[suitOf(h.trick[0].c)].name}</b>`, 1500, true);
     return;
   }
-  if (lastPtr === 'mouse' || selected === c){
-    const r = humanResolve; humanResolve = null; awaitingSeat = null; sigbarEl.hidden = true;
-    const sig = pendingSig; pendingSig = null;
-    if (r) r({c, sig});
-  } else { selected = c; sfx('tick'); layout(); }
+  if (lastPtr === 'mouse' || selected === c) resolveHuman({c});
+  else { selected = c; sfx('tick'); layout(); }
 }
-boardEl.addEventListener('click', e => { if (!e.target.closest('.card') && !e.target.closest('#sigbar') && selected !== null){ selected = null; layout(); } });
+function resolveHuman(mv){
+  const r = humanResolve; humanResolve = null; awaitingSeat = null; sigbarEl.hidden = true;
+  mv.sig = pendingSig; pendingSig = null; sopts = null; $('#choice').hidden = true;
+  if (r) r(mv);
+}
+document.getElementById('choice').addEventListener('click', e => {
+  const b = e.target.closest('.ch-o'); if (!b || !sopts || selected === null) return;
+  const take = sopts[+b.dataset.i]; if (take) resolveHuman({c: selected, take});
+});
+boardEl.addEventListener('click', e => { if (!e.target.closest('.card') && !e.target.closest('#sigbar') && !e.target.closest('#choice') && selected !== null){ selected = null; sopts = null; layout(); } });
 
 /* ---------------- overlays ---------------- */
 const overlays = ['#menu','#pause','#rules','#summary','#lastTrick'];
@@ -1689,7 +2037,9 @@ function showCurtain(p){
 function showSummary(fresh){
   const h = S.h, {rows, out} = h.result, nt = nTeams();
   const mx = Math.max(...S.match), mn = Math.min(...S.match);
-  let title = `Fine della mano ${S.handNo}`, sub = S.mode === 'perdere' ? `Si perde a ${S.target}` : `Si vince a ${S.target}`;
+  const game = gameOf();
+  let title = `Fine della mano ${S.handNo}`, sub = S.mode === 'perdere' ? `Si perde a ${S.target}` : game === 'briscola' ? `Vince chi arriva a ${S.target} ${S.target === 1 ? 'partita' : 'partite'}` : `Si vince a ${S.target}`;
+  if (game === 'briscola' && !out){ const w = rows.find(r => r.total); sub = w ? `${S.mode === '4' ? teamLabel(w.t) : nameOf(w.t)} vince la mano con ${w.pts} punti` : 'Pareggio: 60 a 60'; }
   const single = humans() <= 1;
   if (out){
     const wl = out.winners.map(t => S.mode === '4' ? teamLabel(t) : nameOf(t)).join(' e ');
@@ -1705,23 +2055,25 @@ function showSummary(fresh){
   for (const r of order){
     const t = r.t, lab = S.mode === '4' ? teamLabel(t) : nameOf(t);
     const isTop = S.mode === 'perdere' ? S.match[t] === mn : S.match[t] === mx && mx > 0;
-    const bits = [`Carte <b>${fmtT(r.cardsT)}</b>`, `Ultima <b>${r.ult ? '+1' : '–'}</b>`];
-    if (S.accusi) bits.push(`Accusi <b>${r.acc ? '+' + r.acc : '–'}</b>`);
-    bits.push(`Prese <b>${r.tricks}</b>`);
-    body += `<div class="trow ${isTop ? 'top' : ''}" style="--c:${TEAMC[t]}"><div class="h"><span class="nm"><i></i>${esc(lab)}</span><span class="gain">+${r.total}</span><span class="tot">${S.match[t]}<small>/${S.target}</small></span></div><div class="bd">${bits.join('')}</div><i class="pg" style="width:${Math.min(100, S.match[t]/S.target*100)}%"></i></div>`;
+    let bits;
+    if (game === 'briscola') bits = [`Punti <b>${r.pts}</b>`, `Prese <b>${r.tricks}</b>`];
+    else if (game === 'scopa') bits = [`Scope <b>${r.scope}</b>`, `Carte <b>${r.cards}${r.pCards ? ' ✓' : ''}</b>`, `Denari <b>${r.den}${r.pDen ? ' ✓' : ''}</b>`, `Settebello <b>${r.sb ? '✓' : '–'}</b>`, `Primiera <b>${r.prim}${r.pPrim ? ' ✓' : ''}</b>`];
+    else { bits = [`Carte <b>${fmtT(r.cardsT)}</b>`, `Ultima <b>${r.ult ? '+1' : '–'}</b>`]; if (S.accusi) bits.push(`Accusi <b>${r.acc ? '+' + r.acc : '–'}</b>`); bits.push(`Prese <b>${r.tricks}</b>`); }
+    const gainTxt = game === 'briscola' ? (r.total ? 'mano vinta' : '') : '+' + r.total;
+    body += `<div class="trow ${isTop ? 'top' : ''}" style="--c:${TEAMC[t]}"><div class="h"><span class="nm"><i></i>${esc(lab)}</span><span class="gain">${gainTxt}</span><span class="tot">${S.match[t]}<small>/${S.target}</small></span></div><div class="bd">${bits.map(x => `<span>${x}</span>`).join('')}</div><i class="pg" style="width:${Math.min(100, S.match[t]/S.target*100)}%"></i></div>`;
   }
   const accTxt = h.accusi.length ? `<p class="acc">Accusi: ${h.accusi.map(a => `${esc(nameOf(a.p))}, ${esc(a.label.toLowerCase())} (+${a.pts})`).join(' · ')}</p>` : '';
   const btns = isGuest()
     ? `<p class="hint" style="text-align:center">Aspetta che ${esc(nameOf(0))} ${out ? 'faccia ripartire la partita' : 'distribuisca la prossima mano'}.</p>`
     : out
-    ? `<div class="stack"><button class="btn primary" id="sNew">Rivincita</button><button class="btn ghost" id="sMenu">Cambia modalità</button></div>`
+    ? `<div class="stack"><button class="btn primary" id="sNew">Rivincita</button><button class="btn ghost" id="sMenu">Cambia gioco</button></div>`
     : `<button class="btn primary" id="sNext">Prossima mano</button>`;
   $('#sumPanel').innerHTML = `<h2>${esc(title)}</h2><p class="sub">${esc(sub)}</p><div class="teams">${body}</div>${accTxt}${btns}`;
   $('#summary').hidden = false;
   if (isGuest()){}
   else if (out){
     $('#sNew').onclick = () => { clearSave(); startMatch(); };
-    $('#sMenu').onclick = () => { clearSave(); $('#summary').hidden = true; openMenu(); };
+    $('#sMenu').onclick = () => { quitMatch(); };
   } else {
     $('#sNext').onclick = () => { $('#summary').hidden = true; S.dealer = (S.dealer + 1) % S.n; newHand(); };
   }
@@ -1732,7 +2084,8 @@ $('#pauseBtn').addEventListener('click', () => {
   if (!S){ openMenu(); return; }
   if (!isGuest()) setPaused(true);
   $('#pNew').firstChild.textContent = isGuest() ? 'Esci dalla stanza ' : 'Esci dalla partita ';
-  $('#pauseSub').textContent = `${NET.code ? 'Stanza ' + NET.code + ' · ' : ''}${S.mode === '2' ? 'In due' : S.mode === '4' ? 'In quattro a coppie' : 'A perdere'} · mano ${S.handNo}`;
+  $('#pauseSub').textContent = `${GAMES[gameOf()].name} · ${NET.code ? 'stanza ' + NET.code + ' · ' : ''}${S.mode === '2' ? 'in due' : S.mode === '4' ? 'in quattro a coppie' : 'a perdere'} · mano ${S.handNo}`;
+  $('#pLast').firstChild.textContent = gameOf() === 'scopa' ? 'Ultima presa ' : 'Ultima presa ';
   $('#pLast').disabled = !(S.h && S.h.last);
   $('#pSoundV').textContent = muted ? 'no' : 'sì';
   $('#pause').hidden = false;
@@ -1740,7 +2093,7 @@ $('#pauseBtn').addEventListener('click', () => {
 function resumeGame(){ $('#pause').hidden = true; if (!isGuest()) setPaused(false); }
 $('#pResume').onclick = resumeGame;
 $('#pSound').onclick = () => { muted = !muted; try { localStorage.setItem(SNDKEY, muted ? 'off' : 'on'); } catch(e) {} $('#pSoundV').textContent = muted ? 'no' : 'sì'; if (!muted){ audio(); sfx('tick'); } };
-$('#pRules').onclick = () => { $('#pause').hidden = true; openRules(() => { $('#pause').hidden = false; }); };
+$('#pRules').onclick = () => { $('#pause').hidden = true; openRules(() => { $('#pause').hidden = false; }, gameOf()); };
 function quitMatch(){
   GEN++; setPaused(false); resumeQ.splice(0);
   if (NET.role) leaveOnline();
@@ -1750,7 +2103,7 @@ function quitMatch(){
   tagsEl.innerHTML = ''; tagEls = []; fxEl.innerHTML = ''; toastsEl.innerHTML = '';
   sigbarEl.hidden = true; deckcEl.hidden = true; $('#pick').hidden = true; ringEl.classList.remove('on');
   ['#pause','#quitAsk','#summary','#lastTrick','#curtain','#gwait'].forEach(sel => { const e = $(sel); if (e) e.hidden = true; });
-  renderHud(); openMenu();
+  renderHud(); menuView = 'home'; openMenu('home');
 }
 $('#pNew').onclick = () => {
   $('#pause').hidden = true;
@@ -1764,15 +2117,21 @@ $('#qaNo').onclick = () => { $('#quitAsk').hidden = true; $('#pause').hidden = f
 $('#pLast').onclick = () => {
   const L = S.h.last; if (!L) return;
   $('#ltSub').textContent = `Presa da ${nameOf(L.w)}`;
-  $('#ltCards').innerHTML = L.trick.map(e => `<figure><div class="mc ${e.p === L.w ? 'w' : ''}"><div class="face" style="position:relative;width:100%;height:100%;--cw:62px">${faceHTML(e.c)}</div></div>${esc(nameOf(e.p))}</figure>`).join('');
+  $('#ltCards').innerHTML = L.trick.map(e => `<figure><div class="mc ${e.p === L.w ? 'w' : ''}"><div class="face" style="position:relative;width:100%;height:100%;--cw:62px">${faceHTML(e.c)}</div></div>${e.p >= 0 ? esc(nameOf(e.p)) : 'dal tavolo'}</figure>`).join('');
   $('#pause').hidden = true; $('#lastTrick').hidden = false;
 };
 $('#ltClose').onclick = () => { $('#lastTrick').hidden = true; $('#pause').hidden = false; };
 
 let rulesBack = null;
-function openRules(back){ rulesBack = back; $('#rules').hidden = false; }
+const RULES = {tressette: '\n      <h3>Forza delle carte</h3>\n      <div class="rank"><span>3</span><span>2</span><span>1</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><em>dalla più forte · 1 Asso, 8 Fante, 9 Cavallo, 10 Re</em></div>\n      <p>Non c\'è briscola. Chi apre sceglie il seme e gli altri devono rispondere a seme. Se non ce l\'hai, giochi la carta che vuoi, ma non prendi. Prende la carta più forte del seme uscito.</p>\n      <h3>Punti</h3>\n      <p>L\'Asso vale 1 punto. Tre, Due, Re, Cavallo e Fante valgono ⅓ ciascuno (tre figure fanno un punto). Le altre carte non valgono niente. Chi prende l\'ultima mano guadagna 1 punto. In ogni mano ci sono 11 punti; i terzi avanzati non contano.</p>\n      <h3>In due</h3>\n      <p>Dieci carte a testa. Dopo ogni presa si pesca dal mazzo, prima chi ha preso. Le carte pescate si mostrano all\'avversario.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, il compagno ti sta di fronte. Si gioca in senso antiorario: dopo di te tocca a chi sta alla tua destra. Chi apre può fare un segnale al compagno: <b>Busso</b> (gioca la tua più forte e ritorna il seme), <b>Striscio</b> (ne ho tante di questo seme), <b>Volo</b> (è l\'ultima carta che ho di questo seme).</p>\n      <h3>Cappotto</h3>\n      <p>Solo nella partita a perdere: se in una mano un giocatore prende tutti gli 11 punti, compresa l\'ultima presa, e gli altri restano a zero, vince subito la partita. Si può disattivare dal menu.</p>\n      <h3>Accusi</h3>\n      <p>A inizio mano si dichiarano: la Napoletana (Asso, Due e Tre dello stesso seme) vale 3 punti; tre Assi, tre Due o tre Tre valgono 3 punti, tutti e quattro valgono 4.</p>\n      <h3>A perdere</h3>\n      <p>In quattro, ognuno per sé, con le stesse regole di presa. Conviene liberarsi delle carte forti e degli Assi. Chi raggiunge il limite perde la partita; vince chi ha meno punti.</p>\n    ', briscola: '\n      <h3>Lo scopo</h3>\n      <p>Fare più di 60 punti sui 120 del mazzo. Chi vince la mano guadagna una partita; a 60 pari nessuno.</p>\n      <h3>Forza e punti</h3>\n      <div class="rank"><span>1</span><span>3</span><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>2</span><em>dalla più forte</em></div>\n      <p>Asso 11 punti, Tre 10, Re 4, Cavallo 3, Fante 2. Le altre carte non valgono niente.</p>\n      <h3>La briscola</h3>\n      <p>Si danno tre carte a testa e si scopre una carta: il suo seme è la briscola e comanda su tutti gli altri. La carta scoperta resta sotto il mazzo e la pesca l\'ultimo.</p>\n      <h3>Come si prende</h3>\n      <p>Non c\'è obbligo di rispondere a seme. Prende la briscola più alta; se non ci sono briscole, la carta più alta del seme uscito per primo. Dopo ogni presa si pesca una carta, prima chi ha preso.</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte. I punti della coppia si sommano.</p>', scopa: "\n      <h3>Lo scopo</h3>\n      <p>Prendere più carte possibile dal tavolo e fare scope. Si gioca fino a 11 punti (o 16, 21).</p>\n      <h3>Il valore delle carte</h3>\n      <p>Ogni carta vale il suo numero: Asso 1, poi 2 fino a 7, Fante 8, Cavallo 9, Re 10.</p>\n      <h3>Come si prende</h3>\n      <p>Si danno tre carte a testa e quattro vanno in tavola. Al tuo turno giochi una carta: prendi la carta in tavola con lo stesso valore, oppure più carte la cui somma fa quel valore. Se c'è una carta uguale, devi prendere quella. Se non puoi prendere, la carta resta in tavola.</p>\n      <h3>Scopa</h3>\n      <p>Se prendi tutte le carte del tavolo fai scopa: un punto. All'ultima giocata della mano la scopa non vale. Le carte rimaste alla fine vanno a chi ha preso per ultimo.</p>\n      <h3>I punti della mano</h3>\n      <p>Un punto per ogni scopa, più un punto a testa per: più carte, più denari, il Settebello (il 7 di denari) e la Primiera (la somma più alta delle carte migliori per seme: 7 vale 21, 6 vale 18, Asso 16, 5 vale 15, 4 vale 14, 3 vale 13, 2 vale 12, figure 10).</p>\n      <h3>In quattro</h3>\n      <p>A coppie, col compagno di fronte: carte e scope della coppia si sommano.</p>"};
+function openRules(back, game){
+  game = game || cfg.game || 'tressette'; rulesBack = back;
+  $('#rulesTitle').textContent = 'Come si gioca a ' + GAMES[game].name;
+  $('#rulesBody').innerHTML = RULES[game];
+  $('#rules').hidden = false; $('#rules').scrollTop = 0;
+}
 $('#rulesClose').onclick = () => { $('#rules').hidden = true; if (rulesBack) rulesBack(); };
-$('#rulesLink').onclick = () => { $('#menu').hidden = true; openRules(() => { $('#menu').hidden = false; }); };
+$('#rulesLink').onclick = () => { $('#menu').hidden = true; openRules(() => { $('#menu').hidden = false; }, cfg.game); };
 
 /* ---------------- main menu ---------------- */
 const POSL = {
@@ -1780,7 +2139,36 @@ const POSL = {
   '4': ['Il tuo nome', 'Alla tua destra · avversario', 'Di fronte · compagno', 'Alla tua sinistra · avversario'],
   'perdere': ['Il tuo nome', 'Alla tua destra', 'Di fronte a te', 'Alla tua sinistra']
 };
+const MODEICON = {
+  '2': '<svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#FF8A6B"/></svg>',
+  '4': '<svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#F2C230"/><circle cx="5" cy="11" r="2" fill="#FF8A6B"/><circle cx="29" cy="11" r="2" fill="#FF8A6B"/></svg>',
+  'perdere': '<svg viewBox="0 0 34 22" fill="none"><rect x="9" y="4" width="16" height="14" rx="3" stroke="#A3B6D6"/><circle cx="17" cy="20" r="2" fill="#F2C230"/><circle cx="17" cy="2" r="2" fill="#6FD3C7"/><circle cx="5" cy="11" r="2" fill="#C9A8FF"/><circle cx="29" cy="11" r="2" fill="#FF8A6B"/></svg>'
+};
+const miniFan = ids => ids.map((c, i) => `<span class="mf" style="--k:${i - (ids.length - 1)/2}"><span class="face">${faceHTML(c)}</span></span>`).join('');
+let menuView = 'home';
+function renderHome(){
+  $('#gameList').innerHTML = Object.entries(GAMES).map(([id, g]) => `<button class="game" data-game="${id}"><span class="g-fan">${miniFan(g.fan)}</span><span class="g-tx"><span class="g-n">${g.name}</span><span class="g-d">${g.desc}</span><span class="g-m">${g.modes.includes('perdere') ? 'In 2, in 4 o a perdere' : 'In 2 o in 4 a coppie'}</span></span><svg class="g-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>`).join('');
+}
+function showView(v){
+  menuView = v;
+  $('#homeView').hidden = v !== 'home'; $('#setupView').hidden = v !== 'setup';
+  if (v === 'home') renderHome(); else renderMenu();
+  $('#menu').scrollTop = 0;
+}
+document.getElementById('gameList').addEventListener('click', e => { const b = e.target.closest('.game'); if (!b) return; cfg.game = b.dataset.game; syncGame(); saveCfg(); sfx('tick'); showView('setup'); });
+$('#backHome').onclick = () => showView('home');
+$('#settingsOpen').onclick = () => { $('#menu').hidden = true; renderDeckBox(); $('#soundChk').checked = !muted; $('#settings').hidden = false; $('#settings').scrollTop = 0; };
+$('#settingsClose').onclick = () => { $('#settings').hidden = true; $('#menu').hidden = false; hero(); renderHome(); };
+$('#soundChk').addEventListener('change', e => { muted = !e.target.checked; try { localStorage.setItem(SNDKEY, muted ? 'off' : 'on'); } catch(x) {} if (!muted){ audio(); sfx('tick'); } });
 function renderMenu(){
+  syncGame();
+  const gm = GAMES[cfg.game];
+  $('#setupTitle').textContent = gm.name;
+  $('#setupFan').innerHTML = miniFan(gm.fan);
+  const md = document.querySelector('.modes');
+  md.style.gridTemplateColumns = `repeat(${gm.modes.length},minmax(0,1fr))`;
+  md.innerHTML = gm.modes.map(m => `<button class="mode" role="radio" data-mode="${m}" aria-checked="${cfg.mode === m}">${MODEICON[m]}<span class="mt">${MODEINFO[cfg.game][m][0]}</span><span class="md">${MODEINFO[cfg.game][m][1]}</span></button>`).join('');
+  $('#targetSeg').innerHTML = gm.targets.map(v => `<button data-v="${v}">${v}</button>`).join('');
   cfg.seats.forEach((st, i) => { if (i && st.type === 'human'){ st.type = 'cpu'; if (/^Giocatore \d$/.test(st.name) || !st.name) st.name = CPU_NAMES[i - 1]; } });
   document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === cfg.mode)));
   const n = cfg.mode === '2' ? 2 : 4;
@@ -1795,17 +2183,17 @@ function renderMenu(){
   $('#levelBox').hidden = !anyCpu;
   $('#levelSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cfg.level)));
   $('#targetSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === cfg.target)));
-  $('#targetLbl').textContent = cfg.mode === 'perdere' ? 'Si perde a' : 'Si vince a';
-  $('#accusiRow').hidden = cfg.mode === 'perdere';
+  $('#targetLbl').textContent = cfg.mode === 'perdere' ? 'Si perde a' : gm.tlabel;
+  $('#accusiRow').hidden = cfg.game !== 'tressette' || cfg.mode === 'perdere';
   $('#accusiChk').checked = !!cfg.accusi;
-  $('#cappRow').hidden = cfg.mode !== 'perdere';
+  $('#cappRow').hidden = cfg.game !== 'tressette' || cfg.mode !== 'perdere';
   $('#cappChk').checked = cfg.cappotto !== false;
   const humansN = cfg.seats.slice(0, n).filter((s,i) => i === 0 || s.type === 'human').length;
   const onl = cfg.seats.slice(1, n).some(s => s.type === 'online');
   $('#startBtn').textContent = onl ? 'Crea la stanza online' : humansN > 1 ? 'Distribuisci · passa e gioca' : 'Distribuisci le carte';
   document.querySelectorAll('#seatRows .seat').forEach((row, i) => { if (i && cfg.seats[i].type === 'online'){ const inp = row.querySelector('input'); inp.value = ''; inp.placeholder = 'Si collega col codice'; inp.disabled = true; } });
 }
-document.querySelector('.modes').addEventListener('click', e => { const b = e.target.closest('.mode'); if (!b) return; cfg.mode = b.dataset.mode; saveCfg(); renderMenu(); });
+document.querySelector('.modes').addEventListener('click', e => { const b = e.target.closest('.mode'); if (!b) return; cfg.mode = cfg.g[cfg.game].mode = b.dataset.mode; saveCfg(); renderMenu(); });
 $('#seatRows').addEventListener('click', e => {
   const b = e.target.closest('.seg button'); if (!b) return;
   const i = +b.parentElement.dataset.i, s = cfg.seats[i];
@@ -1819,7 +2207,7 @@ $('#seatRows').addEventListener('click', e => {
 });
 $('#seatRows').addEventListener('input', e => { const i = +e.target.dataset.i; if (isNaN(i)) return; cfg.seats[i].name = e.target.value; saveCfg(); });
 $('#levelSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.level = b.dataset.v; saveCfg(); renderMenu(); });
-$('#targetSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.target = +b.dataset.v; saveCfg(); renderMenu(); });
+$('#targetSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg.target = cfg.g[cfg.game].target = +b.dataset.v; saveCfg(); renderMenu(); });
 $('#accusiChk').addEventListener('change', e => { cfg.accusi = e.target.checked; saveCfg(); });
 $('#cappChk').addEventListener('change', e => { cfg.cappotto = e.target.checked; saveCfg(); });
 $('#startBtn').onclick = () => { audio(); const n = cfg.mode === '2' ? 2 : 4; if (cfg.seats.slice(1, n).some(s => s.type === 'online')) hostRoom(); else { leaveOnline(); startMatch(); } };
@@ -1829,7 +2217,7 @@ function openMenu(){
   if (S && !S.finished) setPaused(true);
   if (!S && !hasSaved()) { renderHud(); }
   $('#resumeBtn').hidden = !(S ? !S.finished : hasSaved());
-  renderMenu(); renderDeckBox(); $('#menu').hidden = false; $('#menu').scrollTop = 0;
+  $('#menu').hidden = false; showView(menuView === 'setup' && arguments[0] !== 'home' ? 'setup' : 'home');
 }
 function hasSaved(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return !!(s && s.h && !s.finished); } catch(e) { return false; } }
 function resumeFromMenu(){
@@ -1848,7 +2236,7 @@ function restore(s){
   if (S.h.over) showSummary(false); else runLoop();
 }
 function hero(){
-  const picks = [[2,-20,0],[16,-7,.08],[20,7,.16],[39,20,.24]];
+  const picks = [[2,-22,0],[16,-8,.08],[10,7,.16],[39,21,.24]];
   $('#heroFan').innerHTML = picks.map(([c,r,d]) => `<div class="hc" style="--r:${r}deg;--d:${d}s"><div class="face" style="position:relative;width:100%;height:100%;--cw:78px">${faceHTML(c)}</div></div>`).join('');
 }
 hero();
@@ -2339,8 +2727,8 @@ const genCode = () => String(1000 + Math.floor(Math.random()*9000));
 function scheduleBroadcast(){ if (NET.bt || !isHost()) return; NET.bt = setTimeout(() => { NET.bt = 0; broadcast(true); }, 30); }
 function netState(){
   const h = S.h;
-  return {mode: S.mode, n: S.n, seats: S.seats.map(x => ({name: x.name, type: x.type})), target: S.target, match: S.match, handNo: S.handNo, dealer: S.dealer, finished: S.finished, accusi: S.accusi,
-    h: h ? {hands: h.hands, deck: h.deck, trick: h.trick, turn: h.turn, terzi: h.terzi, tricks: h.tricks, capt: h.capt, accusi: h.accusi, signal: h.signal, over: h.over, ultima: h.ultima, last: h.last, reveal: h.reveal, result: h.result, glow: h.glow} : null};
+  return {game: gameOf(), mode: S.mode, n: S.n, seats: S.seats.map(x => ({name: x.name, type: x.type})), target: S.target, match: S.match, handNo: S.handNo, dealer: S.dealer, finished: S.finished, accusi: S.accusi,
+    h: h ? {hands: h.hands, deck: h.deck, trick: h.trick, turn: h.turn, terzi: h.terzi, tricks: h.tricks, capt: h.capt, accusi: h.accusi, signal: h.signal, over: h.over, ultima: h.ultima, last: h.last, reveal: h.reveal, result: h.result, glow: h.glow, table: h.table, brisc: h.brisc, trump: h.trump, pts: h.pts, scope: h.scope, lastCap: h.lastCap, glowSet: h.glowSet, inPlay: h.inPlay} : null};
 }
 function lobbyState(){
   const n = cfg.mode === '2' ? 2 : 4, present = new Set(NET.room ? NET.room.peers().map(p => p.peer) : []);
@@ -2350,7 +2738,7 @@ function lobbyState(){
     if (st.type === 'online') return {name: NET.names[i] || '', ok: !!NET.seatPeer[i] && present.has(NET.seatPeer[i])};
     return {name: st.name, cpu: st.type === 'cpu', ok: true};
   });
-  return {code: NET.code, host: cfg.seats[0].name, players};
+  return {code: NET.code, host: cfg.seats[0].name, players, game: cfg.game, mode: cfg.mode};
 }
 const utf8len = t => new TextEncoder().encode(t).length;
 function broadcast(withFx){
@@ -2372,7 +2760,7 @@ function awaitRemote(p){
       if (!NET.waitRemote || NET.waitRemote.p !== p){ clearInterval(iv); return; }
       const here = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]);
       gone = here ? 0 : gone + 1;
-      if (gone >= 15){ clearInterval(iv); NET.waitRemote = null; toast(`${esc(nameOf(p))} si è scollegato: per questa carta gioca il computer`, 2600); res({c: chooseCard(p), sig: null}); }
+      if (gone >= 15){ clearInterval(iv); NET.waitRemote = null; toast(`${esc(nameOf(p))} si è scollegato: per questa carta gioca il computer`, 2600); res(Object.assign(chooseMoveG(p), {sig: null})); }
     }, 1000);
     NET.waitRemote = {p, res: r => { clearInterval(iv); res(r); }};
     scheduleBroadcast();
@@ -2405,9 +2793,14 @@ function wireHost(){
   Rm.on('mv', m => {
     const w = NET.waitRemote, d = m.data || {};
     if (!w || !S || d.seat !== w.p || NET.seatPeer[w.p] !== m.peer) return;
-    if (!legal(S.h.hands[w.p], S.h.trick).includes(d.c)) return;
-    const sig = S.mode === '4' && !S.h.trick.length && ['Busso','Striscio','Volo'].includes(d.sig) ? d.sig : null;
-    NET.waitRemote = null; w.res({c: d.c, sig});
+    if (!legalG(S.h.hands[w.p], S.h.trick).includes(d.c)) return;
+    let take = [];
+    if (gameOf() === 'scopa'){
+      const opts = scopaOptions(d.c, S.h.table), want = Array.isArray(d.take) ? d.take : [];
+      if (opts.length){ const m = opts.find(o => sameSet(o, want)); if (!m) return; take = m; }
+    }
+    const sig = gameOf() === 'tressette' && S.mode === '4' && !S.h.trick.length && ['Busso','Striscio','Volo'].includes(d.sig) ? d.sig : null;
+    NET.waitRemote = null; w.res({c: d.c, sig, take});
   });
   Rm.onPeers(ch => { if (ch.joined.length) broadcast(false); renderLobby(); if (S && S.h) renderTags(); });
   clearInterval(NET.hb); NET.hb = setInterval(() => broadcast(false), 3000);
@@ -2518,7 +2911,8 @@ function onState(m){
     if (seatK === undefined){ showGuestWait(`Sto entrando nella stanza ${NET.code}…`); return; }
     const l = d.lobby;
     const rows = (l.players || []).map((p, i) => `<div class="sline"><span>${esc(p.name || 'Posto libero')}${String(i) === seatK ? ' (tu)' : ''}</span><span class="${p.ok ? 'ok' : 'wait'}">${p.cpu ? 'Computer' : p.ok ? 'dentro' : 'in attesa…'}</span></div>`).join('');
-    showGuestWait(`Sei dentro. Aspetta che ${String(l.host || '').slice(0, 16)} inizi la partita.`, rows);
+    const gname = GAMES[l.game] ? GAMES[l.game].name : 'Tressette';
+    showGuestWait(`Sei dentro: si gioca a ${gname}. Aspetta che ${String(l.host || '').slice(0, 16)} inizi la partita.`, rows);
     return;
   }
   if (!d.st || !d.st.h) return;
@@ -2536,14 +2930,14 @@ function applyFx(f){
 function applyGuestState(d, seat){
   const prev = S, st = d.st;
   ['#gwait', '#menu', '#join'].forEach(sel => $(sel).hidden = true);
-  const freshHand = !prev || !prev.h || prev.handNo !== st.handNo || prev.n !== st.n;
+  const freshHand = !prev || !prev.h || prev.handNo !== st.handNo || prev.n !== st.n || prev.game !== st.game;
   S = st; S.viewer = seat; S.hideHands = false; S.h.played = []; S.h.known = [];
   if (!prev || prev.n !== S.n || !tagEls.length || prev.seats.map(x => x.name).join('|') !== S.seats.map(x => x.name).join('|')){ measure(); buildTags(); }
   thinking = typeof d.thinking === 'number' && d.thinking !== seat ? d.thinking : -1;
   const mine = d.await === seat;
   if (mine && awaitingSeat === null){
     awaitingSeat = seat; pendingSig = null;
-    humanResolve = r => { NET.room.emit('mv', {seat, c: r.c, sig: r.sig || null}).catch(() => {}); };
+    humanResolve = r => { NET.room.emit('mv', {seat, c: r.c, sig: r.sig || null, take: r.take || []}).catch(() => {}); };
   } else if (!mine){ awaitingSeat = null; humanResolve = null; selected = null; }
   if (freshHand && !S.h.over){
     measure();
