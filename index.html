@@ -621,6 +621,9 @@ html{background:#05070F}
 .tag{transition:transform .45s var(--pop),box-shadow .3s}
 html.fullfix,html.fullfix body{height:var(--fullh)}
 html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;height:var(--fullh)}
+.btn.danger{background:linear-gradient(180deg,#FF7A8F,#E8445F);color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 0 #A82640,0 12px 24px rgba(232,68,95,.35)}
+.btn.danger:active{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 0 #A82640}
+.btn.plain.quit{color:#FF8FA3}
 @keyframes glowShift{from{transform:translate(0,0)}to{transform:translate(-3%,2%)}}
 </style>
 
@@ -744,7 +747,18 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
       <button class="btn plain" id="pLast">Ultima presa <small>vedi le carte</small></button>
       <button class="btn plain" id="pSound">Suono <small id="pSoundV">sì</small></button>
       <button class="btn plain" id="pRules">Regole <small>forza e punti</small></button>
-      <button class="btn plain" id="pNew">Nuova partita <small>torna al menu</small></button>
+      <button class="btn plain quit" id="pNew">Esci dalla partita <small>torna al menu</small></button>
+    </div>
+  </div>
+</div>
+
+<div id="quitAsk" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="qaTitle">Uscire dalla partita?</h2>
+    <p class="sub" id="qaSub">La partita in corso viene chiusa e non si può riprendere.</p>
+    <div class="stack">
+      <button class="btn danger" id="qaYes">Sì, esci</button>
+      <button class="btn plain" id="qaNo" style="justify-content:center">No, continua a giocare</button>
     </div>
   </div>
 </div>
@@ -1715,7 +1729,7 @@ function showSummary(fresh){
 $('#pauseBtn').addEventListener('click', () => {
   if (!S){ openMenu(); return; }
   if (!isGuest()) setPaused(true);
-  $('#pNew').firstChild.textContent = isGuest() ? 'Esci dalla stanza ' : 'Nuova partita ';
+  $('#pNew').firstChild.textContent = isGuest() ? 'Esci dalla stanza ' : 'Esci dalla partita ';
   $('#pauseSub').textContent = `${NET.code ? 'Stanza ' + NET.code + ' · ' : ''}${S.mode === '2' ? 'In due' : S.mode === '4' ? 'In quattro a coppie' : 'A perdere'} · mano ${S.handNo}`;
   $('#pLast').disabled = !(S.h && S.h.last);
   $('#pSoundV').textContent = muted ? 'no' : 'sì';
@@ -1725,7 +1739,26 @@ function resumeGame(){ $('#pause').hidden = true; if (!isGuest()) setPaused(fals
 $('#pResume').onclick = resumeGame;
 $('#pSound').onclick = () => { muted = !muted; try { localStorage.setItem(SNDKEY, muted ? 'off' : 'on'); } catch(e) {} $('#pSoundV').textContent = muted ? 'no' : 'sì'; if (!muted){ audio(); sfx('tick'); } };
 $('#pRules').onclick = () => { $('#pause').hidden = true; openRules(() => { $('#pause').hidden = false; }); };
-$('#pNew').onclick = () => { $('#pause').hidden = true; if (isGuest()){ leaveOnline(); S = null; renderHud(); cardEls.forEach(el => el.classList.add('gone')); tagsEl.innerHTML = ''; } openMenu(); };
+function quitMatch(){
+  GEN++; setPaused(false); resumeQ.splice(0);
+  if (NET.role) leaveOnline();
+  clearSave();
+  S = null; selected = null; awaitingSeat = null; humanResolve = null; thinking = -1;
+  cardEls.forEach(el => { el.classList.add('gone'); el.classList.remove('legal','dim','sel','win'); });
+  tagsEl.innerHTML = ''; tagEls = []; fxEl.innerHTML = ''; toastsEl.innerHTML = '';
+  sigbarEl.hidden = true; deckcEl.hidden = true; $('#pick').hidden = true; ringEl.classList.remove('on');
+  ['#pause','#quitAsk','#summary','#lastTrick','#curtain','#gwait'].forEach(sel => { const e = $(sel); if (e) e.hidden = true; });
+  renderHud(); openMenu();
+}
+$('#pNew').onclick = () => {
+  $('#pause').hidden = true;
+  const online = !!NET.role;
+  $('#qaTitle').textContent = isGuest() ? 'Uscire dalla stanza?' : 'Uscire dalla partita?';
+  $('#qaSub').textContent = isGuest() ? 'Esci dalla partita online: gli altri continuano senza di te.' : online ? 'La partita viene chiusa anche per chi gioca con te online.' : 'La partita in corso viene chiusa e non si può riprendere.';
+  $('#quitAsk').hidden = false;
+};
+$('#qaYes').onclick = () => quitMatch();
+$('#qaNo').onclick = () => { $('#quitAsk').hidden = true; $('#pause').hidden = false; };
 $('#pLast').onclick = () => {
   const L = S.h.last; if (!L) return;
   $('#ltSub').textContent = `Presa da ${nameOf(L.w)}`;
@@ -1792,6 +1825,7 @@ $('#resumeBtn').onclick = () => { audio(); resumeFromMenu(); };
 
 function openMenu(){
   if (S && !S.finished) setPaused(true);
+  if (!S && !hasSaved()) { renderHud(); }
   $('#resumeBtn').hidden = !(S ? !S.finished : hasSaved());
   renderMenu(); renderDeckBox(); $('#menu').hidden = false; $('#menu').scrollTop = 0;
 }
@@ -2329,7 +2363,19 @@ function broadcast(withFx){
   if (utf8len(txt) > 4000 && msg.st){ msg.st.h.last = null; msg.fx = []; }
   NET.room.emit('st', msg).catch(() => {});
 }
-function awaitRemote(p){ return new Promise(res => { NET.waitRemote = {p, res}; scheduleBroadcast(); }); }
+function awaitRemote(p){
+  return new Promise(res => {
+    let gone = 0;
+    const iv = setInterval(() => {
+      if (!NET.waitRemote || NET.waitRemote.p !== p){ clearInterval(iv); return; }
+      const here = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]);
+      gone = here ? 0 : gone + 1;
+      if (gone >= 15){ clearInterval(iv); NET.waitRemote = null; toast(`${esc(nameOf(p))} si è scollegato: per questa carta gioca il computer`, 2600); res({c: chooseCard(p), sig: null}); }
+    }, 1000);
+    NET.waitRemote = {p, res: r => { clearInterval(iv); res(r); }};
+    scheduleBroadcast();
+  });
+}
 function leaveOnline(){
   clearInterval(NET.hb); clearInterval(NET.hiT); clearInterval(NET.wd);
   if (NET.room) NET.room.leave().catch(() => {});
