@@ -612,6 +612,13 @@ body::before{filter:none;opacity:1;animation:glowShift 18s ease-in-out infinite 
 .rules h3{color:var(--gold-2)}
 #curtain{background:radial-gradient(circle at 50% 40%,#16234A,var(--bg-0))}
 #curtain h2{color:var(--text)}
+html{background:#05070F}
+.ring span{display:none}
+.tag.side{padding:3px 12px 3px 3px;gap:7px;max-width:44%}
+.tag.side .av{width:30px;height:30px;font-size:14px}
+.tag.side .n{font-size:13.5px}
+.tag.side .s{font-size:10.5px}
+.tag{transition:transform .45s var(--pop),box-shadow .3s}
 @keyframes glowShift{from{transform:translate(0,0)}to{transform:translate(-3%,2%)}}
 </style>
 
@@ -1209,12 +1216,25 @@ function measure(){
   G.bw = cw*Math.max(1, hs); G.bh = ch*Math.max(1, hs); G.bs = Math.max(1, hs);
   rootStyle.setProperty('--cw', G.bw + 'px'); rootStyle.setProperty('--ch', G.bh + 'px');
 }
-function tagPos(side){
-  const {W, cx, cy, baseY, handH, topY, ch, cw, os, spv, hs} = G;
-  if (side === 'b') return {x:0, y: G.handTop - 48 - cw*hs*(G.two ? 0.16 : 0.3), a:'l'};
+function handCount(p){
+  if (!S || !S.h || p === undefined) return 10;
+  const h = S.h; let k = h.hands[p] ? h.hands[p].length : 10;
+  if (h.reveal && p === S.viewer) k += h.reveal.filter(e => e.p === p).length;
+  return Math.max(1, k);
+}
+const TAGH = 46;
+function tagPos(side, p){
+  const {W, cx, cy, baseY, topY, ch, cw, os, spv, hs} = G;
+  const k = handCount(p === undefined && side === 'b' && S ? S.viewer : p);
+  if (side === 'b'){
+    const twoRows = G.two && k > 5;
+    const top = (twoRows ? G.handTop : baseY - ch*hs/2) - (G.two ? 6 : 9);
+    return {x:0, y: top - TAGH - 8, a:'l'};
+  }
   if (side === 't') return {x:cx, y: topY + ch*os/2 + 6, a:'c'};
-  const fanHalf = spv*4.5 + cw*os/2;
-  return side === 'l' ? {x:0, y: cy - fanHalf - 48, a:'l'} : {x:W, y: cy - fanHalf - 48, a:'r'};
+  const half = spv*(k - 1)/2 + cw*os/2;
+  const y = Math.max(topY + ch*os/2 + TAGH + 14, cy - half - TAGH - 6);
+  return side === 'l' ? {x:0, y, a:'l'} : {x:W, y, a:'r'};
 }
 function anchorPt(tp){ return {x: tp.a === 'l' ? tp.x + 64 : tp.a === 'r' ? tp.x - 64 : tp.x, y: tp.y + 19}; }
 function trickOff(side){
@@ -1286,7 +1306,7 @@ function layout(){
   h.trick.forEach((e,i) => { const off = trickOff(sideOf(e.p)); place[e.c] = {x: cx + off[0], y: cy + off[1], r: jit(e.c), s: ts, up: true, z: 300 + i}; });
   if (h.reveal){ const shown = h.reveal.filter(e => e.p !== S.viewer); shown.forEach((e,i) => { place[e.c] = {x: cx + (shown.length > 1 ? (i ? 1 : -1)*cw*ts*0.62 : 0), y: cy, r: i ? 3 : -3, s: ts*1.12, up: true, z: 600 + i}; }); }
   for (let p=0;p<n;p++){
-    const a = anchorPt(tagPos(sideOf(p)));
+    const a = anchorPt(tagPos(sideOf(p), p));
     h.capt[p].forEach(c => { if (!place[c]) place[c] = {x: a.x, y: a.y, r: 0, s: 0.32, up: false, z: 40, gone: true}; });
   }
   for (const c of ALL){
@@ -1342,13 +1362,14 @@ function renderTags(){
   if (isHost()) scheduleBroadcast();
   const h = S.h;
   tagEls.forEach((el,p) => {
-    const tp = tagPos(sideOf(p));
+    const sd = sideOf(p), tp = tagPos(sd, p);
+    el.classList.toggle('side', sd === 'l' || sd === 'r');
     el.style.transform = `translate(${tp.x}px,${tp.y}px) translateX(${tp.a === 'l' ? '0' : tp.a === 'r' ? '-100%' : '-50%'})`;
     el.classList.toggle('turn', !h.over && h.turn === p && h.trick.length < S.n);
     const sub = el.querySelector('.s');
     if (thinking === p) sub.innerHTML = `<span class="dots"><i></i><i></i><i></i></span>`;
     else if (isHost() && S.seats[p].type === 'remote'){ const on = NET.room && NET.room.peers().some(x => x.peer === NET.seatPeer[p]); sub.textContent = on ? `online · prese ${h.tricks[p]}` : 'scollegato'; }
-    else sub.textContent = `${S.seats[p].type === 'cpu' ? 'CPU · ' : ''}prese ${h.tricks[p]}`;
+    else sub.textContent = `${S.seats[p].type === 'cpu' && !el.classList.contains('side') ? 'CPU · ' : ''}prese ${h.tricks[p]}`;
   });
 }
 function renderHud(){
@@ -1372,14 +1393,14 @@ function toast(html, ms = 2000, local){
 }
 function floatAt(p, text){
   if (isHost()) NET.fx.push({k:'f', p, t:text});
-  const a = anchorPt(tagPos(sideOf(p)));
+  const a = anchorPt(tagPos(sideOf(p), p));
   const el = document.createElement('div'); el.className = 'float'; el.textContent = text;
   el.style.left = a.x + 'px'; el.style.top = (a.y - 46) + 'px';
   fxEl.appendChild(el); setTimeout(() => el.remove(), 1400);
 }
 function bubble(p, text){
   if (isHost()) NET.fx.push({k:'b', p, t:text});
-  const a = anchorPt(tagPos(sideOf(p)));
+  const a = anchorPt(tagPos(sideOf(p), p));
   const el = document.createElement('div'); el.className = 'bubble'; el.textContent = text;
   el.style.left = a.x + 'px'; el.style.top = (a.y - 52) + 'px';
   fxEl.appendChild(el);
