@@ -1744,13 +1744,14 @@ const POSL = {
   'perdere': ['Il tuo nome', 'Alla tua destra', 'Di fronte a te', 'Alla tua sinistra']
 };
 function renderMenu(){
+  cfg.seats.forEach((st, i) => { if (i && st.type === 'human'){ st.type = 'cpu'; if (/^Giocatore \d$/.test(st.name) || !st.name) st.name = CPU_NAMES[i - 1]; } });
   document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === cfg.mode)));
   const n = cfg.mode === '2' ? 2 : 4;
   let html = '';
   for (let i=0;i<n;i++){
     const s = cfg.seats[i];
     html += `<div class="seat"><div class="who"><div class="pos">${POSL[cfg.mode][i]}</div><input id="seatName${i}" data-i="${i}" maxlength="16" value="${esc(s.name)}" aria-label="Nome: ${POSL[cfg.mode][i]}" autocomplete="off"></div>` +
-      (i ? `<div class="seg" data-i="${i}"><button data-t="cpu" aria-pressed="${s.type === 'cpu'}">Computer</button><button data-t="human" aria-pressed="${s.type === 'human'}">Persona</button><button data-t="online" aria-pressed="${s.type === 'online'}">Online</button></div>` : '') + `</div>`;
+      (i ? `<div class="seg" data-i="${i}"><button data-t="cpu" aria-pressed="${s.type === 'cpu'}">Computer</button><button data-t="online" aria-pressed="${s.type === 'online'}">Online</button></div>` : '') + `</div>`;
   }
   $('#seatRows').innerHTML = html;
   const anyCpu = cfg.seats.slice(1, n).some(s => s.type === 'cpu');
