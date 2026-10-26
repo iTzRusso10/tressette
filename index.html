@@ -87,7 +87,7 @@ button:focus-visible,input:focus-visible,.card:focus-visible{outline:2px solid v
 
 /* cards */
 .card{position:absolute;left:0;top:0;width:var(--cw);height:var(--ch);transform-origin:50% 50%;perspective:900px;
-  transition:transform .52s cubic-bezier(.22,.9,.25,1),opacity .35s ease;will-change:transform;touch-action:manipulation;outline:none}
+  transition:transform .52s cubic-bezier(.22,.9,.25,1),opacity .35s ease;touch-action:manipulation;outline:none}
 .card .inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.3,.7,.2,1);transition-delay:inherit}
 .card.down .inner{transform:rotateY(180deg)}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:calc(var(--cw)*.085);
@@ -198,6 +198,7 @@ button:focus-visible,input:focus-visible,.card:focus-visible{outline:2px solid v
 .dgrid img,.dgrid svg{width:100%;height:100%;object-fit:cover;display:block}
 .face img{width:100%;height:100%;object-fit:cover;display:block;background:#fff;filter:contrast(1.1) saturate(1.2) brightness(1.05);-webkit-user-drag:none;pointer-events:none}
 .face{overflow:hidden}
+.face img.hq{filter:none}
 .badge{position:absolute;left:3%;top:2%;background:rgba(255,255,255,.93);border-radius:4px;padding:2px 3px 1px;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--f-display);font-weight:900;font-size:calc(var(--cw)*.19);line-height:1;color:var(--k);box-shadow:0 0 0 .5px rgba(0,0,0,.15)}
 .badge svg{width:calc(var(--cw)*.13);height:calc(var(--cw)*.13)}
 .swrap{position:relative;width:100%;border-radius:10px;overflow:visible;background:#000;user-select:none;-webkit-user-select:none}
@@ -672,6 +673,9 @@ html.fullfix .overlay,html.fullfix body::before,html.fullfix #amb{bottom:auto;he
 .card.tgt .front{box-shadow:0 0 0 3px var(--gold-2),0 0 22px rgba(242,196,81,.55)}
 .card.tgt .inner{animation:jumpCard .55s var(--pop) infinite alternate}
 .trow .bd span{white-space:nowrap}
+.ring{border-radius:var(--rr,50%)}
+.ring::before{border-radius:calc(var(--rr,50%) + 16px)}
+.ring .sheen{inset:3% 10% auto;border-radius:var(--rr,50%)}
 @keyframes tileIn{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.game,.card.tgt .inner{animation:none!important}}
 </style>
@@ -1464,6 +1468,12 @@ function tagPos(side, p){
   const y = Math.max(topY + ch*os/2 + TAGH + 14, G.sy - half - TAGH - 6);
   return side === 'l' ? {x:0, y, a:'l'} : {x:W, y, a:'r'};
 }
+/* The felt: a rounded table that fills the space between the top player's tag and yours. */
+function feltBox(){
+  const W = G.W, top = tagPos('t').y + TAGH/2, bottom = tagPos('b').y + 10;
+  const h = Math.max(120, bottom - top), w = Math.min(W - 28, 1000, Math.max(300, h*2.6));
+  return {x: (W - w)/2, y: top, w, h, r: Math.max(34, Math.min(w, h)*0.2)};
+}
 function anchorPt(tp){ return {x: tp.a === 'l' ? tp.x + 64 : tp.a === 'r' ? tp.x - 64 : tp.x, y: tp.y + 19}; }
 function trickOff(side){
   const {cw, ch, ts} = G;
@@ -1476,20 +1486,27 @@ const handSort = (a,b) => { const g = gameOf(); if (g === 'scopa') return rankOf
 let sopts = null;
 
 function origin(){
+  if (gameOf() === 'scopa'){ const d = G.cw*G.os/2; return {x: Math.max(16 + d, feltBox().x + d + 6), y: G.topY + 2}; }
   if (gameOf() === 'tressette') return S.n === 2 ? {x:G.deckX, y:G.cy} : {x:G.cx, y:G.cy};
   if (S.n === 2) return {x:G.deckX, y:G.cy};
   return {x: G.W - G.ch*G.os - 10 - G.cw*0.42, y: G.tBot - G.ch*0.39 - 22};
 }
 function tableSlots(count){
-  const {W, cw, ch, ts, os, cy, cx, topY, handTop} = G, n = S.n;
-  const o = origin();
-  let left = n === 2 ? o.x + cw*0.62 + 8 : ch*os + 8, right = W - (n === 2 ? 8 : ch*os + 8);
-  if (right - left < cw*3) { left = 8; right = W - 8; }
-  const top = G.tTop != null ? G.tTop + 4 : topY + ch*os/2 + 56, bottom = G.tTop != null ? (n === 4 ? G.tBot - (S.game === 'scopa' ? ch*0.85 : 0) : G.tBot) : handTop - 60;
-  const area = Math.max(1, right - left);
-  let scale = ts, cols = Math.max(1, Math.min(count, Math.floor(area/(cw*scale*1.06)))), rows = Math.ceil(count/Math.max(1, cols));
-  while (rows*ch*scale*1.05 > (bottom - top) && scale > 0.6){ scale -= 0.05; cols = Math.max(1, Math.min(count, Math.floor(area/(cw*scale*1.06)))); rows = Math.ceil(count/cols); }
-  const mx = (left + right)/2, my = (top + bottom)/2, sx = cw*scale*1.08, sy = ch*scale*1.05;
+  const {W, cw, ch, os, hs} = G, n = S.n, f = feltBox();
+  const pad = Math.max(14, f.r*0.28);
+  let left = f.x + pad, right = f.x + f.w - pad;
+  if (n === 4){ left = Math.max(left, ch*os + 10); right = Math.min(right, W - ch*os - 10); }
+  const top = n === 4 && G.tTop != null ? Math.max(G.tTop, f.y + TAGH/2 + 10) : f.y + TAGH/2 + 10, bottom = f.y + f.h - pad;
+  const aw = Math.max(cw, right - left), ah = Math.max(ch*0.6, bottom - top);
+  const cap = Math.min(hs*0.92, 118/cw), k = Math.max(1, count);
+  let best = null;
+  for (let cols=1; cols<=k; cols++){
+    const rows = Math.ceil(k/cols);
+    const sc = Math.min(cap, aw/((cols - 1)*cw*1.1 + cw), ah/((rows - 1)*ch*1.06 + ch));
+    if (!best || sc > best.s + 0.01) best = {cols, rows, s: sc};
+  }
+  const {cols, rows, s: scale} = best;
+  const mx = (left + right)/2, my = (top + bottom)/2, sx = cw*scale*1.1, sy = ch*scale*1.06;
   const out = [];
   for (let i=0;i<count;i++){ const r = Math.floor(i/cols), inRow = Math.min(cols, count - r*cols), c = i - r*cols; out.push({x: mx + (c - (inRow - 1)/2)*sx, y: my + (r - (rows - 1)/2)*sy, s: scale}); }
   return out;
@@ -1549,7 +1566,7 @@ function layout(){
     });
   }
   const o0 = origin();
-  const dsc = (game !== 'tressette' && n === 4) ? 0.78 : 1;
+  const dsc = game === 'scopa' ? os : (game !== 'tressette' && n === 4) ? 0.78 : 1;
   h.deck.forEach((c,i) => { place[c] = {x: o0.x - i*0.22, y: o0.y - i*0.32, r: 0, s: dsc, up: false, z: 50 + i}; cardEls[c].classList.toggle('stk', i < h.deck.length - 2); });
   if (game === 'briscola' && h.brisc !== null && h.deck.length && h.deck[0] === h.brisc) place[h.brisc] = {x: o0.x + (n === 4 ? -1 : 1)*cw*0.62*dsc, y: o0.y, r: 90, s: dsc, up: true, z: 45};
   const tgt = new Set(sopts && selected !== null ? [].concat(...sopts) : []);
@@ -1576,15 +1593,16 @@ function layout(){
     if (!inHand){ el.classList.remove('legal','dim','sel'); el.tabIndex = -1; }
   }
   // decor
-  const rh = Math.max(120, G.handTop - (topY + ch*os/2) - 26), rw = Math.min(W - 4, Math.max(rh*0.9, Math.min(rh*1.5, 760)));
-  ringEl.style.width = rw + 'px'; ringEl.style.height = rh + 'px';
-  ringEl.style.setProperty('--rd', Math.min(rw, rh) + 'px');
-  ringEl.style.transform = `translate(${cx - rw/2}px,${G.rcy - rh/2}px)`;
+  const fb = feltBox();
+  ringEl.style.width = fb.w + 'px'; ringEl.style.height = fb.h + 'px';
+  ringEl.style.setProperty('--rd', Math.min(fb.w, fb.h) + 'px');
+  ringEl.style.setProperty('--rr', fb.r + 'px');
+  ringEl.style.transform = `translate(${fb.x}px,${fb.y}px)`;
   const ts2 = !h.over && h.trick.length < n ? sideOf(h.turn) : null;
   if (ts2){ ringEl.style.setProperty('--ta', ({b:180, t:0, r:90, l:270})[ts2] + 'deg'); ringEl.style.setProperty('--tc', TEAMC[teamOf(h.turn)]); ringEl.classList.add('on'); } else ringEl.classList.remove('on');
   if ((n === 2 || game !== 'tressette') && h.deck.length){
     deckcEl.hidden = false; deckcEl.textContent = h.deck.length;
-    deckcEl.style.transform = `translate(${o0.x}px,${o0.y + ch*0.5*dsc + 10}px) translateX(-50%)`;
+    deckcEl.style.transform = game === 'scopa' ? `translate(${o0.x + cw*dsc/2 + 10}px,${o0.y}px) translateY(-50%)` : `translate(${o0.x}px,${o0.y + ch*0.5*dsc + 10}px) translateX(-50%)`;
   } else deckcEl.hidden = true;
   toastsEl.style.top = (n === 2 ? topY + ch*os/2 + 56 : topY + ch*os/2 + 54) + 'px';
   if (isHost()) scheduleBroadcast();
@@ -2266,7 +2284,7 @@ addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { i
 var BUILTIN = typeof window.TRESSETTE_DECK === 'string' ? window.TRESSETTE_DECK : null;
 function faceHTML(c){
   if (cfg.deck === 'mio' && custom.fronts[c]) return `<img src="${custom.fronts[c]}" alt="" draggable="false">`;
-  if (BUILTIN && (cfg.deck === 'napoletane' || cfg.deck === 'mio')) return `<img src="${BUILTIN}${c}.jpg" alt="" draggable="false" decoding="async">`;
+  if (BUILTIN && (cfg.deck === 'napoletane' || cfg.deck === 'mio')) return `<img class="hq" src="${BUILTIN}${c}.jpg?v=2" alt="" draggable="false" decoding="async">`;
   return faceSVG(c);
 }
 function backHTML(){ return cfg.deck === 'mio' && custom.back ? `<img src="${custom.back}" alt="" draggable="false">` : BACK; }
