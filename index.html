@@ -1507,15 +1507,16 @@ function tableSlots(count){
   if (n === 4){ left = Math.max(left, ch*os + 10); right = Math.min(right, W - ch*os - 10); }
   const top = n === 4 && G.tTop != null ? Math.max(G.tTop, f.y + TAGH/2 + 10) : f.y + TAGH/2 + 10, bottom = f.y + f.h - pad;
   const aw = Math.max(cw, right - left), ah = Math.max(ch*0.6, bottom - top);
-  const cap = Math.min(hs*0.92, 118/cw), k = Math.max(1, count);
-  let best = null;
-  for (let cols=1; cols<=k; cols++){
-    const rows = Math.ceil(k/cols);
-    const sc = Math.min(cap, aw/((cols - 1)*cw*1.1 + cw), ah/((rows - 1)*ch*1.06 + ch));
-    if (!best || sc > best.s + 0.01) best = {cols, rows, s: sc};
+  // Table cards keep one size, smaller than the hand, in rows with felt around them; they only shrink when the table is crowded.
+  const k = Math.max(1, count), GX = 1.18, GY = 1.12;
+  let scale = Math.min(G.ts*1.1, G.hs*0.72), cols, rows;
+  for (;;){
+    cols = Math.max(1, Math.min(k, Math.floor((aw + cw*scale*(GX - 1))/(cw*scale*GX))));
+    rows = Math.ceil(k/cols);
+    if (rows*ch*scale*GY <= ah || scale <= 0.6) break;
+    scale -= 0.04;
   }
-  const {cols, rows, s: scale} = best;
-  const mx = (left + right)/2, my = (top + bottom)/2, sx = cw*scale*1.1, sy = ch*scale*1.06;
+  const mx = (left + right)/2, my = (top + bottom)/2, sx = cw*scale*GX, sy = ch*scale*GY;
   const out = [];
   for (let i=0;i<count;i++){ const r = Math.floor(i/cols), inRow = Math.min(cols, count - r*cols), c = i - r*cols; out.push({x: mx + (c - (inRow - 1)/2)*sx, y: my + (r - (rows - 1)/2)*sy, s: scale}); }
   return out;
