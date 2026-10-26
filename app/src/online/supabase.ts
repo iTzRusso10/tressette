@@ -1,3 +1,4 @@
+import 'react-native-url-polyfill/auto';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import type { Peer, Status, Transport } from './transport';
 
