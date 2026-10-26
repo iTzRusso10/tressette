@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Napoletane",
+    "slug": "napoletane",
+    "scheme": "napoletane",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#10291F",
+    "ios": {
+      "bundleIdentifier": "it.giusepperussodev.napoletane",
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "it.giusepperussodev.napoletane",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-foreground.png",
+        "backgroundColor": "#1D5440"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Napoletane",
+      "shortName": "Napoletane",
+      "lang": "it",
+      "themeColor": "#10291F",
+      "backgroundColor": "#10291F"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1D5440",
+          "image": "./assets/images/splash.png",
+          "imageWidth": 180,
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-image",
+      "expo-audio",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "baseUrl": "/tressette"
+    }
+  }
+}
