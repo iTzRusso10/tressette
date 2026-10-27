@@ -9,6 +9,8 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - `src/state/settings.ts`: impostazioni salvate (AsyncStorage).
 - `src/game/`: il tavolo. `layout.ts` calcola la geometria e le posizioni delle carte (funzioni pure), `CardSprite.tsx` anima ogni carta con Reanimated, `Board.tsx` mette insieme panno, nomi, carte ed effetti.
 - `src/online/`: stanze online. `room.ts` (host autorevole, si trasmettono solo le mosse e gli ospiti le rigiocano con il motore), `transport.ts` (in memoria per i test, tra schede con `?local`), `supabase.ts` (Supabase Realtime), `session.ts` (stato per le schermate).
+- `src/meta/`: tutto quello che sta fuori dalla partita. `economy.ts` (monete, bonus giornaliero, livelli) e `progress.ts` (statistiche, trofei) sono funzioni pure condivise con il server; `profile.ts` è lo stato sul telefono; `sync.ts` lo allinea al server quando sei collegato; `auth.ts` (Apple, Google, Facebook), `friends.ts`, `stakes.ts` e `pot.ts` (posta online), `ads.ts` e `admob.native.ts` (video premio).
+- `supabase/`: tabelle, regole di sicurezza e funzioni del server (vedi `supabase/README.md` per attivare tutti i servizi). Monete e trofei di chi è collegato li cambia solo il server, con le stesse regole di `src/meta`.
 - `src/app/`: le schermate (Expo Router). `src/ui/`: tema, testo, componenti.
 - `assets/cards/`: le 40 scansioni (`0.jpg` … `39.jpg`) e il retro. `scripts/make-art.mjs` disegna retro, icona e splash; `scripts/make-sounds.py` genera i suoni.
 
@@ -28,6 +30,11 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - I nomi hanno larghezza fissa (`TAG_W`). Il mazzo (e la briscola) sta fuori dal panno, in alto a sinistra.
 - A Scopa ogni carta in tavola tiene il suo posto finché non viene presa (`assignSlots`).
 - Dieci carte in mano stanno su due file da cinque: le napoletane non hanno gli indici negli angoli.
+
+## Monete e premi
+
+- Si parte con 1000 monete. Bonus giornaliero da 100 a 500 a seconda della serie di giorni, raddoppiabile con un video. Vincere contro il computer: 20, 40 o 80 monete secondo il livello.
+- Online si sceglie una posta (100, 500, 1000, 5000 o niente): pagano e incassano solo le persone, il piatto va a chi vince e il server paga solo quando la maggioranza dei giocatori conferma lo stesso risultato.
 
 ## Qualità
 

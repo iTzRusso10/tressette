@@ -9,6 +9,8 @@ export interface RoomConfig {
   level: Level;
   accusi: boolean;
   cappotto: boolean;
+  /** Coins each person puts in the pot; 0 for a friendly game. */
+  stake: number;
 }
 
 export interface LobbySeat {
@@ -24,6 +26,8 @@ export interface Lobby {
   cfg: RoomConfig;
   seats: LobbySeat[];
   started: boolean;
+  /** Changes at every match (a rematch is a new match, with a new stake). */
+  matchId: string;
 }
 
 /** Messages in a room. */
@@ -75,7 +79,7 @@ export class HostRoom {
     const n = seatCount(cfg);
     const seats: LobbySeat[] = [{ name: me.name, type: 'human', peer: me.id }];
     for (let i = 1; i < n; i++) seats.push({ name: CPU[i - 1], type: 'cpu' });
-    this.lobby = { code: '', host: me, cfg, seats, started: false };
+    this.lobby = { code: '', host: me, cfg, seats, started: false, matchId: '' };
   }
 
   /** Finds a free code and opens the room. */
@@ -151,6 +155,7 @@ export class HostRoom {
 
   start() {
     this.lobby.started = true;
+    this.lobby.matchId = `${this.lobby.code}-${Date.now().toString(36)}`;
     this.sendLobby();
   }
 

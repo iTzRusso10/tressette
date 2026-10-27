@@ -114,6 +114,12 @@ let net: Net = null;
 export const netRole = () => net?.role ?? null;
 export const hostName = () => (net?.role === 'guest' ? (net.room.lobby?.host.name ?? '') : '');
 
+/** Set by the online session: what to do when the host starts a rematch (pay the stake). */
+let onRematch: ((room: HostRoom) => void) | null = null;
+export function setOnRematch(f: (room: HostRoom) => void) {
+  onRematch = f;
+}
+
 /** A friend's move, waited for at their turn. */
 let remoteWait: { seat: number; resolve: (mv: Move) => void } | null = null;
 /** When a friend's seat went offline: after a while the computer plays for them. */
@@ -269,6 +275,11 @@ export function nextHand() {
 export function rematch() {
   const m = get().match;
   if (!m) return;
+  if (net?.role === 'host') {
+    // Online a rematch is a new match: a new id, and the stake goes in again.
+    net.room.start();
+    onRematch?.(net.room);
+  }
   const s = useSettings.getState();
   startMatch({
     game: m.game,

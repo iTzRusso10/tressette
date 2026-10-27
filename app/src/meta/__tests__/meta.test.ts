@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BONUS_LADDER, bonusFor, canClaim, claimBonus, levelOf, levelProgress, nextStreak, xpForLevel } from '../economy';
 import { addHand, addMatch, emptyStats, matchReward, newlyUnlocked, TROPHIES } from '../progress';
+import { agreed, payout, winningSeats } from '../stakes';
 
 const day = (s: string, h = 12) => new Date(`${s}T${String(h).padStart(2, '0')}:00:00`);
 
@@ -84,5 +85,37 @@ describe('trofei', () => {
     expect(matchReward({ game: 'scopa', mode: '2', level: 'difficile', online: false, won: true }).coins).toBe(80);
     expect(matchReward({ game: 'scopa', mode: '2', level: 'difficile', online: false, won: false }).coins).toBe(0);
     expect(matchReward({ game: 'scopa', mode: '2', level: 'medio', online: true, won: true }).coins).toBe(0);
+  });
+});
+
+describe('posta online', () => {
+  it('in due il vincitore prende il piatto', () => {
+    expect(winningSeats('2', 2, [1])).toEqual([1]);
+    expect(payout(500, 2, [0, 1], [1])).toEqual([0, 1000]);
+  });
+  it('in quattro a coppie i due compagni si dividono il piatto', () => {
+    expect(winningSeats('4', 4, [0])).toEqual([0, 2]);
+    expect(payout(100, 4, [0, 1, 2, 3], [0, 2])).toEqual([200, 0, 200, 0]);
+  });
+  it('a perdere vince chi ha meno punti, anche a pari merito', () => {
+    expect(winningSeats('perdere', 4, [1, 3])).toEqual([1, 3]);
+    expect(payout(1000, 4, [0, 1, 2, 3], [1, 3])).toEqual([0, 2000, 0, 2000]);
+  });
+  it('il computer non paga e non incassa', () => {
+    // You and a friend against two computer seats: your team wins and you share the pot of two.
+    expect(payout(500, 4, [0, 2], [0, 2])).toEqual([500, 0, 500, 0]);
+    // A perdere a computer seat wins alone: stakes back.
+    expect(payout(500, 4, [0, 1], [3])).toEqual([500, 500, 0, 0]);
+  });
+  it('si paga solo se la maggioranza è d’accordo', () => {
+    expect(agreed(2, [['a']])).toBeNull();
+    expect(agreed(2, [['a'], ['a']])).toEqual(['a']);
+    expect(
+      agreed(3, [
+        ['a', 'b'],
+        ['b', 'a'],
+      ]),
+    ).toEqual(['a', 'b']);
+    expect(agreed(4, [['a'], ['b'], ['a']])).toBeNull();
   });
 });

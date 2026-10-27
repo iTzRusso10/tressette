@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { GAMES, MODE_INFO } from '@/engine';
 import { freeSeat, hostStart, joinRoom, leaveRoom, onlineConfigured, roomLink, useOnline } from '@/online/session';
+import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
+import { CoinIcon } from '@/ui/meta';
 import { quitMatch } from '@/state/table';
 import { BackButton, Button, Screen } from '@/ui/kit';
 import { Text } from '@/ui/Text';
@@ -14,6 +16,7 @@ export default function Stanza() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const { role, lobby, online, hostOnline, closed, status, me } = useOnline();
   const name = useSettings(s => s.name);
+  const coins = useProfile(s => s.coins);
   const setName = useSettings(s => s.set);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +98,12 @@ export default function Stanza() {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text v="body">{cfg ? `${GAMES[cfg.game].name}, ${MODE_INFO[cfg.game][cfg.mode]![0].toLowerCase()}` : 'Stanza'}</Text>
+        {cfg?.stake ? (
+          <View style={styles.stake}>
+            <CoinIcon size={20} />
+            <Text v="label">Posta {cfg.stake.toLocaleString('it-IT')}: chi vince prende il piatto</Text>
+          </View>
+        ) : null}
         <Text style={styles.code} accessibilityLabel={`Codice ${code.split('').join(' ')}`}>
           {code}
         </Text>
@@ -151,6 +160,10 @@ export default function Stanza() {
 
         {role === 'host' ? (
           <Button label="Inizia la partita" onPress={hostStart} disabled={status !== 'online'} style={{ marginTop: space.xl }} />
+        ) : cfg?.stake && coins < cfg.stake ? (
+          <Text v="lead" style={{ marginTop: space.xl, textAlign: 'center' }}>
+            Per questa stanza servono {cfg.stake.toLocaleString('it-IT')} monete e ne hai {coins.toLocaleString('it-IT')}. Puoi giocare, ma senza posta.
+          </Text>
         ) : (
           <Text v="lead" style={{ marginTop: space.xl, textAlign: 'center' }}>
             {closed
@@ -169,6 +182,7 @@ const styles = StyleSheet.create({
   top: { height: 52, justifyContent: 'center', paddingHorizontal: space.l },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: space.xl, paddingBottom: space.xxxl },
   code: { fontFamily: fonts.display, fontSize: 72, lineHeight: 80, letterSpacing: 10, color: colors.sun, marginTop: space.xs, fontVariant: ['lining-nums'] },
+  stake: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: space.s },
   statusRow: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
   input: {
     height: 54,

@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { STAKES } from '@/meta/economy';
+import { useProfile } from '@/meta/profile';
 import { createRoom } from '@/online/session';
 import { CPU_NAMES, GAMES, MODE_INFO, targetsFor, type GameId, type Level, type Mode, type Seat } from '@/engine';
 import { FRONTS } from '@/game/cardImages';
@@ -17,6 +19,8 @@ export default function Setup() {
   const { game: raw, online } = useLocalSearchParams<{ game: string; online?: string }>();
   const isOnline = online === '1';
   const [busy, setBusy] = useState(false);
+  const [stake, setStake] = useState(0);
+  const coins = useProfile(st => st.coins);
   const game: GameId = raw === 'briscola' || raw === 'scopa' ? raw : 'tressette';
   const s = useSettings();
   const prefs = s.games[game];
@@ -45,7 +49,7 @@ export default function Setup() {
     setBusy(true);
     try {
       const code = await createRoom(
-        { game, mode: prefs.mode, perdN: prefs.perdN, target: prefs.target, level: s.level, accusi: s.accusi, cappotto: s.cappotto },
+        { game, mode: prefs.mode, perdN: prefs.perdN, target: prefs.target, level: s.level, accusi: s.accusi, cappotto: s.cappotto, stake },
         s.name.trim() || 'Tu',
       );
       router.replace({ pathname: '/stanza/[code]', params: { code } });
@@ -151,6 +155,24 @@ export default function Setup() {
               <Toggle label="Accusi" sub="Napoletana, tris e quattro di Assi, Due e Tre." value={s.accusi} onChange={accusi => s.set({ accusi })} />
             )}
           </Glass>
+        ) : null}
+
+        {isOnline ? (
+          <Section
+            title="Posta"
+            note={
+              stake
+                ? `Ognuno mette ${stake} monete, chi vince prende il piatto. Hai ${coins.toLocaleString('it-IT')} monete.`
+                : 'Partita amichevole, senza monete in gioco.'
+            }
+          >
+            <Choice<number>
+              label="Posta"
+              value={stake}
+              onChange={setStake}
+              options={STAKES.map(v => ({ value: v, label: v ? (v >= 1000 ? `${v / 1000}k` : String(v)) : 'Nessuna' }))}
+            />
+          </Section>
         ) : null}
 
         {isOnline ? (

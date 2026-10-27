@@ -25,7 +25,7 @@ async function setup(cfg: RoomConfig, guests: number) {
   return { hub, host, code, gs };
 }
 
-const base: RoomConfig = { game: 'tressette', mode: '2', perdN: 4, target: 11, level: 'facile', accusi: true, cappotto: true };
+const base: RoomConfig = { game: 'tressette', mode: '2', perdN: 4, target: 11, level: 'facile', accusi: true, cappotto: true, stake: 0 };
 
 describe('stanza online', () => {
   it('chi entra prende un posto, in quattro il primo amico è il compagno', async () => {

@@ -50,7 +50,15 @@
       "expo-audio",
       "expo-font",
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "userTrackingUsageDescription": "Serve a mostrare pubblicità più adatte quando guardi un video per raddoppiare un premio."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

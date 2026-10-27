@@ -133,6 +133,10 @@ export function spend(n: number): boolean {
   return true;
 }
 
+export function celebrateCoins(amount: number, why: string) {
+  celebrate({ kind: 'coins', amount, why });
+}
+
 export function earn(n: number) {
   if (n > 0) set(s => ({ coins: s.coins + n }));
 }

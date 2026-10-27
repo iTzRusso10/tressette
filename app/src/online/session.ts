@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { startGuest, startHostMatch, useTable } from '@/state/table';
+import { payIn, payOut } from '@/meta/pot';
+import { useProfile } from '@/meta/profile';
+import { setOnRematch, startGuest, startHostMatch, useTable } from '@/state/table';
 import { GuestRoom, HostRoom, type Lobby, type RoomConfig } from './room';
 import { onlineConfigured as supabaseReady, SupabaseTransport } from './supabase';
 import { TabTransport, type Peer, type Status, type Transport } from './transport';
@@ -32,6 +34,9 @@ let tabId = '';
 async function clientId(): Promise<string> {
   // Tabs of the same browser share storage: in the local test mode each tab is its own player.
   if (LOCAL) return (tabId ||= 'tab' + Math.random().toString(36).slice(2, 10));
+  // Signed in: your account, so the server knows who is in the pot.
+  const acc = useProfile.getState().account;
+  if (acc) return acc.id;
   const KEY = 'napoletane.id';
   try {
     const have = await AsyncStorage.getItem(KEY);
@@ -66,6 +71,8 @@ export async function createRoom(cfg: RoomConfig, name: string): Promise<string>
 export function hostStart() {
   if (!host) return;
   startHostMatch(host);
+  const l = host.lobby;
+  payIn(l.matchId, l.cfg.stake);
 }
 
 export function freeSeat(i: number) {
@@ -81,6 +88,7 @@ export async function joinRoom(code: string, name: string): Promise<'ok' | 'noho
   g.onLobby = lobby => {
     set({ lobby });
     useTable.setState({ viewer: Math.max(0, g.seat) });
+    if (lobby.started && g.seat >= 0) payIn(lobby.matchId, lobby.cfg.stake);
   };
   g.onHost = hostOnline => set({ hostOnline });
   g.onClosed = () => set({ closed: true });
@@ -110,3 +118,23 @@ export async function leaveRoom() {
   if (h) await h.close().catch(() => {});
   if (g) await g.leave().catch(() => {});
 }
+
+/** When an online match ends, settle the pot. */
+useTable.subscribe((s, prev) => {
+  const lobby = useOnline.getState().lobby;
+  const out = s.match?.h?.result?.out;
+  if (!lobby?.started || !out || !s.summary || prev.summary) return;
+  const m = s.match!;
+  payOut({
+    matchId: lobby.matchId,
+    stake: lobby.cfg.stake,
+    mode: m.mode,
+    n: m.n,
+    me: s.viewer,
+    payers: lobby.seats.map((x, i) => (x.type === 'cpu' ? -1 : i)).filter(i => i >= 0),
+    winnerTeams: out.winners,
+    peerOf: seat => lobby.seats[seat]?.peer,
+  });
+});
+
+setOnRematch(room => payIn(room.lobby.matchId, room.lobby.cfg.stake));
