@@ -9,6 +9,19 @@ Senza queste chiavi l'app funziona lo stesso: si gioca contro il computer, monet
 3. In Project Settings → API copia **Project URL** e chiave **anon** in `app/.env` (vedi `.env.example`) e, per il sito, nelle variabili del repository GitHub `SUPABASE_URL` e `SUPABASE_ANON_KEY`.
 4. In Authentication → URL Configuration aggiungi i redirect: `napoletane://auth` e `https://itzrusso10.github.io/tressette/auth`.
 
+### Aggiornamenti del server
+
+Quando arrivano nuove migrazioni (per esempio `20261027000200_trofei_negozio.sql`: trofei delle arene, negozio e classifiche) o cambia la funzione, da `app/`:
+
+```bash
+npx supabase db push                     # applica solo le migrazioni nuove
+npx supabase functions deploy progress   # la funzione usa src/meta/arenas.ts e shop.ts: va ripubblicata a ogni loro modifica
+```
+
+Pubblica prima la migrazione e poi la funzione: la funzione nuova legge le colonne `cups`, `best_cups`, `owned` ed `equipped`. Un'app vecchia continua a funzionare con il server nuovo, e una nuova con il server vecchio tiene trofei e oggetti sul telefono finché non aggiorni.
+
+Classifiche: `leaderboard('mondo' | 'amici')` (prime 100 posizioni per trofei; a parità chi ci è arrivato prima, poi l'esperienza) e `my_rank()` (la tua posizione nel mondo). Restituiscono solo nome, foto, trofei, esperienza e posizione, e solo a chi ha fatto l'accesso.
+
 ## 2. Accedi con Apple (serve l'Apple Developer Program)
 
 1. In developer.apple.com: nell'App ID `it.giusepperussodev.napoletane` attiva **Sign in with Apple**.

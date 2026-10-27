@@ -149,7 +149,7 @@ const SHOP_FELTS: Item[] = [
     trim: '#C9D6FF',
     velvet: true,
   }),
-  felt('vesuvio', 'Lava del Vesuvio', 'Velluto antracite con un riflesso di brace.', 'leggendario', 12000, {
+  felt('lava', 'Lava del Vesuvio', 'Velluto antracite con un riflesso di brace.', 'leggendario', 12000, {
     cloth: ['#5A2A1E', '#2E1510', '#140806'],
     rim: ['#FFB36B', '#E0602A', '#8A2A0E'],
     trim: '#FFB36B',
@@ -203,7 +203,7 @@ const BACKS: Item[] = [
     colors: ['#2F8FE0', '#165AA8', '#FFFFFF', '#E8F4FF'],
     motif: 'righe',
   }),
-  back('onde', 'Golfo', 'Onde bianche su blu profondo.', 'raro', 1500, { colors: ['#1B4E8C', '#0D2A52', '#BFE4FF', '#FFFFFF'], motif: 'onde' }),
+  back('golfo', 'Golfo', 'Onde bianche su blu profondo.', 'raro', 1500, { colors: ['#1B4E8C', '#0D2A52', '#BFE4FF', '#FFFFFF'], motif: 'onde' }),
   back('limoni', 'Limoni di Amalfi', 'Limoni e foglie su fondo maiolica.', 'raro', 2500, {
     colors: ['#F7F1DE', '#E3D6B0', '#F2C230', '#2E8B57'],
     motif: 'limoni',
@@ -212,11 +212,11 @@ const BACKS: Item[] = [
     colors: ['#1B2456', '#0B1030', '#F3D58C', '#FFF6D6'],
     motif: 'stelle',
   }),
-  back('sole', 'Sole di Vietri', 'Un sole a raggi giallo e arancio.', 'epico', 5000, {
+  back('vietri', 'Sole di Vietri', 'Un sole a raggi giallo e arancio.', 'epico', 5000, {
     colors: ['#F4E7C8', '#E2CB98', '#F08A24', '#2A6FB0'],
     motif: 'sole',
   }),
-  back('vesuvio', 'Vesuvio', 'Il vulcano al tramonto.', 'epico', 6000, { colors: ['#4B2A7E', '#22113F', '#FF8A3D', '#FFD9A0'], motif: 'vesuvio' }),
+  back('tramonto', 'Vesuvio al tramonto', 'Il vulcano al tramonto.', 'epico', 6000, { colors: ['#4B2A7E', '#22113F', '#FF8A3D', '#FFD9A0'], motif: 'vesuvio' }),
   back('tarocco', 'Antico', 'Cornici e fregi come i mazzi dell’Ottocento.', 'leggendario', 9000, {
     colors: ['#6E1E31', '#3A0E19', '#E0B04A', '#FFE7A3'],
     motif: 'tarocco',

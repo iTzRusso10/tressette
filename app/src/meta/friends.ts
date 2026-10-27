@@ -7,6 +7,8 @@ export interface Friend {
   name: string;
   avatar: string | null;
   xp: number;
+  /** Trofei delle arene. */
+  cups: number;
   /** Where the friendship comes from. */
   via: 'facebook' | 'codice';
 }
