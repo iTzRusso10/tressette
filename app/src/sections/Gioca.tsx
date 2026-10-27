@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Match } from '@/engine';
 import { Sheet } from '@/game/Sheet';
 import { canClaim } from '@/meta/economy';
@@ -24,7 +25,7 @@ import { Pips, SectionScroll } from './parts';
 let pipsShownAt = 0;
 
 /** The arena you are in: the place, your table, the trophies to the next one. */
-function ArenaCard({ width }: { width: number }) {
+function ArenaCard({ width, room }: { width: number; room: number }) {
   const { go } = useTabs();
   const cups = useProfile(s => s.cups);
   const equipped = useProfile(s => s.equipped);
@@ -38,14 +39,16 @@ function ArenaCard({ width }: { width: number }) {
     if (last) pipsShownAt = last.at;
   }, [last]);
   const next = ARENAS[arena.index + 1];
-  const sceneH = Math.round(width * 0.42);
+  // The card takes the height the screen has to spare: a taller sky on tall phones, never cramped on small ones.
   const tw = Math.round(width * 0.66);
   const th = Math.round(tw * 0.56);
+  const sceneH = Math.round(Math.max(width * 0.42, Math.min(width * 0.8, room - th * 0.72 - 92)));
   return (
     <Squish accessibilityRole="button" accessibilityLabel={`${arena.name}, arena ${arena.index + 1}. Apri il cammino dei trofei`} onPress={() => go('trofei')} scaleTo={0.98}>
       <View style={[styles.arena, { width }]}>
         <View style={{ height: sceneH }}>
           <ArenaScene id={arena.id} width={width} height={sceneH} />
+          <LinearGradient colors={['rgba(28,8,52,0.55)', 'rgba(28,8,52,0)']} style={[StyleSheet.absoluteFill, { bottom: sceneH * 0.55 }]} />
           <LinearGradient colors={['rgba(28,8,52,0)', 'rgba(28,8,52,0.75)']} style={[StyleSheet.absoluteFill, { top: sceneH * 0.45 }]} />
           <View style={styles.arenaHead}>
             <View style={styles.arenaChip}>
@@ -117,7 +120,8 @@ export function Chooser({ onClose }: { onClose: () => void }) {
 let bonusShown = false;
 
 export function Gioca({ active }: { active: boolean }) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const ins = useSafeAreaInsets();
   const { sheet, go } = useTabs();
   const [saved, setSaved] = useState<Match | null>(null);
   const bonusState = useProfile(s => s.bonus);
@@ -152,7 +156,7 @@ export function Gioca({ active }: { active: boolean }) {
   return (
     <>
       <SectionScroll>
-        <ArenaCard width={colW} />
+        <ArenaCard width={colW} room={height - ins.top - ins.bottom - 60 - 76 - 8 - 92 - 66 - 48 - (saved ? 96 : 0)} />
         {saved ? <ResumeCard m={saved} /> : null}
         <Squish accessibilityRole="button" accessibilityLabel="Gioca: scegli tra Tressette, Briscola e Scopa" onPress={choose} scaleTo={0.97}>
           <View style={styles.play}>
@@ -210,8 +214,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.8,
     marginTop: 6,
-    textShadowColor: 'rgba(20,4,40,0.6)',
-    textShadowRadius: 10,
   },
   tableWrap: { alignItems: 'center' },
   road: { alignItems: 'center', paddingTop: space.m, paddingBottom: space.l, gap: space.s },

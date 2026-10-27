@@ -75,14 +75,14 @@ for (const sc of SCREENS) {
       await page.getByRole('button', { name: /^Gioca: scegli/ }).click();
       await page.waitForTimeout(900);
       await page.screenshot({ path: join(out, `hub-${sc.id}-gioca-scelta.png`) });
-      await page.getByLabel('Chiudi').first().click();
+      await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } });
       await page.waitForTimeout(500);
     }
     if (tab === 'negozio') {
       await page.getByRole('button', { name: /Offerta del giorno/ }).click().catch(() => problems.push(`${sc.id}: nessuna offerta del giorno`));
       await page.waitForTimeout(900);
       await page.screenshot({ path: join(out, `hub-${sc.id}-negozio-oggetto.png`) });
-      await page.getByLabel('Chiudi').first().click().catch(() => {});
+      await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } }).catch(() => {});
       await page.waitForTimeout(500);
     }
   }

@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { ARENA_SIZE, arenaFloor, arenaOf, arenaProgress, ARENAS, LAST_ARENA, type Arena } from '@/meta/arenas';
@@ -56,7 +57,8 @@ function ArenaStop({ arena, cups, best, width }: { arena: Arena; cups: number; b
     <View style={[styles.stop, { width }, current && styles.stopCurrent]}>
       <View style={{ height: h }}>
         <ArenaScene id={arena.id} width={width} height={h} dim={!reached} />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: reached ? 'rgba(28,8,52,0.25)' : 'rgba(20,4,40,0.35)' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: reached ? 'rgba(28,8,52,0.15)' : 'rgba(20,4,40,0.3)' }]} />
+        <LinearGradient colors={['rgba(20,4,40,0.72)', 'rgba(20,4,40,0)']} start={{ x: 0, y: 0 }} end={{ x: 0.75, y: 0.9 }} style={StyleSheet.absoluteFill} />
         <View style={styles.stopHead}>
           <View style={[styles.chip, current && { backgroundColor: colors.sun }]}>
             <Text style={[styles.chipText, current && { color: colors.ink }]}>{current ? 'Sei qui' : `Arena ${arena.index + 1}`}</Text>
@@ -249,10 +251,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.5,
     marginTop: 4,
-    textShadowColor: 'rgba(20,4,40,0.7)',
-    textShadowRadius: 8,
   },
-  stopDesc: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.text, textShadowColor: 'rgba(20,4,40,0.8)', textShadowRadius: 6 },
+  stopDesc: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.text },
   lock: {
     position: 'absolute',
     right: space.m,

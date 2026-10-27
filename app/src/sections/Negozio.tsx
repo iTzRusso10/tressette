@@ -179,11 +179,16 @@ export function Negozio({ active: _active }: { active: boolean }) {
               <ItemPreview item={offer} width={colW * 0.36} height={colW * 0.36 * (offer.slot === 'back' ? 1.2 : 0.8)} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.offerKicker}>Offerta del giorno, −30%</Text>
+              <Text style={styles.offerKicker}>Offerta del giorno</Text>
               <Text style={styles.offerName} numberOfLines={2}>
                 {offer.name}
               </Text>
-              <RarityChip rarity={offer.rarity} style={{ marginTop: 4 }} />
+              <View style={styles.offerChips}>
+                <RarityChip rarity={offer.rarity} />
+                <View style={styles.sale}>
+                  <Text style={styles.saleText}>−30%</Text>
+                </View>
+              </View>
               <View style={{ marginTop: space.s }}>
                 <Price price={priceOf(offer, day, owned)!} full={offer.price} big />
               </View>
@@ -211,6 +216,9 @@ const styles = StyleSheet.create({
   offer: { flexDirection: 'row', alignItems: 'center', gap: space.l, borderWidth: 1.5 },
   offerArt: { alignItems: 'center', justifyContent: 'center' },
   offerKicker: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.sun, textTransform: 'uppercase', letterSpacing: 0.4 },
+  offerChips: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  sale: { height: 20, paddingHorizontal: 8, borderRadius: 10, backgroundColor: colors.coral, justifyContent: 'center' },
+  saleText: { fontFamily: fonts.display, fontSize: 11, lineHeight: 14, color: '#FFFFFF' },
   offerName: { fontFamily: fonts.display, fontSize: 21, lineHeight: 26, color: colors.text, marginTop: 4, letterSpacing: -0.4 },
   offerTime: { fontFamily: fonts.medium, fontSize: 11.5, lineHeight: 15, color: colors.textFaint, marginTop: space.s },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: space.l },
