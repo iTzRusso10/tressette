@@ -2,14 +2,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { dur, ease } from './motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { sfx } from './feedback';
 import { Text } from './Text';
 import { colors, fonts, gradients, radius, shadow, space } from './theme';
-
-const spring = { damping: 16, stiffness: 320, mass: 0.6 };
 
 /** The sunset sky, with a soft light from the top left. */
 export function Backdrop() {
@@ -47,7 +46,7 @@ export function Screen({ children, style, pad = true }: { children: ReactNode; s
   );
 }
 
-/** Pressable that gives a little under the finger, with a spring. */
+/** Pressable that gives a little under the finger and comes back, without bouncing. */
 export function Squish({
   style,
   outerStyle,
@@ -62,11 +61,11 @@ export function Squish({
       {...rest}
       style={outerStyle}
       onPressIn={e => {
-        s.set(withSpring(scaleTo, spring));
+        s.set(withTiming(scaleTo, { duration: dur.press, easing: ease.in }));
         rest.onPressIn?.(e);
       }}
       onPressOut={e => {
-        s.set(withSpring(1, spring));
+        s.set(withTiming(1, { duration: dur.quick, easing: ease.in }));
         rest.onPressOut?.(e);
       }}
     >
@@ -204,7 +203,7 @@ export function Choice<T extends string | number>({
 export function Toggle({ label, sub, value, onChange }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void }) {
   const x = useSharedValue(value ? 1 : 0);
   useEffect(() => {
-    x.value = withSpring(value ? 1 : 0, spring);
+    x.value = withTiming(value ? 1 : 0, { duration: dur.quick, easing: ease.move });
   }, [value, x]);
   const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * 20 }] }));
   return (

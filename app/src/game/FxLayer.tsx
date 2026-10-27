@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
+  FadeInDown,
   FadeOut,
   FadeOutUp,
   SlideInUp,
@@ -9,14 +10,13 @@ import Animated, {
   useSharedValue,
   withDelay,
   withSequence,
-  withSpring,
   withTiming,
-  ZoomIn,
 } from 'react-native-reanimated';
 import type { Match } from '@/engine';
 import { useTable, type Fx } from '@/state/table';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, seatColors } from '@/ui/theme';
+import { dur, ease } from '@/ui/motion';
 import { Confetti } from './Confetti';
 import { sideOf, TAG_W, type Geometry } from './layout';
 
@@ -34,10 +34,10 @@ function Float({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: nu
   const a = anchor(g, m, viewer, p);
   const y = useSharedValue(0);
   const o = useSharedValue(0);
-  const s = useSharedValue(0.4);
+  const s = useSharedValue(0.8);
   useEffect(() => {
-    o.value = withSequence(withTiming(1, { duration: 140 }), withDelay(fx.ms - 560, withTiming(0, { duration: 400 })));
-    s.value = withSpring(1, { damping: 10, stiffness: 220 });
+    o.value = withSequence(withTiming(1, { duration: 140 }), withDelay(fx.ms - 560, withTiming(0, { duration: 400, easing: ease.out })));
+    s.value = withTiming(1, { duration: dur.enter, easing: ease.in });
     y.value = withTiming(-40, { duration: fx.ms, easing: Easing.out(Easing.cubic) });
   }, [fx.ms, o, s, y]);
   const st = useAnimatedStyle(() => ({ opacity: o.value, transform: [{ translateY: y.value }, { scale: s.value }] }));
@@ -55,8 +55,8 @@ function Bubble({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: n
   const a = anchor(g, m, viewer, fx.p ?? 0);
   return (
     <Animated.View
-      entering={ZoomIn.springify().damping(12)}
-      exiting={FadeOut.duration(200)}
+      entering={FadeInDown.duration(dur.enter).easing(ease.in)}
+      exiting={FadeOut.duration(dur.exit)}
       pointerEvents="none"
       style={[styles.bubble, { left: a.x - 50, top: a.y - 32 }]}
     >
@@ -69,13 +69,14 @@ function Bubble({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: n
 
 /** The big moments, written on the felt with a burst of confetti: Scopa!, Cappotto! */
 function Moment({ fx, g }: { fx: Fx; g: Geometry }) {
-  const s = useSharedValue(0.3);
+  // Grows into place and stays, then fades: no bounce.
+  const s = useSharedValue(0.7);
   const o = useSharedValue(0);
-  const r = useSharedValue(-14);
+  const r = useSharedValue(-10);
   useEffect(() => {
-    s.value = withSpring(1, { damping: 8, stiffness: 170 });
-    r.value = withSpring(-5, { damping: 9, stiffness: 140 });
-    o.value = withSequence(withTiming(1, { duration: 120 }), withDelay(fx.ms - 480, withTiming(0, { duration: 360 })));
+    s.value = withTiming(1, { duration: dur.enter + 80, easing: ease.in });
+    r.value = withTiming(-5, { duration: dur.enter + 80, easing: ease.in });
+    o.value = withSequence(withTiming(1, { duration: 140 }), withDelay(fx.ms - 480, withTiming(0, { duration: 340, easing: ease.out })));
   }, [fx.ms, o, r, s]);
   const st = useAnimatedStyle(() => ({ opacity: o.value, transform: [{ scale: s.value }, { rotate: `${r.value}deg` }] }));
   const cy = g.area.y + g.area.h / 2;
@@ -101,8 +102,8 @@ function Toast({ fx, g }: { fx: Fx; g: Geometry }) {
   const left = g.cx - g.colW / 2 + 12;
   return (
     <Animated.View
-      entering={SlideInUp.springify().damping(16)}
-      exiting={FadeOutUp.duration(200)}
+      entering={SlideInUp.duration(dur.enter).easing(ease.in)}
+      exiting={FadeOutUp.duration(dur.exit).easing(ease.out)}
       pointerEvents="none"
       style={[styles.toast, { left, width: g.colW - 24, top: 5 }]}
     >

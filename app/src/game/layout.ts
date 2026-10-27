@@ -56,6 +56,8 @@ export interface Geometry {
 export const TAG_H = 42;
 export const TAG_W = 132;
 const PAD = 12;
+/** Side players' cards, relative to the top player's: smaller, so the table gets the room. */
+const SIDE = 0.62;
 const TOP_BAR = 54;
 
 export const sideOf = (m: Match, viewer: number, p: number): Side => {
@@ -74,13 +76,14 @@ export function measure(m: Match, W: number, H: number): Geometry {
   const full = fullHand(m);
   const perRow = full > 5 ? 5 : full;
   const rows = full > 5 ? 2 : 1;
-  // Your cards: as large as the width allows, and never more than about a third of the height.
+  // Your cards: large enough to read and tap, but in proportion with the table (ui-ux-pro-max: visual hierarchy).
+  // Three cards would fill the width: they are held back so the felt and its cards get the room.
   const overlap = rows === 2 ? 0.05 : -0.08;
   let cw = (colW - 2 * PAD) / (perRow - overlap * (perRow - 1));
-  cw = Math.min(cw, rows === 2 ? 104 : 112);
+  cw = Math.min(cw, rows === 2 ? 104 : Math.min(96, colW * 0.22));
   const rowGapK = 0.44;
   const handH = (k: number) => k * CARD_RATIO * (1 + (rows - 1) * rowGapK);
-  const maxHand = H * (rows === 2 ? 0.3 : 0.24);
+  const maxHand = H * (rows === 2 ? 0.3 : 0.18);
   if (handH(cw) > maxHand) cw = maxHand / (CARD_RATIO * (1 + (rows - 1) * rowGapK));
   cw = Math.floor(cw);
   const ch = cw * CARD_RATIO;
@@ -101,16 +104,19 @@ export function measure(m: Match, W: number, H: number): Geometry {
   const band = m.n === 4 ? TAG_H + 16 : 0;
   const area: Rect = { x: felt.x, y: felt.y + band, w: felt.w, h: felt.h - band - (m.n === 4 ? 4 : 0) };
 
+  // In four the side players' cards lie along the felt's edges, inside the screen.
+  const sideW = m.n === 4 ? ch * os * SIDE : 0;
+
   // Cards on the table.
   let ts: number;
   if (m.game === 'scopa') {
-    const fitW = (area.w - 24) / (4 * cw * 1.06);
+    const fitW = (area.w - 2 * sideW - 20) / (4 * cw * 1.06);
     const fitH = (area.h - 16) / (3 * ch * 1.04);
-    ts = Math.min(0.8, fitW, fitH);
+    ts = Math.min(0.86, fitW, fitH);
   } else {
     // Two cards one above the other (offset 0.58 or 0.6 of a card each way), plus a margin.
     const fitH = (area.h - 16) / (ch * 2.24);
-    const fitW = (area.w - 24) / (cw * (m.n === 2 ? 1.2 : 3));
+    const fitW = (area.w - 2 * sideW - 20) / (cw * (m.n === 2 ? 1.2 : 3));
     ts = Math.min(1, fitH, fitW);
   }
 
@@ -236,11 +242,11 @@ export function layoutCards({ m, viewer, g, selected, slots }: LayoutInput): Rec
           };
         });
       } else {
-        // Side players: a fan along the edge, half off the felt.
-        const ss = s * 0.82;
-        const step = Math.min(g.cw * ss * 0.36, (g.felt.h * 0.5) / Math.max(1, k));
-        const ex = side === 'l' ? g.felt.x - g.ch * ss * 0.12 : g.felt.x + g.felt.w + g.ch * ss * 0.12;
-        const cy = g.felt.y + g.felt.h * 0.5;
+        // Side players: a small fan along the felt's edge.
+        const ss = s * SIDE;
+        const step = Math.min(g.cw * ss * 0.36, (g.area.h * 0.62) / Math.max(1, k));
+        const ex = side === 'l' ? g.felt.x + (g.ch * ss) / 2 + 6 : g.felt.x + g.felt.w - (g.ch * ss) / 2 - 6;
+        const cy = g.area.y + g.area.h * 0.5;
         hand.forEach((c, j) => {
           const t = k > 1 ? j / (k - 1) - 0.5 : 0;
           out[c] = {

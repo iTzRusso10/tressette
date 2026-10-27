@@ -3,7 +3,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import { Platform } from 'react-native';
 import { useSettings } from '@/state/settings';
 
-export type Sfx = 'card' | 'deal' | 'sweep' | 'pts' | 'tick' | 'nope' | 'win' | 'scopa';
+export type Sfx = 'card' | 'deal' | 'shuffle' | 'sweep' | 'pts' | 'tick' | 'nope' | 'win' | 'scopa';
 
 // Haptics only on what matters to the player: never on every card the computer plays.
 const haptic: Partial<Record<Sfx, () => Promise<void>>> = {
@@ -17,6 +17,7 @@ const haptic: Partial<Record<Sfx, () => Promise<void>>> = {
 const sources: Record<Sfx, number> = {
   card: require('../../assets/sounds/card.wav'),
   deal: require('../../assets/sounds/deal.wav'),
+  shuffle: require('../../assets/sounds/shuffle.wav'),
   sweep: require('../../assets/sounds/sweep.wav'),
   pts: require('../../assets/sounds/pts.wav'),
   tick: require('../../assets/sounds/tick.wav'),

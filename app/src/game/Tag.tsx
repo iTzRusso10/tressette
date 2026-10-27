@@ -1,16 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
+import { dur, ease } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { colors, fonts } from '@/ui/theme';
 import { TAG_H, TAG_W, type TagPos } from './layout';
@@ -53,17 +44,12 @@ function Dots({ color }: { color: string }) {
 /** A player at the table. Fixed width: the name never moves, whatever the status says. */
 export function Tag({ pos, name, status, color, active, thinking, isYou }: Props) {
   const left = pos.a === 'l' ? pos.x : pos.a === 'r' ? pos.x - TAG_W : pos.x - TAG_W / 2;
+  // Your turn lights the ring and lifts the avatar a little; no endless pulsing (ui-ux-pro-max: continuous animation only for loading).
   const on = useSharedValue(active ? 1 : 0);
-  const pulse = useSharedValue(0);
   useEffect(() => {
-    on.value = withSpring(active ? 1 : 0, { damping: 14, stiffness: 180 });
-    if (active) pulse.value = withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0, { duration: 900 })), -1);
-    else {
-      cancelAnimation(pulse);
-      pulse.value = withTiming(0, { duration: 200 });
-    }
-  }, [active, on, pulse]);
-  const ring = useAnimatedStyle(() => ({ opacity: on.value * (0.75 + 0.25 * pulse.value), transform: [{ scale: 1 + 0.02 * pulse.value * on.value }] }));
+    on.value = withTiming(active ? 1 : 0, { duration: dur.quick + 40, easing: ease.move });
+  }, [active, on]);
+  const ring = useAnimatedStyle(() => ({ opacity: on.value }));
   const avatar = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * on.value }] }));
   return (
     <View testID={`fixed-tag-${name}`} pointerEvents="none" style={[styles.tag, { left, top: pos.y, width: TAG_W, height: TAG_H }]}>

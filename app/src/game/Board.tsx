@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ALL, legalCards, type Card, type Match, type Signal } from '@/engine';
 import { useSettings } from '@/state/settings';
 import { canSignal, chooseCapture, clearSelection, tapCard, toggleSignal, useTable, T } from '@/state/table';
+import { dur } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { cardRadius, colors, fonts, radius, seatColors, shadow } from '@/ui/theme';
 import { FRONTS } from './cardImages';
@@ -61,7 +62,10 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
   const places = useMemo(() => (h ? layoutCards({ m, viewer, g, selected, slots }) : {}), [m, viewer, g, selected, slots, h]);
 
   const speed = fast ? 0.55 : 1;
-  const duration = 420 * speed;
+  const duration = dur.card * speed;
+  // Mounted in the middle of a deal (the first hand): the cards still start from the deck.
+  const [fresh] = useState(() => event?.k === 'deal');
+  const shuffle = event?.k === 'deal' ? T.shuffle * speed : 0;
   const dealOrder = event && (event.k === 'deal' || event.k === 'dealRound') ? event.order : null;
   const dealIdx = useMemo(() => {
     const map = new Map<Card, number>();
@@ -70,7 +74,9 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
   }, [dealOrder]);
   const stepMs = T.dealCard * speed * (event?.k === 'dealRound' ? 1.4 : 1);
 
-  const origin = hasDeck(m) ? g.deck : { x: g.felt.x + g.felt.w / 2, y: g.felt.y + g.felt.h / 2, s: 0.6 };
+  // A new hand is shuffled and dealt from the middle of the table; then what is left goes to the deck.
+  const center = { x: g.area.x + g.area.w / 2, y: g.area.y + g.area.h / 2, s: 0.78 };
+  const origin = event?.k === 'deal' || !hasDeck(m) ? center : g.deck;
   const myTurn = awaiting === viewer && !!h;
   const legal = myTurn ? new Set(legalCards(m, viewer)) : null;
   const hidden: Place = { x: origin.x, y: origin.y, r: 0, s: origin.s, up: false, z: 0, o: 0 };
@@ -83,7 +89,7 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
         <TopBar m={m} viewer={viewer} onMenu={onMenu} width={g.colW} />
       </View>
 
-      {h && hasDeck(m) && h.deck.length > 0 ? (
+      {h && hasDeck(m) && h.deck.length > 0 && event?.k !== 'deal' ? (
         <View pointerEvents="none" style={[styles.deckCount, { left: g.deck.x - 16, top: g.deck.y + (g.ch * g.deck.s) / 2 - 4 }]}>
           <Text allowFontScaling={false} style={styles.deckCountText}>
             {h.deck.length}
@@ -121,6 +127,9 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
             ch={g.ch}
             delay={di === undefined ? 0 : di * stepMs}
             dealKey={m.handNo}
+            fresh={fresh}
+            shuffle={shuffle}
+            half={c % 2 ? 1 : -1}
             origin={origin}
             duration={duration}
             dim={!!legal && mine && !legal.has(c)}

@@ -3,7 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import { ease } from '@/ui/motion';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { GAMES, type GameId, type Match } from '@/engine';
 import { FRONTS } from '@/game/cardImages';
@@ -56,7 +57,7 @@ function DealtCard({ c, w, i, pose }: { c: number; w: number; i: number; pose: {
   const reduce = useReducedMotion();
   const v = useSharedValue(reduce ? 1 : 0);
   useEffect(() => {
-    if (!reduce) v.value = withDelay(120 + i * 75, withSpring(1, { damping: 13, stiffness: 150 }));
+    if (!reduce) v.value = withDelay(120 + i * 60, withTiming(1, { duration: 420, easing: ease.in }));
   }, [i, reduce, v]);
   const st = useAnimatedStyle(() => ({
     opacity: Math.min(1, v.value * 2),

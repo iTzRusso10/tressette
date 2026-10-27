@@ -67,6 +67,15 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
     expect(b.y1, `${where}: la tua carta ${c} esce in basso`).toBeLessThanOrEqual(g.H);
     expect(b.y0, `${where}: la tua carta ${c} copre il tuo nome`).toBeGreaterThanOrEqual(g.tags.b.y + TAG_H - 2);
   }
+  // Side players (in four): their cards stay on screen and off the names.
+  if (m.n === 4)
+    for (const p of [1, 3])
+      for (const c of h.hands[p]) {
+        const b = box(places[c], g);
+        expect(b.x0, `${where}: carte laterali fuori schermo`).toBeGreaterThanOrEqual(0);
+        expect(b.x1, `${where}: carte laterali fuori schermo`).toBeLessThanOrEqual(g.W);
+        tags.forEach((t, i) => expect(hits(b, t), `${where}: carta laterale ${c} copre il nome ${i}`).toBe(false));
+      }
   const top = m.n === 2 ? 1 : 2;
   for (const c of h.hands[top]) {
     const b = box(places[c], g);

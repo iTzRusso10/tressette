@@ -94,7 +94,10 @@ const get = useTable.getState;
 
 const speed = () => (useSettings.getState().fast ? 0.55 : 1);
 export const T = {
-  dealCard: 34,
+  /** The deck is shuffled before each hand. */
+  shuffle: 560,
+  /** Between one dealt card and the next. */
+  dealCard: 52,
   play: 430,
   look: 1350,
   collect: 600,
@@ -320,8 +323,11 @@ async function present(st: Step, g: number) {
   switch (e.k) {
     case 'deal': {
       set({ dealing: e.order });
+      sfx('shuffle', { haptic: false });
+      await wait(T.shuffle);
+      if (g !== gen) return;
       sfx('deal', { haptic: false });
-      await wait(e.order.length * T.dealCard + 700);
+      await wait(e.order.length * T.dealCard + 500);
       if (g !== gen) return;
       set({ dealing: null });
       const opener = nameOf(m, h.turn);

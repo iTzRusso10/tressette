@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { dur, ease } from '@/ui/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/ui/Text';
 import { colors, space } from '@/ui/theme';
@@ -11,12 +12,12 @@ export function Sheet({ title, sub, children, onDismiss }: { title: string; sub?
   const ins = useSafeAreaInsets();
   return (
     <View style={[StyleSheet.absoluteFill, styles.root]}>
-      <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[StyleSheet.absoluteFill, styles.dim]}>
+      <Animated.View entering={FadeIn.duration(dur.enter)} exiting={FadeOut.duration(dur.exit)} style={[StyleSheet.absoluteFill, styles.dim]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Chiudi" disabled={!onDismiss} />
       </Animated.View>
       <Animated.View
-        entering={SlideInDown.springify().damping(20).stiffness(180)}
-        exiting={SlideOutDown.duration(220)}
+        entering={SlideInDown.duration(dur.enter + 40).easing(ease.in)}
+        exiting={SlideOutDown.duration(dur.exit).easing(ease.out)}
         accessibilityViewIsModal
         style={[styles.panel, { paddingBottom: ins.bottom + space.l }]}
       >

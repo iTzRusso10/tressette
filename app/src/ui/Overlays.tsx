@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
+import { dur, ease } from './motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Confetti } from '@/game/Confetti';
 import { useAdSim } from '@/meta/ads';
@@ -22,14 +23,14 @@ function Banner({ c }: { c: Celebration }) {
   }, [c]);
   return (
     <Animated.View
-      entering={SlideInUp.springify().damping(15)}
-      exiting={SlideOutUp.duration(220)}
+      entering={SlideInUp.duration(dur.enter + 40).easing(ease.in)}
+      exiting={SlideOutUp.duration(dur.exit).easing(ease.out)}
       pointerEvents="none"
       style={[styles.banner, { top: ins.top + 8, width: w, left: (width - w) / 2 }]}
     >
       {c.kind === 'trophy' ? (
         <>
-          <Animated.View entering={ZoomIn.delay(180).springify().damping(9)}>
+          <Animated.View entering={FadeIn.delay(160).duration(dur.enter)}>
             <Badge glyph={c.trophy.glyph} coins={c.trophy.coins} size={54} />
           </Animated.View>
           <View style={{ flex: 1 }}>

@@ -41,7 +41,11 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - Carte sempre nitide: le carte si disegnano alla misura della mano e si rimpiccioliscono, mai ingrandite; nessun filtro. La carta si gira schiacciandola in orizzontale, senza 3D.
 - Niente elementi che si muovono senza motivo. Movimento solo come risposta a quello che succede.
 - Design "Tramonto": cielo arancio-rosa-viola (`gradients.sky`), pannelli di vetro bianco, panno smeraldo con bordo chiaro, un colore vivo per ogni giocatore (giallo per te, poi menta, azzurro, rosa). Carattere Sora ovunque. Colori, misure e ombre in `src/ui/theme.ts`, componenti in `src/ui/kit.tsx`.
-- Animazioni con Reanimated sul thread grafico: carte con fisica a molla, pulsanti che si schiacciano al tocco (`Squish`), punteggi che contano, coriandoli per Scopa, cappotto e vittoria (`Confetti`). Niente `Math.random` nel render: i coriandoli usano `seeded()`.
+- Animazioni con Reanimated sul thread grafico, solo a tempo con le curve e le durate di `src/ui/motion.ts`: ciò che arriva rallenta (`ease.in`), ciò che esce accelera (`ease.out`), l'uscita dura circa due terzi dell'entrata. **Niente molle, niente rimbalzi, niente oltre-e-ritorno, niente pulsazioni infinite** (solo i puntini "sta pensando"). Pulsanti che si schiacciano al tocco (`Squish`), punteggi che contano, coriandoli per Scopa, cappotto e vittoria (`Confetti`). Niente `Math.random` nel render: i coriandoli usano `seeded()`.
+- A ogni mano il mazzo si mescola al centro del panno e le carte volano ai giocatori una alla volta (`T.shuffle`, `T.dealCard` in `table.ts`, prop `fresh`/`shuffle` di `CardSprite`), anche alla prima mano.
+- Le scansioni originali stanno in `scansioni/`; `scripts/clean-cards.py` le rifila (bordo tolto, tutte 336×537) e le scrive in `assets/cards/`. Non toccare a mano le carte in `assets/`.
+- Proporzioni: la mano piena non deve sovrastare il tavolo; i compagni laterali in quattro sono al 62% (`SIDE` in `layout.ts`) e restano dentro il panno, sotto i loro nomi.
+- Per le modifiche al design si usano le regole della skill ui-ux-pro-max (github.com/nextlevelbuilder/ui-ux-pro-max-skill).
 
 ## Comandi (da `app/`)
 

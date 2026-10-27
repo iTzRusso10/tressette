@@ -64,10 +64,17 @@ card = place(noise_burst(0.09, 1500, 4200), 0.6 * noise_burst(0.06, 120, 420, 3)
 write('card', card, 0.55)
 
 # Dealing: a quick run of small snaps.
-deal = np.zeros(int(SR * 1.0))
-for i in range(10):
-    place(deal, noise_burst(0.05, 2000, 4500) * (0.8 + 0.2 * rng.random()), i * 0.085)
+deal = np.zeros(int(SR * 1.2))
+for i in range(20):
+    place(deal, noise_burst(0.04, 2000, 4500) * (0.7 + 0.3 * rng.random()), i * 0.052)
 write('deal', deal, 0.45)
+
+# Shuffling: two riffles of quick paper flicks.
+shuffle = np.zeros(int(SR * 0.6))
+for k in range(2):
+    for i in range(14):
+        place(shuffle, noise_burst(0.025, 2500, 6000) * (0.5 + 0.5 * rng.random()), k * 0.28 + i * 0.012)
+write('shuffle', shuffle, 0.35)
 
 # Collecting a trick: cards sliding together.
 x = t(0.32)

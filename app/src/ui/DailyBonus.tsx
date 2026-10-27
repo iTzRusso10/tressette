@@ -1,19 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
+  FadeInDown,
   FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
-  ZoomIn,
   type SharedValue,
 } from 'react-native-reanimated';
+import { dur, ease } from './motion';
 import Svg, { Path } from 'react-native-svg';
 import { seeded } from '@/engine/rng';
 import { showRewarded } from '@/meta/ads';
@@ -28,22 +27,13 @@ import { colors, fonts, radius } from './theme';
 function Day({ i, amount, state, w }: { i: number; amount: number; state: 'done' | 'today' | 'next'; w: number }) {
   // The seventh day is the big prize: twice as wide and golden.
   const big = i === 6;
-  const bob = useSharedValue(0);
-  useEffect(() => {
-    if (state === 'today') bob.value = withRepeat(withSequence(withTiming(1, { duration: 650 }), withTiming(0, { duration: 650 })), -1);
-  }, [state, bob]);
-  const st = useAnimatedStyle(() => ({ transform: [{ translateY: -4 * bob.value }, { scale: 1 + 0.06 * bob.value }] }));
   return (
     <Animated.View
-      entering={ZoomIn.delay(120 + i * 50)
-        .springify()
-        .damping(13)}
+      entering={FadeIn.delay(80 + i * 40).duration(dur.enter)}
       style={[styles.day, { width: big ? w * 2 + 8 : w }, big && styles.big, state === 'today' && styles.today, state === 'done' && styles.done]}
     >
       <Text style={[styles.dayLabel, (state === 'today' || big) && { color: colors.ink }]}>{big ? 'Dal 7° giorno' : `Giorno ${i + 1}`}</Text>
-      <Animated.View style={st}>
-        <CoinIcon size={big ? 34 : state === 'today' ? 30 : 24} />
-      </Animated.View>
+      <CoinIcon size={big ? 34 : state === 'today' ? 30 : 24} />
       <Text style={[styles.dayAmount, big && styles.bigAmount, (state === 'today' || big) && { color: colors.ink }]}>{amount}</Text>
       {state === 'done' ? (
         <View style={styles.check}>
@@ -108,7 +98,11 @@ export function DailyBonus({ onClose }: { onClose: () => void }) {
   return (
     <View style={[StyleSheet.absoluteFill, styles.root]}>
       <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[StyleSheet.absoluteFill, styles.dim]} />
-      <Animated.View entering={ZoomIn.springify().damping(15)} exiting={FadeOut.duration(180)} style={[styles.panel, { width: panelW }]}>
+      <Animated.View
+        entering={FadeInDown.duration(dur.enter + 40).easing(ease.in)}
+        exiting={FadeOut.duration(dur.exit)}
+        style={[styles.panel, { width: panelW }]}
+      >
         <LinearGradient
           colors={['#7A2E9C', '#4A1C80', colors.night]}
           start={{ x: 0, y: 0 }}
@@ -128,7 +122,7 @@ export function DailyBonus({ onClose }: { onClose: () => void }) {
             <Button kind="secondary" label={`Ritira ${amount}`} onPress={() => claim(false)} disabled={busy} />
           </View>
         ) : (
-          <Animated.View entering={ZoomIn.springify().damping(10)} style={styles.gotRow}>
+          <Animated.View entering={FadeIn.duration(dur.enter)} style={styles.gotRow}>
             <CoinIcon size={34} />
             <Text style={styles.got}>+{done}</Text>
           </Animated.View>

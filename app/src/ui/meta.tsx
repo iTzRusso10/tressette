@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import { dur, ease } from '@/ui/motion';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
 import { levelOf, levelProgress } from '@/meta/economy';
 import type { Glyph } from '@/meta/progress';
@@ -36,7 +37,7 @@ export function CountUp({ value, style }: { value: number; style?: object }) {
     if (value === from.current) return;
     const start = from.current;
     from.current = value;
-    pop.value = withSequence(withTiming(1, { duration: 110 }), withSpring(0, { damping: 9, stiffness: 170 }));
+    pop.value = withSequence(withTiming(1, { duration: dur.press, easing: ease.in }), withTiming(0, { duration: dur.quick + 60, easing: ease.move }));
     const steps = 18;
     let i = 0;
     const id = setInterval(() => {
