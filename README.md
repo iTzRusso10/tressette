@@ -24,7 +24,7 @@ npm run ios:telefono      # installa sull'iPhone collegato la versione completa:
 npm run android:telefono  # lo stesso per Android
 ```
 
-Con l'Apple ID gratuito l'app installata sull'iPhone scade dopo 7 giorni (poi si rilancia `npm run ios:telefono`). Con l'Apple Developer Program dura un anno e si può distribuire con TestFlight.
+Con l'Apple ID gratuito l'app installata sull'iPhone scade dopo 7 giorni (poi si rilancia `npm run ios:telefono`) e «Accedi con Apple» resta spento. Con l'Apple Developer Program dura un anno, si può distribuire con TestFlight e si attiva Accedi con Apple: `APPLE_SIGN_IN=1 npm run ios:telefono`.
 
 Build per gli store senza Xcode, con EAS: `npx eas-cli@latest build --platform ios` (o `android`).
 
