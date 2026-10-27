@@ -19,7 +19,7 @@ function Banner({ c }: { c: Exclude<Celebration, { kind: 'arena' }> }) {
   const { width } = useWindowDimensions();
   const w = Math.min(width - 24, 420);
   useEffect(() => {
-    sfx(c.kind === 'coins' ? 'pts' : 'win', { haptic: true });
+    sfx(c.kind === 'coins' ? 'coin' : c.kind === 'trophy' ? 'trophy' : 'win', { haptic: true });
     const t = setTimeout(() => dismissCelebration(c.id), c.kind === 'trophy' ? 3200 : 2400);
     return () => clearTimeout(t);
   }, [c]);

@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import type { Arena } from '@/meta/arenas';
 import { itemById } from '@/meta/shop';
 import { ArenaScene } from './ArenaScene';
 import { TablePreview } from './cosmetics';
+import { sfx } from './feedback';
 import { Button } from './kit';
 import { CoinIcon } from './meta';
 import { dur, ease } from './motion';
@@ -22,6 +24,9 @@ export function ArenaReveal({ arena, onClose }: { arena: Arena; onClose: () => v
   const tw = Math.round(w * 0.78);
   const felt = itemById(arena.felt);
   const back = arena.back ? itemById(arena.back) : null;
+  useEffect(() => {
+    sfx('arena', { haptic: true });
+  }, []);
   return (
     <Animated.View
       entering={FadeIn.duration(dur.enter)}

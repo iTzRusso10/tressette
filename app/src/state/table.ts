@@ -25,7 +25,9 @@ import {
 import { assignSlots } from '@/game/layout';
 import type { GuestRoom, HostRoom } from '@/online/room';
 import { recordHand, recordMatch } from '@/meta/profile';
-import { sfx } from '@/ui/feedback';
+import { cancelSfx, sfx, sfxAfter, type Sfx } from '@/ui/feedback';
+import { dur } from '@/ui/motion';
+import { dealTimes, landAt, moveAt } from '@/ui/sfxTiming';
 import { useSettings } from './settings';
 
 const SAVE_KEY = 'napoletane.partita.v1';
@@ -133,6 +135,18 @@ let humanResolve: ((mv: Move) => void) | null = null;
 let fxSeq = 0;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+/* Sounds in time with the cards: a card sounds when it lands on the felt, not when it leaves. */
+
+/** How long a card flies (Board: dur.card × speed). */
+const flight = () => dur.card * speed();
+/** Plays k after ms, unless the table has changed meanwhile (left, or a new match). */
+const sfxAt = (g: number, k: Sfx, ms: number, opts: { haptic?: boolean } = {}) => sfxAfter(k, ms, { ...opts, when: () => g === gen });
+/** One sound for each dealt card, as it lands (Board: dealIdx × T.dealCard). */
+function dealSounds(g: number, count: number, startMs: number, stepMs: number) {
+  const sp = speed();
+  for (const at of dealTimes(count, { startMs: startMs * sp, stepMs: stepMs * sp, flightMs: flight() })) sfxAt(g, 'deal', at, { haptic: false });
+}
 async function wait(ms: number) {
   await sleep(ms * speed());
   while (get().paused) await new Promise<void>(r => resumeWaiters.push(r));
@@ -183,6 +197,7 @@ export const teamLabel = (m: Match, t: number) => (m.mode === '4' ? [t, t + 2].m
 
 export function startMatch(cfg: MatchConfig) {
   gen++;
+  cancelSfx();
   const m = createMatch(cfg);
   set({ ...initial, match: m });
   clearSave();
@@ -191,12 +206,14 @@ export function startMatch(cfg: MatchConfig) {
 
 export function resumeMatch(m: Match) {
   gen++;
+  cancelSfx();
   set({ ...initial, ...show(m), summary: !!m.h?.over });
   if (!m.h?.over) loop(gen);
 }
 
 export function quitMatch() {
   gen++;
+  cancelSfx();
   humanResolve = null;
   remoteWait = null;
   resumeWaiters.splice(0).forEach(r => r());
@@ -323,10 +340,11 @@ async function present(st: Step, g: number) {
   switch (e.k) {
     case 'deal': {
       set({ dealing: e.order });
-      sfx('shuffle', { haptic: false });
+      // The shuffle sound lasts as long as the shuffle; then each card sounds as it lands.
+      sfxAt(g, 'shuffle', moveAt(), { haptic: false });
+      dealSounds(g, e.order.length, T.shuffle, T.dealCard);
       await wait(T.shuffle);
       if (g !== gen) return;
-      sfx('deal', { haptic: false });
       await wait(e.order.length * T.dealCard + 500);
       if (g !== gen) return;
       set({ dealing: null });
@@ -343,7 +361,7 @@ async function present(st: Step, g: number) {
       await wait(1300);
       return;
     case 'play':
-      sfx('card', { haptic: false });
+      sfxAt(g, 'card', landAt(flight()), { haptic: false });
       if (e.sig) {
         pushFx('bubble', e.sig + '!', { p: e.p, ms: 2400 });
         pushFx('toast', nameOf(m, e.p), { sub: `${e.sig.toLowerCase()} a ${SUITS[suitOf(e.c)].toLowerCase()}`, ms: 1800 });
@@ -357,33 +375,35 @@ async function present(st: Step, g: number) {
       await wait(T.look);
       return;
     case 'collect': {
-      sfx('sweep', { haptic: false });
+      // The cards start moving to the taker now: the sweep goes with them, the points just after.
+      sfxAt(g, 'sweep', moveAt(), { haptic: false });
+      const after = moveAt(flight() * 0.4);
       const mine = teamOf(m, e.w) === teamOf(m, me);
       if (e.scopa) {
         pushFx('moment', 'Scopa!', { sub: nameOf(m, e.w), p: e.w, ms: 1700 });
-        sfx('scopa', { haptic: mine });
+        sfxAt(g, 'scopa', after, { haptic: mine });
       } else if (e.settebello) {
         pushFx('float', 'Settebello', { p: e.w, ms: 1500 });
-        sfx('pts', { haptic: mine });
+        sfxAt(g, 'pts', after, { haptic: mine });
       } else if (e.pts) {
         const big = m.game !== 'briscola' || Number(e.pts) >= 10;
         if (big) {
           pushFx('float', '+' + e.pts + (e.ultima ? ' ultima' : ''), { p: e.w, ms: 1500 });
-          sfx('pts', { haptic: mine && (e.ultima || m.game === 'briscola') });
+          sfxAt(g, 'pts', after, { haptic: mine && (e.ultima || m.game === 'briscola') });
         }
       }
       await wait(T.collect);
       return;
     }
     case 'reveal': {
-      sfx('card', { haptic: false });
+      sfxAt(g, 'card', landAt(flight()), { haptic: false });
       const others = e.cards.filter(x => x.p !== me);
       if (others.length) pushFx('toast', `${nameOf(m, others[0].p)} pesca`, { sub: cardName(others[0].c), ms: T.reveal });
       await wait(T.reveal);
       return;
     }
     case 'draw':
-      sfx('card', { haptic: false });
+      sfxAt(g, 'deal', landAt(flight()), { haptic: false });
       await wait(m.game === 'tressette' ? T.play : T.draw);
       return;
     case 'deckEmpty':
@@ -395,13 +415,13 @@ async function present(st: Step, g: number) {
       return;
     case 'dealRound':
       set({ dealing: e.order });
-      sfx('deal', { haptic: false });
+      dealSounds(g, e.order.length, 0, T.dealCard * 1.4);
       await wait(e.order.length * T.dealCard * 1.4 + 600);
       set({ dealing: null });
       return;
     case 'tableToLast':
       pushFx('toast', 'Fine della mano', { sub: `Le carte rimaste in tavola vanno a ${nameOf(m, e.p)}.`, ms: 2000 });
-      sfx('sweep', { haptic: false });
+      sfxAt(g, 'sweep', moveAt(), { haptic: false });
       await wait(T.collect + 600);
       return;
     case 'handEnd': {

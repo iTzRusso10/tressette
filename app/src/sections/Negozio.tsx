@@ -93,7 +93,7 @@ function ItemSheet({ item, day, onClose }: { item: Item; day: string; onClose: (
   const doBuy = () => {
     const r = buyItem(item.id, day);
     if (r.ok) {
-      sfx('pts', { haptic: true });
+      sfx('buy', { haptic: true });
       equip(item.slot, item.id);
       setMsg('Comprato e messo in uso.');
     } else setMsg(r.why === 'coins' ? 'Non hai abbastanza monete: vinci qualche partita o ritira il bonus del giorno.' : 'Non si può comprare.');
