@@ -296,34 +296,57 @@ export function designOf(id: string, w: number, h: number, rad: number): Design 
       return { line: c.d, fill: dots.d, sw, k: 1 };
     }
     case 'corno': {
-      // The cornicello, on a slant, inside a ring.
-      const Hc = m * 0.42;
-      const w0 = Hc * 0.26;
-      const c = new Pen(cx, cy, (28 * Math.PI) / 180);
-      const base = Hc * 0.42;
-      c.M(-w0 / 2, base)
-        .C(-w0 / 2, base - Hc * 0.42, -w0 * 0.2, base - Hc * 0.78, -w0 * 0.9, base - Hc)
-        .C(w0 * 0.3, base - Hc * 0.78, w0 / 2, base - Hc * 0.4, w0 / 2, base)
+      // The cornicello: a horn that tapers and curls to one side, with its gold cap, inside a ring.
+      const Hc = m * 0.44;
+      const w0 = Hc * 0.22;
+      const base = Hc * 0.4;
+      type P = [number, number];
+      const bez = (p0: P, p1: P, p2: P, p3: P, t: number): P => {
+        const u = 1 - t;
+        return [
+          u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+          u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+        ];
+      };
+      const tip: P = [w0 * 2.3, base - Hc * 0.98];
+      const outer: [P, P, P, P] = [[-w0 / 2, base], [-w0 * 0.7, base - Hc * 0.5], [-w0 * 0.2, base - Hc * 0.98], tip];
+      const inner: [P, P, P, P] = [[w0 / 2, base], [w0 * 0.42, base - Hc * 0.4], [w0 * 0.9, base - Hc * 0.78], tip];
+      const c = new Pen(cx - w0 * 0.7, cy, (-8 * Math.PI) / 180);
+      c.M(...outer[0])
+        .C(...outer[1], ...outer[2], ...outer[3])
+        .C(...inner[2], ...inner[1], ...inner[0])
         .Z();
-      // The ribs of the horn, closer together towards the tip.
-      for (const [t, k] of [
-        [0.16, 0.92],
-        [0.3, 0.8],
-        [0.43, 0.66],
-      ]) {
-        const y = base - Hc * t;
-        const hw = (w0 / 2) * k;
-        c.M(-hw, y).Q(0, y + w0 * 0.14, hw, y);
+      // The ribs follow the curve and get closer towards the tip.
+      for (const t of [0.12, 0.23, 0.33, 0.42]) {
+        const [ox, oy] = bez(...outer, t);
+        const [ix, iy] = bez(...inner, t * 0.96);
+        const mx = (ox + ix) / 2;
+        const my = (oy + iy) / 2 + w0 * 0.12 * (1 - t);
+        c.M(ox, oy).Q(mx, my, ix, iy);
       }
-      // The cap and the little ring to hang it.
-      c.rrect(-w0 * 0.6, base, w0 * 1.2, Hc * 0.07, Hc * 0.02);
-      c.circle(0, base + Hc * 0.07 + w0 * 0.24, w0 * 0.2);
+      // A highlight along the horn.
+      const hl: [P, P, P, P] = [
+        [-w0 * 0.12, base - Hc * 0.6],
+        [w0 * 0.05, base - Hc * 0.75],
+        [w0 * 0.4, base - Hc * 0.86],
+        [w0 * 0.85, base - Hc * 0.93],
+      ];
+      c.M(...hl[0]).C(...hl[1], ...hl[2], ...hl[3]);
+      // The cap: a band with a little crown edge, and the ring to hang it.
+      const capH = Hc * 0.09;
+      c.rrect(-w0 * 0.64, base, w0 * 1.28, capH, Hc * 0.02);
+      c.M(-w0 * 0.64, base + capH * 0.5).L(w0 * 0.64, base + capH * 0.5);
+      c.circle(0, base + capH + w0 * 0.22, w0 * 0.2);
       const ring = new Pen(cx, cy);
-      ring.circle(0, -Hc * 0.04, Hc * 0.66);
-      const dots = new Pen(cx, cy - Hc * 0.04);
+      ring.circle(0, -Hc * 0.05, Hc * 0.66);
+      const dots = new Pen(cx, cy - Hc * 0.05);
       for (let i = 0; i < 4; i++) {
         const [x, y] = polar(Hc * 0.66, i * 90 - 90);
         dots.diamond(x, y, Hc * 0.035);
+      }
+      for (let i = 0; i < 4; i++) {
+        const [x, y] = polar(Hc * 0.66, i * 90 - 45);
+        dots.circle(x, y, Hc * 0.012);
       }
       return { line: c.d + ring.d, fill: dots.d, sw, k: 1 };
     }
@@ -442,7 +465,7 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
   // The design is drawn in a lighter tone of the cloth (or in the trim's metal), pressed into the felt.
   const ink = look.trim ? mix(look.trim, cloth[0], 0.25) : mix(cloth[0], '#FFFFFF', 0.42);
   const dark = luma(cloth[1]) < 0.02;
-  const op = Math.min(0.9, (dark ? 0.2 : 0.16) * (look.velvet ? 1.1 : 1) * boost * (design?.k ?? 1));
+  const op = Math.min(0.9, (dark ? 0.22 : 0.19) * (look.velvet ? 1.1 : 1) * boost * (design?.k ?? 1));
   const emboss = Math.max(0.6, (design?.sw ?? 1) * 0.7);
   const trimIn = Math.max(2.5, 5 * scale);
   const id = (s: string) => `${s}${uid}`;
@@ -485,7 +508,7 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
         <G clipPath={`url(#${id('clip')})`}>
           <G transform={`translate(${B} ${B})`}>
             {/* Pressed into the cloth: a dark line just below, the light line on top. */}
-            <G opacity={Math.min(0.9, op * 1.15)} transform={`translate(0 ${f(emboss)})`}>
+            <G opacity={Math.min(0.5, op * 0.6)} transform={`translate(0 ${f(emboss)})`}>
               <Path d={design.line} fill="none" stroke="#000000" strokeWidth={design.sw} strokeLinecap="round" strokeLinejoin="round" />
               {design.fill ? <Path d={design.fill} fill="#000000" /> : null}
             </G>

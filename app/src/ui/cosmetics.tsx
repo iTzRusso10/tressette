@@ -3,7 +3,7 @@
 import { Image } from 'expo-image';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { BACKS, backImage, FRONTS } from '@/game/cardImages';
+import { backImage, FRONTS } from '@/game/cardImages';
 import { FeltArt, RIM } from '@/game/Felt';
 import { useProfile } from '@/meta/profile';
 import type { Item } from '@/meta/shop';
@@ -90,7 +90,7 @@ export const BackPreview = memo(function BackPreview({ id, width }: { id: string
       importantForAccessibility="no-hide-descendants"
     >
       <View style={[StyleSheet.absoluteFill, styles.clip, { borderRadius: rad }]}>
-        <Image source={BACKS[id] ?? backImage(id)} style={StyleSheet.absoluteFill} contentFit="fill" transition={null} cachePolicy="memory" />
+        <Image source={backImage(id)} style={StyleSheet.absoluteFill} contentFit="fill" transition={null} cachePolicy="memory" />
       </View>
     </View>
   );
