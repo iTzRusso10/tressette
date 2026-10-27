@@ -8,11 +8,14 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initAuth } from '@/meta/auth';
+import { Overlays } from '@/ui/Overlays';
 import { colors } from '@/ui/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 300, fade: true });
 SystemUI.setBackgroundColorAsync(colors.night).catch(() => {});
+initAuth();
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Feels like an app: no page bounce, no text selection, no double-tap zoom, no long-press menu.
@@ -54,6 +57,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ animation: 'fade' }} />
           <Stack.Screen name="tavolo" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
+        <Overlays />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

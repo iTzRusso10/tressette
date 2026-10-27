@@ -1,0 +1,24 @@
+# Supabase project for Napoletane. Link it with: npx supabase link --project-ref <id>
+project_id = "napoletane"
+
+[auth]
+site_url = "https://itzrusso10.github.io/tressette/"
+additional_redirect_urls = ["napoletane://auth", "https://itzrusso10.github.io/tressette/auth"]
+
+[auth.external.apple]
+enabled = true
+client_id = "env(APPLE_SERVICES_ID)"
+secret = "env(APPLE_SECRET)"
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+
+[auth.external.facebook]
+enabled = true
+client_id = "env(FACEBOOK_APP_ID)"
+secret = "env(FACEBOOK_APP_SECRET)"
+
+[functions.progress]
+verify_jwt = true

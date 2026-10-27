@@ -10,6 +10,7 @@ import {
   play,
   scopaOptions,
   startHand,
+  SETTEBELLO,
   SUITS,
   suitOf,
   teamOf,
@@ -23,6 +24,7 @@ import {
 } from '@/engine';
 import { assignSlots } from '@/game/layout';
 import type { GuestRoom, HostRoom } from '@/online/room';
+import { recordHand, recordMatch } from '@/meta/profile';
 import { sfx } from '@/ui/feedback';
 import { useSettings } from './settings';
 
@@ -394,7 +396,16 @@ async function present(st: Step, g: number) {
       await wait(450);
       if (g !== gen) return;
       const out = h.result?.out;
-      if (out && out.winners.includes(teamOf(m, me))) sfx('win');
+      const myTeam = teamOf(m, me);
+      // Your progress: statistics, trophies, coins and experience.
+      recordHand({
+        scope: m.game === 'scopa' ? h.scope[me] : 0,
+        settebello: m.game === 'scopa' && h.capt[me].includes(SETTEBELLO),
+        napoletana: h.accusi.some(a => a.p === me && a.label.startsWith('Napoletana')),
+        cappotto: e.cappotto >= 0 && e.cappotto === myTeam,
+      });
+      if (out) recordMatch({ game: m.game, mode: m.mode, level: m.level, online: !!net, won: out.winners.includes(myTeam) });
+      if (out && out.winners.includes(myTeam)) sfx('win');
       await save();
       set({ summary: true });
       return;

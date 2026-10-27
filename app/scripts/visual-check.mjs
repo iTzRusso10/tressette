@@ -1,5 +1,5 @@
 // Visual check of every mode on three screens, from the web export.
-// Usage: npm run export:web && node scripts/visual-check.mjs [outDir] [filter]
+// Usage: npm run export:web && node scripts/visual-check.mjs [outDir] [mode filter] [screen filter]
 // Serves dist/ under /tressette/ (as on GitHub Pages), lets the computer play your cards (?auto)
 // and saves screenshots: after the deal, mid-hand and at the end of the hand. It also checks that
 // the felt and the name tags never move during a hand.
@@ -13,6 +13,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const out = process.argv[2] || join(root, '.visual');
 const filter = process.argv[3] || '';
+const screenFilter = process.argv[4] || '';
 mkdirSync(out, { recursive: true });
 
 const MODES = [
@@ -30,7 +31,7 @@ const SCREENS = [
   { id: 'telefono', width: 393, height: 852, touch: true },
   { id: 'piccolo', width: 375, height: 667, touch: true },
   { id: 'desktop', width: 1280, height: 800, touch: false },
-];
+].filter(s => s.id.includes(screenFilter));
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.wav': 'audio/wav', '.ico': 'image/x-icon', '.json': 'application/json' };
 const server = createServer((req, res) => {
@@ -70,15 +71,15 @@ for (const sc of SCREENS) {
         }),
       );
     await page.waitForTimeout(3500);
-    await page.screenshot({ path: join(out, `${name}-1-inizio.png`) });
+    await page.screenshot({ path: join(out, `${name}-1-inizio.png`), timeout: 90000 });
     const before = await fixed();
     await page.waitForTimeout(md.game === 'tressette' ? 9000 : 5000);
-    await page.screenshot({ path: join(out, `${name}-2-meta.png`) });
+    await page.screenshot({ path: join(out, `${name}-2-meta.png`), timeout: 90000 });
     const during = await fixed();
     const summary = page.getByRole('button', { name: /Prossima mano|Rivincita/ });
     await summary.waitFor({ timeout: 120000 }).catch(() => problems.push(`${name}: la mano non finisce`));
     await page.waitForTimeout(500);
-    await page.screenshot({ path: join(out, `${name}-3-fine.png`) });
+    await page.screenshot({ path: join(out, `${name}-3-fine.png`), timeout: 90000 });
     if (before.join('|') !== during.join('|')) problems.push(`${name}: qualcosa si è spostato\n  ${before.join(' ')}\n  ${during.join(' ')}`);
     if (!before.length) problems.push(`${name}: nessun elemento fisso trovato`);
     if (errors.length) problems.push(`${name}: errori\n  ${errors.slice(0, 5).join('\n  ')}`);

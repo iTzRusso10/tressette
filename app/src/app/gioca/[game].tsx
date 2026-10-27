@@ -177,5 +177,5 @@ const styles = StyleSheet.create({
   card: { position: 'absolute', overflow: 'hidden', backgroundColor: '#FFFFFF', boxShadow: shadow.card },
   fixed: { height: 48, borderRadius: radius.pill, paddingHorizontal: 18, justifyContent: 'center', backgroundColor: '#FFFFFF', alignSelf: 'flex-start' },
   fixedText: { color: colors.ink },
-  toggles: { marginTop: space.xl, paddingHorizontal: space.l, paddingVertical: space.xs },
+  toggles: { marginTop: space.xl, paddingHorizontal: space.l, paddingVertical: space.xs, backgroundColor: colors.panel, borderColor: colors.panelLine },
 });

@@ -1,18 +1,9 @@
-import 'react-native-url-polyfill/auto';
-import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase, supabaseConfigured } from '@/lib/supabase';
 import type { Peer, Status, Transport } from './transport';
 
-const URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
 /** Online needs the project URL and the public (anon) key, in app/.env. */
-export const onlineConfigured = !!URL && !!KEY;
-
-let client: SupabaseClient | null = null;
-function supabase() {
-  if (!client) client = createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-  return client;
-}
+export const onlineConfigured = supabaseConfigured;
 
 const channelName = (room: string) => `napoletane:${room}`;
 

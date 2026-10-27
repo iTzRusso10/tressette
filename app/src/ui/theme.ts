@@ -14,6 +14,9 @@ export const colors = {
   glassLineSoft: 'rgba(255,255,255,0.16)',
   /** Dark glass: names on the felt, notices, sheets. */
   shade: 'rgba(36,10,66,0.55)',
+  /** Content panels: violet glass dark enough for text to read on any part of the sky. */
+  panel: 'rgba(40,12,74,0.42)',
+  panelLine: 'rgba(255,255,255,0.14)',
   shadeStrong: 'rgba(36,10,66,0.82)',
   sheet: '#3A1868',
   /** The felt. */
@@ -39,6 +42,12 @@ export const gradients = {
   sky: { colors: [colors.orange, colors.pink, colors.violet, colors.night] as const, locations: [0, 0.42, 0.78, 1] as const },
   primary: { colors: ['#FFFFFF', colors.peach] as const },
   sun: { colors: ['#FFF1A8', colors.sun, '#FFC23D'] as const },
+  /** Each game has its own color: the one memorable thing on the home screen. */
+  games: {
+    tressette: ['#FFA94D', '#F2600C'] as const,
+    briscola: ['#FF6B9A', '#C42A6E'] as const,
+    scopa: ['#9B6BFF', '#4A28B8'] as const,
+  },
 } as const;
 
 /** One color per player, in seat order relative to the viewer (you first). */
@@ -74,7 +83,7 @@ export const cardRadius = (w: number) => Math.round(w * 0.055 * 10) / 10;
 
 /** Soft drop shadows (boxShadow works on iOS, Android and the web). */
 export const shadow = {
-  card: '0px 6px 14px rgba(30,6,60,0.35)',
+  card: '0px 3px 7px rgba(30,6,60,0.32)',
   lifted: '0px 16px 28px rgba(30,6,60,0.45)',
   panel: '0px 14px 34px rgba(30,6,60,0.28)',
   glow: (c: string) => `0px 0px 22px ${c}`,
