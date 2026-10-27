@@ -27,10 +27,12 @@ interface Props {
   dim: boolean;
   glow: boolean;
   lift: boolean;
+  /** The back in use (an image of BACKS in cardImages.ts); the classic one by default. */
+  back?: number;
   onPress?: (c: Card) => void;
 }
 
-function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, fresh, shuffle, half, origin, duration, dim, glow, lift, onPress }: Props) {
+function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, fresh, shuffle, half, origin, duration, dim, glow, lift, back: backSrc = BACK, onPress }: Props) {
   const start = fresh ? { x: origin.x, y: origin.y, r: 0, s: origin.s, o: 0, up: false } : place;
   const x = useSharedValue(start.x);
   const y = useSharedValue(start.y);
@@ -106,7 +108,7 @@ function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, fresh, shuffle, half
     <View style={[styles.card, { width: cw, height: ch, borderRadius: radius }, lift && styles.lifted]}>
       <View style={[StyleSheet.absoluteFill, styles.clip, { borderRadius: radius }]}>
         <Animated.View style={[StyleSheet.absoluteFill, back]}>
-          <Image source={BACK} style={StyleSheet.absoluteFill} contentFit="fill" transition={null} cachePolicy="memory" />
+          <Image source={backSrc} style={StyleSheet.absoluteFill} contentFit="fill" transition={null} cachePolicy="memory" />
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFill, front]}>
           <Image source={FRONTS[c]} style={StyleSheet.absoluteFill} contentFit="fill" transition={null} cachePolicy="memory" />

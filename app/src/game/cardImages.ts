@@ -42,3 +42,21 @@ export const FRONTS: number[] = [
   require('../../assets/cards/39.jpg'),
 ];
 export const BACK: number = require('../../assets/cards/back.png');
+
+/** Card backs of the shop (src/meta/shop.ts), drawn by scripts/make-art.mjs: id → image. */
+export const BACKS: Record<string, number> = {
+  classico: BACK,
+  rosso: require('../../assets/backs/rosso.png'),
+  blu: require('../../assets/backs/blu.png'),
+  golfo: require('../../assets/backs/golfo.png'),
+  limoni: require('../../assets/backs/limoni.png'),
+  stelle: require('../../assets/backs/stelle.png'),
+  vietri: require('../../assets/backs/vietri.png'),
+  tramonto: require('../../assets/backs/tramonto.png'),
+  tarocco: require('../../assets/backs/tarocco.png'),
+  ottone: require('../../assets/backs/ottone.png'),
+  corona: require('../../assets/backs/corona.png'),
+};
+
+/** The image of a back; the classic one when the id is unknown. */
+export const backImage = (id: string | undefined): number => (id && BACKS[id]) || BACK;

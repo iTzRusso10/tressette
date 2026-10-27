@@ -3,12 +3,13 @@ import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ALL, legalCards, type Card, type Match, type Signal } from '@/engine';
+import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
 import { canSignal, chooseCapture, clearSelection, tapCard, toggleSignal, useTable, T } from '@/state/table';
 import { dur } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { cardRadius, colors, fonts, radius, seatColors, shadow } from '@/ui/theme';
-import { FRONTS } from './cardImages';
+import { backImage, FRONTS } from './cardImages';
 import { CardSprite } from './CardSprite';
 import { Felt } from './Felt';
 import { FxLayer } from './FxLayer';
@@ -52,6 +53,9 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
   const pendingSig = useTable(s => s.pendingSig);
   const viewer = useTable(s => s.viewer);
   const fast = useSettings(s => s.fast);
+  // What the player put on the table in the shop: felt, design and card back.
+  const equipped = useProfile(s => s.equipped);
+  const backSrc = backImage(equipped.back);
   const h = m.h;
 
   // The geometry depends only on the screen and the kind of game: it never changes during a hand.
@@ -84,7 +88,7 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
   return (
     <View style={styles.fill}>
       <Pressable style={StyleSheet.absoluteFill} onPress={clearSelection} accessible={false} />
-      <Felt rect={g.felt} />
+      <Felt rect={g.felt} felt={equipped.felt} pattern={equipped.pattern} />
       <View testID="fixed-topbar" style={[styles.topBar, { left: g.cx - g.colW / 2 }]}>
         <TopBar m={m} viewer={viewer} onMenu={onMenu} width={g.colW} />
       </View>
@@ -135,6 +139,7 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
             dim={!!legal && mine && !legal.has(c)}
             glow={!!h?.glow?.includes(c) || (selected === c && m.game === 'scopa')}
             lift={selected === c}
+            back={backSrc}
             onPress={mine && myTurn ? cc => tapCard(cc, directPointer) : undefined}
           />
         );
