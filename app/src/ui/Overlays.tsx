@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
@@ -7,12 +8,13 @@ import { Confetti } from '@/game/Confetti';
 import { useAdSim } from '@/meta/ads';
 import { dismissCelebration, useProfile, type Celebration } from '@/meta/profile';
 import { sfx } from './feedback';
+import { ArenaReveal } from './ArenaReveal';
 import { Badge, CoinIcon } from './meta';
 import { Text } from './Text';
 import { colors, fonts, radius } from './theme';
 
-/** One celebration at a time, dropping in from the top: a trophy, a new level, coins earned. */
-function Banner({ c }: { c: Celebration }) {
+/** One celebration at a time, dropping in from the top: a medal, a new level, coins earned. (A new arena gets the whole screen.) */
+function Banner({ c }: { c: Exclude<Celebration, { kind: 'arena' }> }) {
   const ins = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const w = Math.min(width - 24, 420);
@@ -34,7 +36,7 @@ function Banner({ c }: { c: Celebration }) {
             <Badge glyph={c.trophy.glyph} coins={c.trophy.coins} size={54} />
           </Animated.View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>Trofeo sbloccato</Text>
+            <Text style={styles.kicker}>Medaglia vinta</Text>
             <Text style={styles.title} numberOfLines={1}>
               {c.trophy.title}
             </Text>
@@ -81,10 +83,13 @@ function AdSim() {
 
 export function Overlays() {
   const c = useProfile(s => s.celebrations[0]);
+  // A new arena waits until you leave the table: first the end of the match, then the new place.
+  const atTable = usePathname() === '/tavolo';
   const { width } = useWindowDimensions();
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: 5000 }]}>
-      {c ? <Banner key={c.id} c={c} /> : null}
+      {c && c.kind !== 'arena' ? <Banner key={c.id} c={c} /> : null}
+      {c?.kind === 'arena' && !atTable ? <ArenaReveal key={c.id} arena={c.arena} onClose={() => dismissCelebration(c.id)} /> : null}
       {c?.kind === 'trophy' ? <Confetti key={'k' + c.id} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.id} /> : null}
       <AdSim />
     </View>

@@ -1,4 +1,10 @@
 import { router } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { arenaOf, arenaProgress } from '@/meta/arenas';
+import { useProfile } from '@/meta/profile';
+import { Pips } from '@/sections/parts';
+import { TrophyIcon } from '@/ui/icons';
+import { dur } from '@/ui/motion';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { fmtThirds, GAMES, isScopaRow, isTressetteRow, teamOf, type BriscolaRow, type HandRow, type Match } from '@/engine';
 import { leaveRoom } from '@/online/session';
@@ -27,6 +33,29 @@ function details(m: Match, r: HandRow): string[] {
   }
   const b = r as BriscolaRow;
   return [`Punti ${b.pts}`, `Prese ${b.tricks}`];
+}
+
+/** Trophies won or lost with the match, and how far the next arena is. */
+function TrophyLine() {
+  const last = useProfile(s => s.lastMatch);
+  if (!last) return null;
+  const arena = arenaOf(last.cups);
+  const { have } = arenaProgress(last.cups);
+  const d = last.delta;
+  return (
+    <Animated.View entering={FadeIn.delay(300).duration(dur.enter)} style={styles.cups}>
+      <TrophyIcon size={34} muted={d < 0} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cupsDelta, d < 0 && { color: colors.coral }]}>
+          {d > 0 ? `+${d} ${d === 1 ? 'trofeo' : 'trofei'}` : d < 0 ? `${d} ${d === -1 ? 'trofeo' : 'trofei'}` : 'Trofei invariati'}
+        </Text>
+        <Text v="small" numberOfLines={1}>
+          {arena.name}, {Math.min(have, 8)} su 8
+        </Text>
+      </View>
+      <Pips have={Math.min(have, 8)} fresh={d > 0 ? Math.min(have, d) : 0} size={14} gap={3} />
+    </Animated.View>
+  );
 }
 
 export function Summary({ m, viewer }: { m: Match; viewer: number }) {
@@ -96,6 +125,7 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
             Accusi: {h.accusi.map(a => `${m.seats[a.p].name}, ${a.label.toLowerCase()} (+${a.pts})`).join('; ')}
           </Text>
         ) : null}
+        {out ? <TrophyLine /> : null}
         <View style={{ marginTop: space.xl, gap: space.s }}>
           {netRole() === 'guest' ? (
             <Text v="lead" style={{ textAlign: 'center' }}>
@@ -148,4 +178,17 @@ const styles = StyleSheet.create({
   details: { marginTop: space.xs, color: colors.textSoft },
   track: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: space.s, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
+  cups: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.m,
+    marginTop: space.m,
+    padding: space.m,
+    paddingHorizontal: space.l,
+    borderRadius: radius.l,
+    backgroundColor: 'rgba(255,224,102,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,224,102,0.45)',
+  },
+  cupsDelta: { fontFamily: fonts.display, fontSize: 19, lineHeight: 24, color: colors.sun },
 });

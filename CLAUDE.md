@@ -11,7 +11,8 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - `src/online/`: stanze online. `room.ts` (host autorevole, si trasmettono solo le mosse e gli ospiti le rigiocano con il motore), `transport.ts` (in memoria per i test, tra schede con `?local`), `supabase.ts` (Supabase Realtime), `session.ts` (stato per le schermate).
 - `src/meta/`: tutto quello che sta fuori dalla partita. `economy.ts` (monete, bonus giornaliero, livelli) e `progress.ts` (statistiche, trofei) sono funzioni pure condivise con il server; `profile.ts` è lo stato sul telefono; `sync.ts` lo allinea al server quando sei collegato; `auth.ts` (Apple, Google, Facebook), `friends.ts`, `stakes.ts` e `pot.ts` (posta online), `ads.ts` e `admob.native.ts` (video premio).
 - `supabase/`: tabelle, regole di sicurezza e funzioni del server (vedi `supabase/README.md` per attivare tutti i servizi). Monete e trofei di chi è collegato li cambia solo il server, con le stesse regole di `src/meta`.
-- `src/app/`: le schermate (Expo Router). `src/ui/`: tema, testo, componenti.
+- `src/meta/arenas.ts` (trofei e arene) e `src/meta/shop.ts` (catalogo del negozio: panni, decori, dorsi; offerta del giorno) sono funzioni pure condivise con il server; `leaderboard.ts` legge le classifiche.
+- `src/app/`: le schermate (Expo Router). `index.tsx` apre l'hub (`src/sections/Hub.tsx`): cinque sezioni a pagine orizzontali con la barra in basso — Negozio, Amici, **Gioca** (al centro, dove si apre l'app), Classifica, Trofei (arene e medaglie). `src/ui/`: tema, testo, componenti; `cosmetics.tsx` (anteprime di tavoli e dorsi), `ArenaScene.tsx` (illustrazioni delle arene), `ArenaReveal.tsx` (lo svelamento di una nuova arena).
 - `assets/cards/`: le 40 scansioni (`0.jpg` … `39.jpg`) e il retro. `scripts/make-art.mjs` disegna retro, icona e splash; `scripts/make-sounds.py` genera i suoni.
 
 ## Carte
@@ -36,6 +37,14 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - Si parte con 1000 monete. Bonus giornaliero da 100 a 500 a seconda della serie di giorni, raddoppiabile con un video. Vincere contro il computer: 20, 40 o 80 monete secondo il livello.
 - Online si sceglie una posta (100, 500, 1000, 5000 o niente): pagano e incassano solo le persone, il piatto va a chi vince e il server paga solo quando la maggioranza dei giocatori conferma lo stesso risultato.
 
+## Trofei, arene e negozio
+
+- **Trofei** (la strada delle arene, `cups` nel codice) e **medaglie** (i traguardi con premio, `trophies` nel codice e sul server per ragioni storiche) sono due cose diverse.
+- Vittoria: Facile +1, Medio +2, Esperto +3, online +3. Sconfitta: −1, ma contro il Facile non si perde niente.
+- Ogni 8 trofei si sale di arena (10 arene napoletane, dal Vicolo alla Reggia). Un'arena raggiunta resta: non si scende sotto il suo primo trofeo. L'arena dà monete, il suo panno (messo subito sul tavolo) e a volte un dorso. Dopo la Reggia i trofei continuano a contare (Leggenda).
+- Il negozio vende con le monete panni, decori e dorsi; ogni giorno un oggetto è scontato del 30%. I pagamenti con soldi veri non ci sono: la monetizzazione la decide Giuseppe.
+- Lo svelamento di una nuova arena aspetta che si lasci il tavolo.
+
 ## Qualità
 
 - Carte sempre nitide: le carte si disegnano alla misura della mano e si rimpiccioliscono, mai ingrandite; nessun filtro. La carta si gira schiacciandola in orizzontale, senza 3D.
@@ -54,6 +63,7 @@ npm run check            # tipi + lint + test (regole, partite simulate, online)
 npm run export:web       # sito in dist/
 npm run check:visual     # foto di tutte le modalità su 3 schermi in .visual/, e controllo che niente si sposti
 npm run check:online     # due schede giocano online tra loro (?local), senza server
+npm run check:hub        # foto delle cinque sezioni (e della scelta del gioco e del negozio) su 3 schermi
 ```
 
 Prima di chiudere una modifica visiva: `npm run export:web && npm run check:visual`, e guarda le foto delle 8 combinazioni (Tressette in 2, in 4, a perdere in 4 e in 2, Briscola in 2 e in 4, Scopa in 2 e in 4) a 393×852, 375×667 e 1280×800.
