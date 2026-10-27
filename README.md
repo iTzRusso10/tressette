@@ -18,9 +18,13 @@ cd app
 npm install            # serve Node 22+
 npm start              # server di sviluppo (poi i per iOS, a per Android, w per il web)
 npm run check          # tipi, lint e test delle regole
-npm run ios            # build nativa locale (serve Xcode)
-npm run android        # build nativa locale (serve Android Studio)
+npm run ios            # build di sviluppo (serve Xcode, il telefono usa il server sul computer)
+npm run android        # build di sviluppo (serve Android Studio)
+npm run ios:telefono      # installa sull'iPhone collegato la versione completa: funziona senza computer
+npm run android:telefono  # lo stesso per Android
 ```
+
+Con l'Apple ID gratuito l'app installata sull'iPhone scade dopo 7 giorni (poi si rilancia `npm run ios:telefono`). Con l'Apple Developer Program dura un anno e si può distribuire con TestFlight.
 
 Build per gli store senza Xcode, con EAS: `npx eas-cli@latest build --platform ios` (o `android`).
 
