@@ -18,7 +18,7 @@ import { Text } from '@/ui/Text';
 import { colors, fonts, radius, seatColors } from '@/ui/theme';
 import { dur, ease } from '@/ui/motion';
 import { Confetti } from './Confetti';
-import { sideOf, TAG_W, type Geometry } from './layout';
+import { sideOf, TAG_H, TAG_W, type Geometry } from './layout';
 
 function anchor(g: Geometry, m: Match, viewer: number, p: number) {
   const t = g.tags[sideOf(m, viewer, p)];
@@ -38,14 +38,17 @@ function Float({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: nu
   useEffect(() => {
     o.value = withSequence(withTiming(1, { duration: 140 }), withDelay(fx.ms - 560, withTiming(0, { duration: 400, easing: ease.out })));
     s.value = withTiming(1, { duration: dur.enter, easing: ease.in });
-    y.value = withTiming(-40, { duration: fx.ms, easing: Easing.out(Easing.cubic) });
+    // A short rise over the player's own name: it never climbs into the deck or the next name.
+    y.value = withTiming(-16, { duration: fx.ms, easing: Easing.out(Easing.cubic) });
   }, [fx.ms, o, s, y]);
   const st = useAnimatedStyle(() => ({ opacity: o.value, transform: [{ translateY: y.value }, { scale: s.value }] }));
   return (
-    <Animated.View pointerEvents="none" style={[styles.float, { left: a.x - 90, top: a.y - 12 }, st]}>
-      <Text allowFontScaling={false} style={[styles.floatText, { textShadowColor: colorOf(m, viewer, p) }]}>
-        {fx.text}
-      </Text>
+    <Animated.View pointerEvents="none" style={[styles.float, { left: a.x - 90, top: a.y + TAG_H / 2 - 17 }, st]}>
+      <View style={[styles.floatPill, { borderColor: colorOf(m, viewer, p) }]}>
+        <Text allowFontScaling={false} style={styles.floatText}>
+          {fx.text}
+        </Text>
+      </View>
     </Animated.View>
   );
 }
@@ -140,14 +143,16 @@ export function FxLayer({ g, m, viewer }: { g: Geometry; m: Match; viewer: numbe
 
 const styles = StyleSheet.create({
   float: { position: 'absolute', width: 180, alignItems: 'center' },
-  floatText: {
-    fontFamily: fonts.display,
-    fontSize: 24,
-    lineHeight: 30,
-    color: '#FFFFFF',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
+  floatPill: {
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    borderWidth: 2,
+    justifyContent: 'center',
+    backgroundColor: colors.shadeStrong,
+    boxShadow: '0px 6px 16px rgba(30,6,56,0.45)',
   },
+  floatText: { fontFamily: fonts.display, fontSize: 17, lineHeight: 22, color: colors.text },
   bubble: {
     position: 'absolute',
     width: 100,
