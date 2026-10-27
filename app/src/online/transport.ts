@@ -129,7 +129,10 @@ export class TabTransport implements Transport {
 
   private emitPeers() {
     const peers = this.peers();
-    const key = peers.map(p => p.id).sort().join(',');
+    const key = peers
+      .map(p => p.id)
+      .sort()
+      .join(',');
     if (key === this.last) return;
     this.last = key;
     this.peerCbs.forEach(cb => cb(peers));

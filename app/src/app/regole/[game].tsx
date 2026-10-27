@@ -37,7 +37,7 @@ export default function Rules() {
               <View style={styles.ranks} accessibilityLabel={`Ordine di forza: ${sec.ranks.join(', ')}`}>
                 {sec.ranks.map((r, i) => (
                   <View key={r} style={[styles.rank, i === 0 && styles.rankTop]}>
-                    <Text style={[styles.rankText, i === 0 && { color: colors.inchiostro }]}>{LABEL[r]}</Text>
+                    <Text style={[styles.rankText, i === 0 && { color: colors.ink }]}>{LABEL[r]}</Text>
                   </View>
                 ))}
               </View>
@@ -62,18 +62,18 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: space.xl, paddingBottom: space.xxxl },
   section: { marginTop: space.xl },
   h: { marginBottom: space.s },
-  p: { color: colors.marmoTenue, fontFamily: fonts.uiRegular, lineHeight: 26 },
+  p: { color: colors.textSoft, fontFamily: fonts.regular, lineHeight: 26 },
   ranks: { flexDirection: 'row', gap: 5, marginBottom: space.s, flexWrap: 'wrap' },
   rank: {
     width: 30,
     height: 38,
-    borderRadius: 6,
+    borderRadius: 9,
     borderWidth: 1,
-    borderColor: colors.linea,
-    backgroundColor: 'rgba(242,236,224,0.05)',
+    borderColor: colors.glassLine,
+    backgroundColor: colors.glass,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankTop: { backgroundColor: colors.ottone, borderColor: colors.ottoneChiaro },
-  rankText: { fontFamily: fonts.display, fontSize: 18, lineHeight: 22, color: colors.marmo },
+  rankTop: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
+  rankText: { fontFamily: fonts.display, fontSize: 18, lineHeight: 22, color: colors.text },
 });

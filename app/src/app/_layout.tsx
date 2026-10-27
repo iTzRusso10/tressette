@@ -1,5 +1,4 @@
-import { BodoniModa_500Medium, BodoniModa_600SemiBold_Italic, BodoniModa_700Bold } from '@expo-google-fonts/bodoni-moda';
-import { Figtree_400Regular, Figtree_500Medium, Figtree_600SemiBold, Figtree_700Bold } from '@expo-google-fonts/figtree';
+import { Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -13,12 +12,12 @@ import { colors } from '@/ui/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 300, fade: true });
-SystemUI.setBackgroundColorAsync(colors.velluto).catch(() => {});
+SystemUI.setBackgroundColorAsync(colors.night).catch(() => {});
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Feels like an app: no page bounce, no text selection, no double-tap zoom, no long-press menu.
   const st = document.createElement('style');
-  st.textContent = `html,body{background:${colors.velluto};overscroll-behavior:none;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}`;
+  st.textContent = `html,body{background:${colors.night};overscroll-behavior:none;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}`;
   document.head.appendChild(st);
   const vp = document.querySelector('meta[name=viewport]');
   vp?.setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
@@ -27,13 +26,11 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    BodoniModa_700Bold,
-    BodoniModa_600SemiBold_Italic,
-    BodoniModa_500Medium,
-    Figtree_400Regular,
-    Figtree_500Medium,
-    Figtree_600SemiBold,
-    Figtree_700Bold,
+    Sora_400Regular,
+    Sora_500Medium,
+    Sora_600SemiBold,
+    Sora_700Bold,
+    Sora_800ExtraBold,
   });
   const ready = loaded || !!error;
 
@@ -44,13 +41,13 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.velluto }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.night }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: colors.velluto },
+            contentStyle: { backgroundColor: colors.night },
             animation: 'slide_from_right',
           }}
         >

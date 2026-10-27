@@ -110,7 +110,7 @@ let resumeWaiters: (() => void)[] = [];
 type Net = { role: 'host'; room: HostRoom } | { role: 'guest'; room: GuestRoom } | null;
 let net: Net = null;
 export const netRole = () => net?.role ?? null;
-export const hostName = () => (net?.role === 'guest' ? net.room.lobby?.host.name ?? '' : '');
+export const hostName = () => (net?.role === 'guest' ? (net.room.lobby?.host.name ?? '') : '');
 
 /** A friend's move, waited for at their turn. */
 let remoteWait: { seat: number; resolve: (mv: Move) => void } | null = null;
@@ -166,8 +166,7 @@ export async function loadSaved(): Promise<Match | null> {
 /* ------------------------------------------------------------------ helpers */
 
 export const nameOf = (m: Match, p: number) => m.seats[p]?.name ?? '';
-export const teamLabel = (m: Match, t: number) =>
-  m.mode === '4' ? [t, t + 2].map(p => nameOf(m, p)).join(' e ') : nameOf(m, t);
+export const teamLabel = (m: Match, t: number) => (m.mode === '4' ? [t, t + 2].map(p => nameOf(m, p)).join(' e ') : nameOf(m, t));
 
 /* ------------------------------------------------------------------ flow */
 
@@ -250,8 +249,7 @@ function guestTurn() {
   if (h.turn === s.viewer) {
     set({ awaiting: s.viewer, thinking: -1, selected: null, choices: null });
     if (AUTOPLAY) setTimeout(() => get().awaiting === s.viewer && submit(chooseMove(get().match!, s.viewer)), 700);
-  }
-  else set({ awaiting: null, thinking: h.turn });
+  } else set({ awaiting: null, thinking: h.turn });
 }
 
 export function setPaused(paused: boolean) {

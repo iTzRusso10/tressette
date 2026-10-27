@@ -1,7 +1,11 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 import { nTeams, teamOf, type Match } from '@/engine';
+import { IconButton } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { colors, fonts, seatColors } from '@/ui/theme';
+import { colors, fonts, radius, seatColors } from '@/ui/theme';
 
 interface Props {
   m: Match;
@@ -20,43 +24,59 @@ export function teamColor(m: Match, t: number, viewer: number) {
   return seatColors[(t - viewer + m.n) % m.n];
 }
 
+/** A score that counts up to its new value and jumps a little when it changes. */
+function Score({ value, color, size }: { value: number; color: string; size: number }) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  const pop = useSharedValue(0);
+  useEffect(() => {
+    if (value === from.current) return;
+    const start = from.current;
+    from.current = value;
+    pop.value = withSequence(withTiming(1, { duration: 120 }), withSpring(0, { damping: 9, stiffness: 160 }));
+    const steps = Math.min(12, Math.abs(value - start));
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setShown(Math.round(start + ((value - start) * i) / steps));
+      if (i >= steps) clearInterval(id);
+    }, 55);
+    return () => clearInterval(id);
+  }, [value, pop]);
+  const st = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.3 * pop.value }, { translateY: -3 * pop.value }] }));
+  return (
+    <Animated.Text allowFontScaling={false} style={[styles.num, { fontSize: size, lineHeight: size * 1.15, textShadowColor: color }, st]}>
+      {shown}
+    </Animated.Text>
+  );
+}
+
 /** Menu button and the match score. Each score keeps its width, so numbers never push each other. */
 export function TopBar({ m, viewer, onMenu, width }: Props) {
   const teams = Array.from({ length: nTeams(m) }, (_, i) => i);
-  // Your side first.
   const mine = teamOf(m, viewer);
   teams.sort((a, b) => (a === mine ? -1 : b === mine ? 1 : a - b));
   const compact = teams.length > 2;
-  const mx = Math.max(...m.match);
-  const mn = Math.min(...m.match);
-  const perdere = m.mode === 'perdere';
   return (
     <View style={[styles.bar, { width }]}>
-      <Pressable onPress={onMenu} accessibilityRole="button" accessibilityLabel="Pausa e menu" hitSlop={8} style={({ pressed }) => [styles.menu, pressed && styles.pressed]}>
-        <View style={styles.burger} />
-        <View style={[styles.burger, { width: 12 }]} />
-        <View style={styles.burger} />
-      </Pressable>
+      <IconButton label="Pausa e menu" onPress={onMenu}>
+        <Svg width={18} height={14} viewBox="0 0 18 14">
+          <Path d="M1 1.5h16M1 7h11M1 12.5h16" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      </IconButton>
       <View style={styles.scores}>
         {teams.map(t => {
-          const v = m.match[t];
-          const lead = m.handNo > 0 && (perdere ? v === mn && mn < mx : v === mx && v > 0 && mx > mn);
+          const color = teamColor(m, t, viewer);
           return (
             <View key={t} style={[styles.score, compact && styles.scoreCompact]}>
-              <View style={styles.labelRow}>
-                <View style={[styles.swatch, { backgroundColor: teamColor(m, t, viewer) }]} />
-                <Text allowFontScaling={false} numberOfLines={1} style={styles.label}>
-                  {teamName(m, t, viewer)}
-                </Text>
-              </View>
-              <View style={styles.numRow}>
-                <Text allowFontScaling={false} style={[styles.num, compact && styles.numCompact, lead && styles.numLead]}>
-                  {v}
-                </Text>
-                <Text allowFontScaling={false} style={styles.of}>
-                  /{m.target}
-                </Text>
-              </View>
+              <View style={[styles.swatch, { backgroundColor: color }]} />
+              <Text allowFontScaling={false} numberOfLines={1} style={[styles.label, compact && styles.labelCompact]}>
+                {teamName(m, t, viewer)}
+              </Text>
+              <Score value={m.match[t]} color={color} size={compact ? 17 : 21} />
+              <Text allowFontScaling={false} style={styles.of}>
+                /{m.target}
+              </Text>
             </View>
           );
         })}
@@ -66,38 +86,23 @@ export function TopBar({ m, viewer, onMenu, width }: Props) {
 }
 
 const styles = StyleSheet.create({
-  bar: { height: 54, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
-  menu: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.linea,
-    backgroundColor: 'rgba(10,26,20,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.96 }] },
-  burger: { width: 16, height: 1.8, borderRadius: 1, backgroundColor: colors.ottoneChiaro },
-  scores: { flex: 1, flexDirection: 'row', gap: 8 },
-  score: {
+  bar: { height: 54, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 },
+  scores: {
     flex: 1,
-    height: 46,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(10,26,20,0.55)',
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.lineaTenue,
+    borderColor: colors.glassLine,
+    paddingHorizontal: 6,
   },
-  scoreCompact: { paddingHorizontal: 7 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  swatch: { width: 7, height: 7, borderRadius: 3.5 },
-  label: { flex: 1, fontFamily: fonts.ui, fontSize: 12, lineHeight: 14, color: colors.marmoTenue },
-  numRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  num: { fontFamily: fonts.display, fontSize: 22, lineHeight: 25, color: colors.marmo, fontVariant: ['lining-nums', 'tabular-nums'] },
-  numCompact: { fontSize: 19, lineHeight: 22 },
-  numLead: { color: colors.ottoneChiaro },
-  of: { fontFamily: fonts.ui, fontSize: 11, lineHeight: 14, color: colors.salvia },
+  score: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, minWidth: 0 },
+  scoreCompact: { gap: 3 },
+  swatch: { width: 8, height: 8, borderRadius: 4 },
+  label: { flexShrink: 1, fontFamily: fonts.bold, fontSize: 13.5, lineHeight: 17, color: colors.text },
+  labelCompact: { fontSize: 11, maxWidth: 46 },
+  num: { fontFamily: fonts.display, color: colors.text, fontVariant: ['tabular-nums'], textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
+  of: { fontFamily: fonts.medium, fontSize: 10.5, lineHeight: 13, color: colors.textFaint, marginTop: 4 },
 });

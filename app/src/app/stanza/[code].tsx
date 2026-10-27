@@ -7,7 +7,7 @@ import { useSettings } from '@/state/settings';
 import { quitMatch } from '@/state/table';
 import { BackButton, Button, Screen } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { colors, fonts, seatColors, space } from '@/ui/theme';
+import { colors, fonts, radius, seatColors, space } from '@/ui/theme';
 
 /** The room before the match: the code to share, who is in, and the start. Also opened from an invite link. */
 export default function Stanza() {
@@ -71,7 +71,7 @@ export default function Stanza() {
             value={name}
             onChangeText={v => setName({ name: v.slice(0, 16) })}
             placeholder="Il tuo nome"
-            placeholderTextColor={colors.salvia}
+            placeholderTextColor={colors.textFaint}
             maxLength={16}
             autoCorrect={false}
             style={styles.input}
@@ -79,7 +79,7 @@ export default function Stanza() {
           />
           <Button label={joining ? 'Mi collego…' : 'Entra nella stanza'} onPress={join} disabled={joining || !name.trim()} style={{ marginTop: space.l }} />
           {error ? (
-            <Text v="small" style={{ color: colors.pompeiChiaro, marginTop: space.s }}>
+            <Text v="small" style={{ color: colors.coral, marginTop: space.s }}>
               {error}
             </Text>
           ) : null}
@@ -100,7 +100,7 @@ export default function Stanza() {
         </Text>
         {status !== 'online' ? (
           <View style={styles.statusRow}>
-            <ActivityIndicator color={colors.ottoneChiaro} />
+            <ActivityIndicator color={colors.sun} />
             <Text v="small">Mi collego…</Text>
           </View>
         ) : null}
@@ -110,7 +110,11 @@ export default function Stanza() {
             kind="secondary"
             label="Invita"
             sub="Manda il link o il codice agli amici"
-            onPress={() => Share.share({ message: `Vieni a giocare a ${cfg ? GAMES[cfg.game].name : 'carte'} con me su Napoletane: ${roomLink(code)} (codice ${code})` }).catch(() => {})}
+            onPress={() =>
+              Share.share({
+                message: `Vieni a giocare a ${cfg ? GAMES[cfg.game].name : 'carte'} con me su Napoletane: ${roomLink(code)} (codice ${code})`,
+              }).catch(() => {})
+            }
             style={{ marginTop: space.l }}
           />
         ) : null}
@@ -123,14 +127,14 @@ export default function Stanza() {
             const state = s.type === 'cpu' ? 'gioca il computer' : on ? (s.type === 'human' ? 'ha creato la stanza' : 'è dentro') : 'in attesa…';
             return (
               <View key={i} style={styles.seat}>
-                <View style={[styles.dot, { backgroundColor: s.type === 'cpu' ? colors.salvia : seatColors[i % 4] }]} />
+                <View style={[styles.dot, { backgroundColor: s.type === 'cpu' ? colors.textFaint : seatColors[i % 4] }]} />
                 <View style={{ flex: 1 }}>
                   <Text v="label">{label}</Text>
                   <Text v="small">{state}</Text>
                 </View>
                 {role === 'host' && s.type === 'remote' ? (
                   <Pressable accessibilityRole="button" accessibilityLabel={`Libera il posto di ${s.name}`} onPress={() => freeSeat(i)} hitSlop={8}>
-                    <Text v="small" style={{ color: colors.pompeiChiaro }}>
+                    <Text v="small" style={{ color: colors.coral }}>
                       Libera
                     </Text>
                   </Pressable>
@@ -149,7 +153,11 @@ export default function Stanza() {
           <Button label="Inizia la partita" onPress={hostStart} disabled={status !== 'online'} style={{ marginTop: space.xl }} />
         ) : (
           <Text v="lead" style={{ marginTop: space.xl, textAlign: 'center' }}>
-            {closed ? 'La stanza è stata chiusa.' : hostOnline ? `Aspetta che ${lobby?.host.name ?? 'chi ha creato la stanza'} inizi la partita.` : 'Chi ha creato la stanza si è disconnesso. Aspetta che torni.'}
+            {closed
+              ? 'La stanza è stata chiusa.'
+              : hostOnline
+                ? `Aspetta che ${lobby?.host.name ?? 'chi ha creato la stanza'} inizi la partita.`
+                : 'Chi ha creato la stanza si è disconnesso. Aspetta che torni.'}
           </Text>
         )}
       </ScrollView>
@@ -160,20 +168,20 @@ export default function Stanza() {
 const styles = StyleSheet.create({
   top: { height: 52, justifyContent: 'center', paddingHorizontal: space.l },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: space.xl, paddingBottom: space.xxxl },
-  code: { fontFamily: fonts.display, fontSize: 72, lineHeight: 80, letterSpacing: 10, color: colors.ottoneChiaro, marginTop: space.xs, fontVariant: ['lining-nums'] },
+  code: { fontFamily: fonts.display, fontSize: 72, lineHeight: 80, letterSpacing: 10, color: colors.sun, marginTop: space.xs, fontVariant: ['lining-nums'] },
   statusRow: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
   input: {
     height: 54,
-    borderRadius: 14,
+    borderRadius: radius.pill,
     paddingHorizontal: space.l,
-    fontFamily: fonts.ui,
+    fontFamily: fonts.medium,
     fontSize: 17,
-    color: colors.marmo,
-    backgroundColor: 'rgba(242,236,224,0.05)',
+    color: colors.text,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
-  seats: { marginTop: space.xl, borderTopWidth: 1, borderColor: colors.lineaTenue },
-  seat: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderBottomWidth: 1, borderColor: colors.lineaTenue },
+  seats: { marginTop: space.xl, borderTopWidth: 1, borderColor: colors.glassLineSoft },
+  seat: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderBottomWidth: 1, borderColor: colors.glassLineSoft },
   dot: { width: 10, height: 10, borderRadius: 5 },
 });

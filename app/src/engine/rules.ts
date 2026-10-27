@@ -43,8 +43,7 @@ export const playersFor = (mode: Mode, perdN?: 2 | 4) => (mode === '2' ? 2 : mod
 /** Teams: in four (not a perdere) partners sit opposite, otherwise everyone is on their own. */
 export const teamOf = (m: Pick<Match, 'mode'>, p: number) => (m.mode === '4' ? p % 2 : p);
 export const nTeams = (m: Pick<Match, 'mode' | 'n'>) => (m.mode === '4' ? 2 : m.n);
-export const teamSeats = (m: Pick<Match, 'mode' | 'n'>, t: number) =>
-  Array.from({ length: m.n }, (_, i) => i).filter(p => teamOf(m, p) === t);
+export const teamSeats = (m: Pick<Match, 'mode' | 'n'>, t: number) => Array.from({ length: m.n }, (_, i) => i).filter(p => teamOf(m, p) === t);
 export const isPerdere = (m: Pick<Match, 'game' | 'mode'>) => m.game === 'tressette' && m.mode === 'perdere';
 
 /** Tressette: you must follow suit if you can. */

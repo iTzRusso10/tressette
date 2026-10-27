@@ -6,7 +6,7 @@ import { joinRoom, onlineConfigured } from '@/online/session';
 import { useSettings } from '@/state/settings';
 import { BackButton, Button, Screen, Section } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { colors, fonts, space } from '@/ui/theme';
+import { colors, fonts, radius, space } from '@/ui/theme';
 
 export default function Online() {
   const name = useSettings(s => s.name);
@@ -53,7 +53,7 @@ export default function Online() {
               value={name}
               onChangeText={v => setName({ name: v.slice(0, 16) })}
               placeholder="Come ti chiamano al tavolo"
-              placeholderTextColor={colors.salvia}
+              placeholderTextColor={colors.textFaint}
               maxLength={16}
               autoCorrect={false}
               style={styles.input}
@@ -67,7 +67,7 @@ export default function Online() {
                 value={code}
                 onChangeText={v => setCode(v.replace(/\D/g, '').slice(0, 4))}
                 placeholder="0000"
-                placeholderTextColor="rgba(242,236,224,0.25)"
+                placeholderTextColor="rgba(255,255,255,0.35)"
                 keyboardType="number-pad"
                 maxLength={4}
                 style={[styles.input, styles.code]}
@@ -76,7 +76,7 @@ export default function Online() {
               <Button label="Entra" onPress={join} disabled={!onlineConfigured || code.length !== 4 || busy} style={{ flex: 1 }} />
             </View>
             {error ? (
-              <Text v="small" style={{ color: colors.pompeiChiaro, marginTop: space.s }}>
+              <Text v="small" style={{ color: colors.coral, marginTop: space.s }}>
                 {error}
               </Text>
             ) : null}
@@ -108,20 +108,20 @@ const styles = StyleSheet.create({
     marginTop: space.l,
     padding: space.l,
     borderRadius: 16,
-    backgroundColor: 'rgba(200,161,90,0.10)',
+    backgroundColor: colors.shade,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
   input: {
     height: 54,
-    borderRadius: 14,
+    borderRadius: radius.pill,
     paddingHorizontal: space.l,
-    fontFamily: fonts.ui,
+    fontFamily: fonts.medium,
     fontSize: 17,
-    color: colors.marmo,
-    backgroundColor: 'rgba(242,236,224,0.05)',
+    color: colors.text,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
   joinRow: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
   code: { width: 128, fontFamily: fonts.display, fontSize: 26, letterSpacing: 6, textAlign: 'center' },

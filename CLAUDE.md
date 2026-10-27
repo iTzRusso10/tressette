@@ -33,7 +33,8 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 
 - Carte sempre nitide: le carte si disegnano alla misura della mano e si rimpiccioliscono, mai ingrandite; nessun filtro. La carta si gira schiacciandola in orizzontale, senza 3D.
 - Niente elementi che si muovono senza motivo. Movimento solo come risposta a quello che succede.
-- Design "Gran Caffè": velluto verde, ottone, marmo; Bodoni Moda solo in grande (titoli, punteggi, momenti), Figtree per il resto. Colori e misure in `src/ui/theme.ts`.
+- Design "Tramonto": cielo arancio-rosa-viola (`gradients.sky`), pannelli di vetro bianco, panno smeraldo con bordo chiaro, un colore vivo per ogni giocatore (giallo per te, poi menta, azzurro, rosa). Carattere Sora ovunque. Colori, misure e ombre in `src/ui/theme.ts`, componenti in `src/ui/kit.tsx`.
+- Animazioni con Reanimated sul thread grafico: carte con fisica a molla, pulsanti che si schiacciano al tocco (`Squish`), punteggi che contano, coriandoli per Scopa, cappotto e vittoria (`Confetti`). Niente `Math.random` nel render: i coriandoli usano `seeded()`.
 
 ## Comandi (da `app/`)
 

@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSettings } from '@/state/settings';
 import { BackButton, Screen, Section, Toggle } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { colors, fonts, space } from '@/ui/theme';
+import { colors, fonts, radius, space } from '@/ui/theme';
 
 export default function Settings() {
   const s = useSettings();
@@ -21,7 +21,7 @@ export default function Settings() {
             value={s.name}
             onChangeText={name => s.set({ name: name.slice(0, 16) })}
             placeholder="Tu"
-            placeholderTextColor={colors.salvia}
+            placeholderTextColor={colors.textFaint}
             maxLength={16}
             autoCorrect={false}
             style={styles.input}
@@ -40,7 +40,12 @@ export default function Settings() {
         <Section title="Regole di Tressette">
           <View style={styles.group}>
             <Toggle label="Accusi" sub="Napoletana, tris e quattro di Assi, Due e Tre." value={s.accusi} onChange={accusi => s.set({ accusi })} />
-            <Toggle label="Cappotto a perdere" sub="Chi prende tutti i punti della mano, ultima compresa, vince subito." value={s.cappotto} onChange={cappotto => s.set({ cappotto })} />
+            <Toggle
+              label="Cappotto a perdere"
+              sub="Chi prende tutti i punti della mano, ultima compresa, vince subito."
+              value={s.cappotto}
+              onChange={cappotto => s.set({ cappotto })}
+            />
           </View>
         </Section>
       </ScrollView>
@@ -53,14 +58,21 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: space.xl, paddingBottom: space.xxxl },
   input: {
     height: 52,
-    borderRadius: 14,
+    borderRadius: radius.pill,
     paddingHorizontal: space.l,
-    fontFamily: fonts.ui,
+    fontFamily: fonts.medium,
     fontSize: 17,
-    color: colors.marmo,
-    backgroundColor: 'rgba(242,236,224,0.05)',
+    color: colors.text,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
-  group: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.lineaTenue },
+  group: {
+    paddingHorizontal: space.l,
+    paddingVertical: space.xs,
+    borderRadius: radius.l,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassLine,
+  },
 });

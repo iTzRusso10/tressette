@@ -1,35 +1,53 @@
 import { StyleSheet, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { colors } from '@/ui/theme';
 import type { Rect as R } from './layout';
 
-/** The felt: a soft light from above, a brass rail, a dark inner edge. Drawn once, never moves. */
+const RIM = 3;
+
+/** The felt: emerald with a light from above, framed by a rim of white glass. Drawn once, never moves. */
 export function Felt({ rect }: { rect: R }) {
-  const rad = Math.min(30, rect.w * 0.08);
+  const rad = Math.min(34, rect.w * 0.09);
+  const W = rect.w + RIM * 2;
+  const H = rect.h + RIM * 2;
   return (
-    <View testID="fixed-felt" pointerEvents="none" style={[styles.wrap, { left: rect.x - 5, top: rect.y - 5, width: rect.w + 10, height: rect.h + 10, borderRadius: rad + 5 }]}>
-      <Svg width={rect.w} height={rect.h} style={{ position: 'absolute', left: 3, top: 3 }}>
+    <View
+      testID="fixed-felt"
+      pointerEvents="none"
+      style={[styles.wrap, { left: rect.x - RIM, top: rect.y - RIM, width: W, height: H, borderRadius: rad + RIM }]}
+    >
+      <Svg width={W} height={H}>
         <Defs>
-          <RadialGradient id="felt" cx="50%" cy="40%" rx="70%" ry="62%">
-            <Stop offset="0" stopColor={colors.pannoLuce} />
-            <Stop offset="0.65" stopColor={colors.panno} />
-            <Stop offset="1" stopColor={colors.pannoOmbra} />
+          <LinearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.95} />
+            <Stop offset="0.5" stopColor="#FFE3F0" stopOpacity={0.55} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.35} />
+          </LinearGradient>
+          <RadialGradient id="felt" cx="50%" cy="34%" rx="75%" ry="66%">
+            <Stop offset="0" stopColor={colors.feltLight} />
+            <Stop offset="0.55" stopColor={colors.felt} />
+            <Stop offset="1" stopColor={colors.feltDark} />
           </RadialGradient>
         </Defs>
-        <Rect x={0} y={0} width={rect.w} height={rect.h} rx={rad} ry={rad} fill="url(#felt)" />
-        <Rect x={1.5} y={1.5} width={rect.w - 3} height={rect.h - 3} rx={rad - 1.5} ry={rad - 1.5} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={3} />
-        <Rect x={9} y={9} width={rect.w - 18} height={rect.h - 18} rx={rad - 7} ry={rad - 7} fill="none" stroke={colors.ottone} strokeOpacity={0.16} strokeWidth={1} />
+        <Rect x={0} y={0} width={W} height={H} rx={rad + RIM} ry={rad + RIM} fill="url(#rim)" />
+        <Rect x={RIM} y={RIM} width={rect.w} height={rect.h} rx={rad} ry={rad} fill="url(#felt)" />
+        <Rect
+          x={RIM + 1}
+          y={RIM + 1}
+          width={rect.w - 2}
+          height={rect.h - 2}
+          rx={rad - 1}
+          ry={rad - 1}
+          fill="none"
+          stroke="#000"
+          strokeOpacity={0.22}
+          strokeWidth={4}
+        />
       </Svg>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderColor: colors.ottoneScuro,
-    backgroundColor: colors.ottone,
-    boxShadow: '0px 14px 30px rgba(0,0,0,0.45)',
-  },
+  wrap: { position: 'absolute', boxShadow: '0px 22px 46px rgba(40,8,70,0.45)' },
 });

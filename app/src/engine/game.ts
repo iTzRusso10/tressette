@@ -1,33 +1,7 @@
 import { ALL, bp, PRIM, rankOf, SETTEBELLO, suitOf, fmtThirds, tz, type Card } from './cards';
 import { defaultRng, shuffle, type Rng } from './rng';
-import {
-  findAccusi,
-  isPerdere,
-  legalFor,
-  nTeams,
-  playersFor,
-  scopaOptions,
-  sameSet,
-  targetsFor,
-  teamOf,
-  teamSeats,
-  winBriscola,
-  winEntry,
-} from './rules';
-import type {
-  BriscolaRow,
-  GameEvent,
-  Hand,
-  HandResult,
-  HandRow,
-  Match,
-  MatchConfig,
-  Move,
-  Outcome,
-  ScopaRow,
-  Step,
-  TressetteRow,
-} from './types';
+import { findAccusi, isPerdere, legalFor, nTeams, playersFor, scopaOptions, sameSet, targetsFor, teamOf, teamSeats, winBriscola, winEntry } from './rules';
+import type { BriscolaRow, GameEvent, Hand, HandResult, HandRow, Match, MatchConfig, Move, Outcome, ScopaRow, Step, TressetteRow } from './types';
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 

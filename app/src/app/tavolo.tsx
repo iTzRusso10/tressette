@@ -97,7 +97,10 @@ export default function Tavolo() {
       {summary && m.h?.result ? <Summary m={m} viewer={viewer} /> : null}
 
       {role === 'guest' && (closed || !hostOnline) && !panel ? (
-        <Sheet title={closed ? 'La stanza è chiusa' : 'In attesa'} sub={closed ? 'Chi ha creato la stanza ha chiuso la partita.' : 'Chi ha creato la stanza si è disconnesso. Quando torna, la partita riprende da qui.'}>
+        <Sheet
+          title={closed ? 'La stanza è chiusa' : 'In attesa'}
+          sub={closed ? 'Chi ha creato la stanza ha chiuso la partita.' : 'Chi ha creato la stanza si è disconnesso. Quando torna, la partita riprende da qui.'}
+        >
           <Button kind={closed ? 'primary' : 'secondary'} label={closed ? 'Torna al menu' : 'Esci dalla stanza'} onPress={exit} />
         </Sheet>
       ) : null}
@@ -106,7 +109,13 @@ export default function Tavolo() {
         <Sheet title="Pausa" sub={`${GAMES[m.game].name} ${modeText(m)}, mano ${m.handNo}.`} onDismiss={() => open(null)}>
           <View style={{ gap: space.s }}>
             <Button label="Torna al tavolo" onPress={() => open(null)} />
-            <Button kind="secondary" label="Ultima presa" sub={last ? `Presa da ${nameOf(m, last.w)}` : 'Ancora nessuna presa'} disabled={!last} onPress={() => setPanel('last')} />
+            <Button
+              kind="secondary"
+              label="Ultima presa"
+              sub={last ? `Presa da ${nameOf(m, last.w)}` : 'Ancora nessuna presa'}
+              disabled={!last}
+              onPress={() => setPanel('last')}
+            />
             <Button kind="secondary" label="Come si gioca" onPress={() => router.push({ pathname: '/regole/[game]', params: { game: m.game } })} />
           </View>
           <View style={styles.toggles}>
@@ -114,7 +123,12 @@ export default function Tavolo() {
             <Toggle label="Vibrazione" value={haptics} onChange={v => set({ haptics: v })} />
             <Toggle label="Partita veloce" sub="Animazioni e turni del computer più rapidi." value={fast} onChange={v => set({ fast: v })} />
           </View>
-          <Button kind="danger" label={role === 'guest' ? 'Esci dalla stanza' : 'Esci dalla partita'} onPress={() => setPanel('quit')} style={{ marginTop: space.l }} />
+          <Button
+            kind="danger"
+            label={role === 'guest' ? 'Esci dalla stanza' : 'Esci dalla partita'}
+            onPress={() => setPanel('quit')}
+            style={{ marginTop: space.l }}
+          />
         </Sheet>
       ) : null}
 
@@ -142,8 +156,15 @@ export default function Tavolo() {
       {panel === 'quit' ? (
         <Sheet
           title={role === 'guest' ? 'Uscire dalla stanza?' : 'Uscire dalla partita?'}
-          sub={role === 'guest' ? 'Gli altri continuano: al tuo posto gioca il computer.' : role === 'host' ? 'La partita viene chiusa anche per chi gioca con te.' : 'La partita in corso viene chiusa e non si può riprendere.'}
-          onDismiss={() => setPanel('pause')}>
+          sub={
+            role === 'guest'
+              ? 'Gli altri continuano: al tuo posto gioca il computer.'
+              : role === 'host'
+                ? 'La partita viene chiusa anche per chi gioca con te.'
+                : 'La partita in corso viene chiusa e non si può riprendere.'
+          }
+          onDismiss={() => setPanel('pause')}
+        >
           <View style={{ gap: space.s }}>
             <Button kind="danger" label="Sì, esci" onPress={exit} />
             <Button kind="secondary" label="No, continua a giocare" onPress={() => setPanel('pause')} />
@@ -155,11 +176,11 @@ export default function Tavolo() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.velluto },
+  root: { flex: 1, backgroundColor: colors.night },
   center: { alignItems: 'center', justifyContent: 'center', padding: space.xl },
-  toggles: { marginTop: space.l, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.lineaTenue },
+  toggles: { marginTop: space.l, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.glassLineSoft },
   lastRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.m, justifyContent: 'center' },
   lastItem: { width: 76, alignItems: 'center' },
-  lastCard: { overflow: 'hidden', backgroundColor: colors.marmo },
-  lastWin: { borderWidth: 2.5, borderColor: colors.ottoneChiaro },
+  lastCard: { overflow: 'hidden', backgroundColor: colors.text },
+  lastWin: { borderWidth: 2.5, borderColor: colors.sun },
 });

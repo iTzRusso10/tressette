@@ -114,7 +114,6 @@ export function measure(m: Match, W: number, H: number): Geometry {
     ts = Math.min(1, fitH, fitW);
   }
 
-
   const tags: Record<Side, TagPos> = {
     b: { x: left + PAD, y: myTagY, a: 'l' },
     t: { x: cx, y: topTagY, a: 'c' },

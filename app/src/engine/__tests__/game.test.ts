@@ -115,7 +115,10 @@ describe('Tressette', () => {
   it('in due si pesca dal mazzo e le carte pescate si vedono', () => {
     const m = matchWith({ game: 'tressette', mode: '2' }, m => {
       const h = m.h!;
-      h.hands = [[C(0, 3), C(1, 5)], [C(0, 4), C(2, 6)]];
+      h.hands = [
+        [C(0, 3), C(1, 5)],
+        [C(0, 4), C(2, 6)],
+      ];
       h.deck = [C(3, 7), C(3, 8)];
       h.turn = 0;
     });
@@ -133,7 +136,12 @@ describe('Tressette', () => {
   it('segnali solo in quattro e solo con la carta di apertura', () => {
     const m = matchWith({ game: 'tressette', mode: '4' }, m => {
       const h = m.h!;
-      h.hands = [[C(0, 3), C(0, 5)], [C(0, 4), C(1, 5)], [C(0, 6), C(1, 6)], [C(0, 7), C(1, 7)]];
+      h.hands = [
+        [C(0, 3), C(0, 5)],
+        [C(0, 4), C(1, 5)],
+        [C(0, 6), C(1, 6)],
+        [C(0, 7), C(1, 7)],
+      ];
       h.turn = 0;
     });
     const s = play(m, 0, { c: C(0, 5), sig: 'Busso' }).at(-1)!;
@@ -171,7 +179,10 @@ describe('Briscola', () => {
   it('dopo la presa si pesca, prima chi ha preso', () => {
     const m = matchWith({ game: 'briscola', mode: '2' }, m => {
       const h = m.h!;
-      h.hands = [[C(0, 4), C(0, 6)], [C(0, 1), C(0, 9)]];
+      h.hands = [
+        [C(0, 4), C(0, 6)],
+        [C(0, 1), C(0, 9)],
+      ];
       h.deck = [C(2, 2), C(2, 3)];
       h.trump = 2;
       h.brisc = C(2, 2);
@@ -242,8 +253,7 @@ describe('Scopa', () => {
 
   it('tre Re in tavola: si ridistribuisce', () => {
     for (let seed = 0; seed < 300; seed++) {
-      const m = startHand(createMatch({ game: 'scopa', mode: '2', seats, level: 'medio', target: 11 }, seeded(seed)), seeded(seed)).at(-1)!
-        .state;
+      const m = startHand(createMatch({ game: 'scopa', mode: '2', seats, level: 'medio', target: 11 }, seeded(seed)), seeded(seed)).at(-1)!.state;
       const kings = m.h!.table.filter((c: Card) => c % 10 === 9).length;
       expect(kings).toBeLessThan(3);
     }

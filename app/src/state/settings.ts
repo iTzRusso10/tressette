@@ -47,7 +47,8 @@ export const useSettings = create<Settings>()(
           const next = { ...s.games[game], ...patch };
           if (!GAMES[game].modes.includes(next.mode)) next.mode = GAMES[game].modes[0];
           const targets = targetsFor(game, next.mode);
-          if (!targets.includes(next.target)) next.target = next.mode === 'perdere' ? 31 : GAMES[game].targets.includes(s.games[game].target) ? s.games[game].target : targets[0];
+          if (!targets.includes(next.target))
+            next.target = next.mode === 'perdere' ? 31 : GAMES[game].targets.includes(s.games[game].target) ? s.games[game].target : targets[0];
           if (!targets.includes(next.target)) next.target = targets[0];
           return { games: { ...s.games, [game]: next }, lastGame: game };
         }),

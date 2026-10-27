@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { memo, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 import { cardName, type Card } from '@/engine';
-import { cardRadius, colors } from '@/ui/theme';
+import { cardRadius, colors, shadow } from '@/ui/theme';
 import { BACK, FRONTS } from './cardImages';
 import type { Place } from './layout';
 
@@ -24,7 +24,8 @@ interface Props {
   onPress?: (c: Card) => void;
 }
 
-const ease = Easing.out(Easing.cubic);
+/** A thrown card: quick, with a little settle at the end. Faster settings with the "partita veloce" option. */
+const throwSpring = (fast: boolean) => ({ damping: 17, stiffness: fast ? 260 : 170, mass: 0.9 });
 
 function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, origin, duration, dim, glow, lift, onPress }: Props) {
   const x = useSharedValue(place.x);
@@ -36,7 +37,7 @@ function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, origin, duration, di
   const lastDeal = useRef(dealKey);
 
   useEffect(() => {
-    const cfg = { duration, easing: ease };
+    const cfg = throwSpring(duration < 300);
     if (lastDeal.current !== dealKey) {
       lastDeal.current = dealKey;
       // New hand: start from the deck, face down, then fly out in dealing order.
@@ -47,10 +48,10 @@ function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, origin, duration, di
       o.value = 1;
       flip.value = 0;
     }
-    x.value = withDelay(delay, withTiming(place.x, cfg));
-    y.value = withDelay(delay, withTiming(place.y, cfg));
-    r.value = withDelay(delay, withTiming(place.r, cfg));
-    s.value = withDelay(delay, withTiming(place.s, cfg));
+    x.value = withDelay(delay, withSpring(place.x, cfg));
+    y.value = withDelay(delay, withSpring(place.y, cfg));
+    r.value = withDelay(delay, withSpring(place.r, cfg));
+    s.value = withDelay(delay, withSpring(place.s, cfg));
     o.value = withDelay(delay + (place.o ? 0 : duration * 0.6), withTiming(place.o, { duration: place.o ? 120 : 200 }));
     flip.value = withDelay(delay + duration * 0.25, withTiming(place.up ? 1 : 0, { duration: duration * 0.6, easing: Easing.inOut(Easing.quad) }));
   }, [place.x, place.y, place.r, place.s, place.o, place.up, delay, dealKey, origin.x, origin.y, origin.s, duration, x, y, r, s, o, flip]);
@@ -86,10 +87,7 @@ function CardSpriteImpl({ c, place, cw, ch, delay, dealKey, origin, duration, di
   );
 
   return (
-    <Animated.View
-      style={[styles.abs, { width: cw, height: ch, zIndex: place.z }, outer]}
-      pointerEvents={onPress ? 'auto' : 'none'}
-    >
+    <Animated.View style={[styles.abs, { width: cw, height: ch, zIndex: place.z }, outer]} pointerEvents={onPress ? 'auto' : 'none'}>
       {onPress ? (
         <Pressable onPress={() => onPress(c)} accessibilityRole="button" accessibilityLabel={cardName(c)} style={StyleSheet.absoluteFill}>
           {body}
@@ -106,21 +104,21 @@ export const CardSprite = memo(CardSpriteImpl);
 const styles = StyleSheet.create({
   abs: { position: 'absolute', left: 0, top: 0 },
   card: {
-    backgroundColor: colors.marmo,
-    boxShadow: '0px 2px 5px rgba(0,0,0,0.38)',
+    backgroundColor: '#FFFFFF',
+    boxShadow: shadow.card,
   },
   lifted: {
-    boxShadow: '0px 10px 18px rgba(0,0,0,0.45)',
+    boxShadow: shadow.lifted,
   },
-  dim: { backgroundColor: 'rgba(10,26,20,0.42)' },
+  dim: { backgroundColor: 'rgba(30,8,56,0.45)' },
   glow: {
     position: 'absolute',
     left: -3,
     top: -3,
     right: -3,
     bottom: -3,
-    borderWidth: 2.5,
-    borderColor: colors.ottoneChiaro,
-    boxShadow: '0px 0px 14px rgba(227,198,135,0.75)',
+    borderWidth: 3,
+    borderColor: colors.sun,
+    boxShadow: '0px 0px 18px rgba(255,224,102,0.85)',
   },
 });

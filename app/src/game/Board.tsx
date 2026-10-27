@@ -6,7 +6,7 @@ import { ALL, legalCards, type Card, type Match, type Signal } from '@/engine';
 import { useSettings } from '@/state/settings';
 import { canSignal, chooseCapture, clearSelection, tapCard, toggleSignal, useTable, T } from '@/state/table';
 import { Text } from '@/ui/Text';
-import { cardRadius, colors, fonts, seatColors } from '@/ui/theme';
+import { cardRadius, colors, fonts, radius, seatColors, shadow } from '@/ui/theme';
 import { FRONTS } from './cardImages';
 import { CardSprite } from './CardSprite';
 import { Felt } from './Felt';
@@ -147,7 +147,13 @@ function SignalBar({ g, pending }: { g: Geometry; pending: Signal | null }) {
       {sigs.map(s => {
         const on = pending === s;
         return (
-          <Pressable key={s} onPress={() => toggleSignal(s)} accessibilityRole="button" accessibilityState={{ selected: on }} style={[styles.chip, on && styles.chipOn]}>
+          <Pressable
+            key={s}
+            onPress={() => toggleSignal(s)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={[styles.chip, on && styles.chipOn]}
+          >
             <Text allowFontScaling={false} style={[styles.chipText, on && styles.chipTextOn]}>
               {s}
             </Text>
@@ -174,7 +180,12 @@ function Choices({ g, choices }: { g: Geometry; choices: Card[][] }) {
       </Text>
       <View style={styles.choiceList}>
         {choices.map((opt, i) => (
-          <Pressable key={i} onPress={() => chooseCapture(opt)} accessibilityRole="button" style={({ pressed }) => [styles.choice, pressed && { opacity: 0.75 }]}>
+          <Pressable
+            key={i}
+            onPress={() => chooseCapture(opt)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.choice, pressed && { opacity: 0.75 }]}
+          >
             {opt.map(c => (
               <View key={c} style={{ width: mw, height: mh, borderRadius: cardRadius(mw), overflow: 'hidden' }}>
                 <Image source={FRONTS[c]} style={{ width: mw, height: mh }} contentFit="fill" transition={null} />
@@ -195,46 +206,45 @@ const styles = StyleSheet.create({
     width: 32,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.inchiostro,
-    borderWidth: 1,
-    borderColor: colors.linea,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 90,
+    boxShadow: shadow.card,
   },
-  deckCountText: { fontFamily: fonts.uiBold, fontSize: 11, lineHeight: 13, color: colors.ottoneChiaro, fontVariant: ['tabular-nums'] },
+  deckCountText: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 13, color: colors.ink, fontVariant: ['tabular-nums'] },
   sigbar: { position: 'absolute', flexDirection: 'row', gap: 6, zIndex: 650 },
   chip: {
     height: 34,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     borderRadius: 17,
     justifyContent: 'center',
-    backgroundColor: 'rgba(10,26,20,0.8)',
+    backgroundColor: colors.shade,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
-  chipOn: { backgroundColor: colors.ottone, borderColor: colors.ottoneChiaro },
-  chipText: { fontFamily: fonts.uiSemi, fontSize: 13, lineHeight: 16, color: colors.marmo },
-  chipTextOn: { color: colors.inchiostro },
+  chipOn: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', boxShadow: '0px 0px 16px rgba(255,255,255,0.5)' },
+  chipText: { fontFamily: fonts.semi, fontSize: 12.5, lineHeight: 16, color: colors.text },
+  chipTextOn: { color: colors.ink },
   choices: {
     position: 'absolute',
     zIndex: 800,
-    padding: 12,
-    borderRadius: 18,
-    backgroundColor: 'rgba(10,26,20,0.92)',
+    padding: 14,
+    borderRadius: radius.l,
+    backgroundColor: colors.shadeStrong,
     borderWidth: 1,
-    borderColor: colors.linea,
-    boxShadow: '0px 10px 24px rgba(0,0,0,0.4)',
+    borderColor: colors.glassLine,
+    boxShadow: '0px 14px 30px rgba(40,8,70,0.45)',
   },
-  choicesTitle: { fontFamily: fonts.uiBold, fontSize: 15, lineHeight: 19, color: colors.marmo, marginBottom: 8 },
+  choicesTitle: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 19, color: colors.text, marginBottom: 10 },
   choiceList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: {
     flexDirection: 'row',
     gap: 4,
-    padding: 6,
-    borderRadius: 10,
-    backgroundColor: colors.superficie,
+    padding: 7,
+    borderRadius: radius.s,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.linea,
+    borderColor: colors.glassLine,
   },
 });

@@ -76,7 +76,11 @@ describe('Tressette', () => {
 describe('Briscola', () => {
   it('la briscola taglia, altrimenti vince il seme uscito', () => {
     const trump = 2;
-    const t = (cs: number[]) => winBriscola(cs.map((c, p) => ({ p, c })), trump).p;
+    const t = (cs: number[]) =>
+      winBriscola(
+        cs.map((c, p) => ({ p, c })),
+        trump,
+      ).p;
     expect(t([C(0, 1), C(2, 2)])).toBe(1);
     expect(t([C(0, 2), C(0, 3)])).toBe(1);
     expect(t([C(0, 3), C(1, 1)])).toBe(0);
@@ -93,12 +97,7 @@ describe('Scopa', () => {
   it('altrimenti per somma, con due o più carte', () => {
     const table = [C(0, 2), C(1, 3), C(2, 1), C(3, 4)];
     const o = scopaOptions(C(1, 5), table).map(x => x.slice().sort((a, b) => a - b));
-    expect(o).toEqual(
-      expect.arrayContaining([
-        [C(0, 2), C(1, 3)].sort((a, b) => a - b),
-        [C(2, 1), C(3, 4)].sort((a, b) => a - b),
-      ]),
-    );
+    expect(o).toEqual(expect.arrayContaining([[C(0, 2), C(1, 3)].sort((a, b) => a - b), [C(2, 1), C(3, 4)].sort((a, b) => a - b)]));
     expect(o).toHaveLength(2);
   });
   it('senza prese possibili si cala', () => {

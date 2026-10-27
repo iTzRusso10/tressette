@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#10291F",
+    "backgroundColor": "#3B1E6B",
     "ios": {
       "bundleIdentifier": "it.giusepperussodev.napoletane",
       "supportsTablet": true,
@@ -20,7 +20,8 @@
       "package": "it.giusepperussodev.napoletane",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-foreground.png",
-        "backgroundColor": "#1D5440"
+        "backgroundImage": "./assets/images/adaptive-background.png",
+        "backgroundColor": "#F0457A"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -30,17 +31,17 @@
       "name": "Napoletane",
       "shortName": "Napoletane",
       "lang": "it",
-      "themeColor": "#10291F",
-      "backgroundColor": "#10291F"
+      "themeColor": "#F0457A",
+      "backgroundColor": "#3B1E6B"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1D5440",
+          "backgroundColor": "#7A2E9C",
           "image": "./assets/images/splash.png",
-          "imageWidth": 180,
+          "imageWidth": 200,
           "resizeMode": "contain"
         }
       ],

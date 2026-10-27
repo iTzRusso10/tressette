@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -14,14 +15,20 @@ export function Sheet({ title, sub, children, onDismiss }: { title: string; sub?
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Chiudi" disabled={!onDismiss} />
       </Animated.View>
       <Animated.View
-        entering={SlideInDown.duration(320)}
+        entering={SlideInDown.springify().damping(20).stiffness(180)}
         exiting={SlideOutDown.duration(220)}
         accessibilityViewIsModal
         style={[styles.panel, { paddingBottom: ins.bottom + space.l }]}
       >
+        <LinearGradient
+          colors={['#6A2A95', '#43197A', colors.night]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.4, y: 1 }}
+          style={[StyleSheet.absoluteFill, styles.bg]}
+        />
         <View style={styles.grip} />
         <ScrollView bounces={false} contentContainerStyle={styles.inner} showsVerticalScrollIndicator={false}>
-          <Text v="h2" accessibilityRole="header">
+          <Text v="h1" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>
             {title}
           </Text>
           {sub ? (
@@ -38,20 +45,21 @@ export function Sheet({ title, sub, children, onDismiss }: { title: string; sub?
 
 const styles = StyleSheet.create({
   root: { zIndex: 2000, justifyContent: 'flex-end' },
-  dim: { backgroundColor: 'rgba(5,14,10,0.62)' },
+  dim: { backgroundColor: 'rgba(30,6,56,0.55)' },
   panel: {
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
     maxHeight: '88%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: colors.superficie,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    overflow: 'hidden',
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: colors.linea,
-    boxShadow: '0px -10px 30px rgba(0,0,0,0.35)',
+    borderColor: colors.glassLine,
+    boxShadow: '0px -12px 34px rgba(30,6,56,0.4)',
   },
-  grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.linea, marginTop: 10 },
+  bg: { borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  grip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: colors.glassLine, marginTop: 10 },
   inner: { paddingHorizontal: space.xl, paddingTop: space.l },
 });

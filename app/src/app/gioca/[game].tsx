@@ -7,11 +7,11 @@ import { CPU_NAMES, GAMES, MODE_INFO, targetsFor, type GameId, type Level, type 
 import { FRONTS } from '@/game/cardImages';
 import { useSettings } from '@/state/settings';
 import { startMatch } from '@/state/table';
-import { BackButton, Button, Choice, Screen, Section, Toggle } from '@/ui/kit';
+import { BackButton, Button, Choice, Glass, Screen, Section, Toggle } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { CARD_RATIO, cardRadius, colors, space } from '@/ui/theme';
+import { CARD_RATIO, cardRadius, colors, radius, shadow, space } from '@/ui/theme';
 
-const EMBLEM: Record<GameId, number> = { tressette: 12, briscola: 20, scopa: 16 };
+const FAN: Record<GameId, [number, number, number]> = { tressette: [12, 32, 21], briscola: [20, 3, 29], scopa: [16, 6, 26] };
 
 export default function Setup() {
   const { game: raw, online } = useLocalSearchParams<{ game: string; online?: string }>();
@@ -54,7 +54,13 @@ export default function Setup() {
     }
   };
 
-  const cw = 64;
+  const cw = 50;
+  const ch = cw * CARD_RATIO;
+  const mini = (c: number, x: number, y: number, r: number) => (
+    <View key={c} style={[styles.card, { width: cw, height: ch, borderRadius: cardRadius(cw), left: x, top: y, transform: [{ rotate: `${r}deg` }] }]}>
+      <Image source={FRONTS[c]} style={{ width: cw, height: ch }} contentFit="fill" transition={null} />
+    </View>
+  );
   return (
     <Screen>
       <View style={styles.top}>
@@ -62,8 +68,10 @@ export default function Setup() {
       </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.head}>
-          <View style={[styles.card, { width: cw, height: cw * CARD_RATIO, borderRadius: cardRadius(cw) }]}>
-            <Image source={FRONTS[EMBLEM[game]]} style={{ width: cw, height: cw * CARD_RATIO }} contentFit="fill" transition={null} />
+          <View style={{ width: cw * 2.1, height: ch + 14 }} pointerEvents="none">
+            {mini(FAN[game][0], 0, 10, -12)}
+            {mini(FAN[game][1], cw * 0.5, 2, -1)}
+            {mini(FAN[game][2], cw * 1.05, 8, 11)}
           </View>
           <View style={{ flex: 1 }}>
             <Text v="h1" accessibilityRole="header">
@@ -101,7 +109,9 @@ export default function Setup() {
         {perdere ? (
           <Section title="Punteggio" note="A perdere chi arriva a 31 perde, e vince chi ha meno punti.">
             <View style={styles.fixed}>
-              <Text v="label">Si perde a 31</Text>
+              <Text v="label" style={styles.fixedText}>
+                Si perde a 31
+              </Text>
             </View>
           </Section>
         ) : (
@@ -129,7 +139,7 @@ export default function Setup() {
         </Section>
 
         {game === 'tressette' ? (
-          <View style={styles.toggles}>
+          <Glass style={styles.toggles}>
             {perdere ? (
               <Toggle
                 label="Cappotto"
@@ -140,11 +150,17 @@ export default function Setup() {
             ) : (
               <Toggle label="Accusi" sub="Napoletana, tris e quattro di Assi, Due e Tre." value={s.accusi} onChange={accusi => s.set({ accusi })} />
             )}
-          </View>
+          </Glass>
         ) : null}
 
         {isOnline ? (
-          <Button label={busy ? 'Apro la stanza…' : 'Crea la stanza'} sub="Poi inviti gli amici con il codice" onPress={open} disabled={busy} style={{ marginTop: space.xxl }} />
+          <Button
+            label={busy ? 'Apro la stanza…' : 'Crea la stanza'}
+            sub="Poi inviti gli amici con il codice"
+            onPress={open}
+            disabled={busy}
+            style={{ marginTop: space.xxl }}
+          />
         ) : (
           <Button label="Distribuisci le carte" onPress={play} style={{ marginTop: space.xxl }} />
         )}
@@ -155,18 +171,11 @@ export default function Setup() {
 }
 
 const styles = StyleSheet.create({
-  top: { height: 52, justifyContent: 'center', paddingHorizontal: space.l },
-  content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: space.xl, paddingBottom: space.xxl },
-  head: { flexDirection: 'row', gap: space.l, alignItems: 'center', marginTop: space.s },
-  card: { overflow: 'hidden', backgroundColor: colors.marmo, boxShadow: '0px 8px 18px rgba(0,0,0,0.4)', transform: [{ rotate: '-4deg' }] },
-  fixed: {
-    minHeight: 46,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(200,161,90,0.14)',
-    borderWidth: 1,
-    borderColor: colors.ottone,
-  },
-  toggles: { marginTop: space.l, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.lineaTenue },
+  top: { height: 56, justifyContent: 'center', paddingHorizontal: space.l },
+  content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: space.xxl },
+  head: { flexDirection: 'row', gap: space.l, alignItems: 'center', marginTop: space.xs },
+  card: { position: 'absolute', overflow: 'hidden', backgroundColor: '#FFFFFF', boxShadow: shadow.card },
+  fixed: { height: 48, borderRadius: radius.pill, paddingHorizontal: 18, justifyContent: 'center', backgroundColor: '#FFFFFF', alignSelf: 'flex-start' },
+  fixedText: { color: colors.ink },
+  toggles: { marginTop: space.xl, paddingHorizontal: space.l, paddingVertical: space.xs },
 });
