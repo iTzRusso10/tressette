@@ -1,4 +1,6 @@
 // Generated list of the card scans: require() needs static paths.
+import { BACK_IMAGES } from './backImages';
+
 export const FRONTS: number[] = [
   require('../../assets/cards/0.jpg'),
   require('../../assets/cards/1.jpg'),
@@ -43,20 +45,14 @@ export const FRONTS: number[] = [
 ];
 export const BACK: number = require('../../assets/cards/back.png');
 
-/** Card backs of the shop (src/meta/shop.ts), drawn by scripts/make-art.mjs: id → image. */
-export const BACKS: Record<string, number> = {
-  classico: BACK,
-  rosso: require('../../assets/backs/rosso.png'),
-  blu: require('../../assets/backs/blu.png'),
-  golfo: require('../../assets/backs/golfo.png'),
-  limoni: require('../../assets/backs/limoni.png'),
-  stelle: require('../../assets/backs/stelle.png'),
-  vietri: require('../../assets/backs/vietri.png'),
-  tramonto: require('../../assets/backs/tramonto.png'),
-  tarocco: require('../../assets/backs/tarocco.png'),
-  ottone: require('../../assets/backs/ottone.png'),
-  corona: require('../../assets/backs/corona.png'),
-};
+/**
+ * I dorsi pronti del catalogo (src/meta/catalog.ts), disegnati da scripts/make-art.mjs: id → immagine.
+ * L'elenco dei require sta in backImages.ts, generato dallo stesso script.
+ */
+export const BACKS: Record<string, number> = { classico: BACK, ...BACK_IMAGES };
 
 /** The image of a back; the classic one when the id is unknown. */
 export const backImage = (id: string | undefined): number => (id && BACKS[id]) || BACK;
+
+/** Il dorso ha la sua immagine (i dorsi «in arrivo» no). */
+export const hasBackImage = (id: string | undefined): boolean => !!id && Object.prototype.hasOwnProperty.call(BACKS, id);
