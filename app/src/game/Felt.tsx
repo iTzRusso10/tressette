@@ -1,30 +1,36 @@
-import { memo, useId, useMemo } from 'react';
+// Il tavolo: un tavolino (la sponda: materiale, finiture, fregi) intorno a una grafica del panno (la
+// superficie di gioco). Le due cose si scelgono e si combinano liberamente (catalog.ts).
+import { memo, useId, useMemo, type ReactElement } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { itemById, type FeltLook } from '@/meta/shop';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { itemOf, STARTER_TABLE, type ClothLook, type TableLook } from '@/meta/catalog';
+import { designOf, type Ink } from './feltDesigns';
+import { clamp, f, Loop, Pen, polar, roundRect, seeded, type P } from './feltGeometry';
 import { RAIL, type Rect as R } from './layout';
 
-/** The rail around the cloth, outside the felt rectangle (the cards never go over it). */
+/** La sponda intorno al panno, fuori dal rettangolo del panno (le carte non ci vanno mai sopra). */
 export { RAIL };
 
-const SMERALDO: FeltLook = {
-  cloth: ['#14806A', '#0B4D42', '#06352E'],
-  rim: ['#FFFFFF', '#FFE3F0', '#FFFFFF'],
-  trim: null,
-  velvet: false,
-  rail: 'glass',
-};
+const STARTER_FELT = 'verde-smeraldo';
 
-/** The look of a felt from its id in the shop (emerald when unknown). */
-export function feltLook(id: string | undefined): FeltLook {
-  const item = id ? itemById(id) : undefined;
-  return item?.slot === 'felt' ? item.look : SMERALDO;
+/** L'aspetto di un tavolino dal suo id (la sponda di vetro se è sconosciuto o in arrivo). */
+export function tableLook(id: string | undefined): TableLook {
+  const item = id ? itemOf('table', id) : undefined;
+  return item?.slot === 'table' && item.status === 'ready' ? item.look : STARTER_TABLE.look;
 }
 
-/* ------------------------------------------------------------------ colors */
+/** L'aspetto di una grafica del panno dal suo id (lo smeraldo se è sconosciuta o in arrivo). */
+export function clothLook(id: string | undefined): ClothLook {
+  const item = id ? itemOf('felt', id) : undefined;
+  if (item?.slot === 'felt' && item.status === 'ready') return item.look;
+  const starter = itemOf('felt', STARTER_FELT);
+  return starter?.slot === 'felt' ? starter.look : { cloth: ['#14806A', '#0B4D42', '#06352E'], velvet: false, design: null };
+}
+
+/* ------------------------------------------------------------------ colori */
 
 function rgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
+  const n = parseInt(hex.slice(1, 7), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 function hex([r, g, b]: [number, number, number]) {
@@ -39,14 +45,14 @@ function hex([r, g, b]: [number, number, number]) {
       .join('')
   );
 }
-/** a → b by t. */
-function mix(a: string, b: string, t: number) {
+/** a → b di t. */
+export function mix(a: string, b: string, t: number) {
   const x = rgb(a);
   const y = rgb(b);
   return hex([x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t]);
 }
-/** Relative luminance, 0 (black) … 1 (white). */
-function luma(c: string) {
+/** Luminanza relativa, 0 (nero) … 1 (bianco). */
+export function luma(c: string) {
   const [r, g, b] = rgb(c).map(v => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
@@ -55,10 +61,10 @@ function luma(c: string) {
 }
 
 /**
- * The cloth as drawn: the darkest felts (Reggia, Lava, Galleria…) get a slightly lighter center, so the
- * white cards and the names on the felt always stand out and the cloth still reads as cloth.
+ * Il panno come si disegna: quelli più scuri hanno il centro un po' più chiaro, così le carte bianche
+ * e i nomi sul panno si staccano sempre e il panno sembra ancora un panno.
  */
-function clothStops(look: FeltLook): [string, string, string] {
+function clothStops(look: ClothLook): [string, string, string] {
   const [c0, c1, c2] = look.cloth;
   const l = luma(c0);
   if (l >= 0.05) return look.cloth;
@@ -66,479 +72,501 @@ function clothStops(look: FeltLook): [string, string, string] {
   return [mix(c0, '#FFFFFF', k), mix(c1, c0, 0.18), c2];
 }
 
-/* ------------------------------------------------------------------ designs on the felt */
+/* ------------------------------------------------------------------ la sponda: trame dei materiali */
 
-/** Path strings of a design, in the cloth's own coordinates (0,0 is its top left corner). */
-interface Design {
-  /** Lines. */
-  line: string;
-  /** Small solid shapes: dots, diamonds. */
-  fill: string;
-  /** Line width. */
-  sw: number;
-  /** How strong the design is (the repeated ones are lighter). */
-  k: number;
+interface RailCtx {
+  W: number;
+  H: number;
+  B: number;
+  R0: number;
+  scale: number;
+  look: TableLook;
+  /** Il giro sulla linea di mezzo della sponda. */
+  mid: Loop;
 }
 
-const f = (n: number) => Math.round(n * 100) / 100;
-
-/** A tiny path builder that can rotate and move what it draws. */
-class Pen {
-  d = '';
-  constructor(
-    private ox = 0,
-    private oy = 0,
-    private a = 0,
-  ) {}
-  private p(x: number, y: number) {
-    const c = Math.cos(this.a);
-    const s = Math.sin(this.a);
-    return `${f(this.ox + x * c - y * s)} ${f(this.oy + x * s + y * c)}`;
-  }
-  M(x: number, y: number) {
-    this.d += `M${this.p(x, y)}`;
-    return this;
-  }
-  L(x: number, y: number) {
-    this.d += `L${this.p(x, y)}`;
-    return this;
-  }
-  Q(x1: number, y1: number, x: number, y: number) {
-    this.d += `Q${this.p(x1, y1)} ${this.p(x, y)}`;
-    return this;
-  }
-  C(x1: number, y1: number, x2: number, y2: number, x: number, y: number) {
-    this.d += `C${this.p(x1, y1)} ${this.p(x2, y2)} ${this.p(x, y)}`;
-    return this;
-  }
-  Z() {
-    this.d += 'Z';
-    return this;
-  }
-  circle(x: number, y: number, r: number) {
-    this.M(x - r, y);
-    this.d += `A${f(r)} ${f(r)} 0 1 0 ${this.p(x + r, y)}A${f(r)} ${f(r)} 0 1 0 ${this.p(x - r, y)}Z`;
-    return this;
-  }
-  /** A pointed petal (a lens) from (x0,y0) to (x1,y1), `w` wide in the middle. */
-  petal(x0: number, y0: number, x1: number, y1: number, w: number) {
-    const mx = (x0 + x1) / 2;
-    const my = (y0 + y1) / 2;
-    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
-    const nx = (-(y1 - y0) / len) * w;
-    const ny = ((x1 - x0) / len) * w;
-    return this.M(x0, y0)
-      .Q(mx + nx, my + ny, x1, y1)
-      .Q(mx - nx, my - ny, x0, y0)
-      .Z();
-  }
-  diamond(x: number, y: number, rx: number, ry = rx) {
-    return this.M(x, y - ry)
-      .L(x + rx, y)
-      .L(x, y + ry)
-      .L(x - rx, y)
-      .Z();
-  }
-  rrect(x: number, y: number, w: number, h: number, r: number) {
-    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-    this.M(x + rr, y)
-      .L(x + w - rr, y)
-      .Q(x + w, y, x + w, y + rr)
-      .L(x + w, y + h - rr)
-      .Q(x + w, y + h, x + w - rr, y + h);
-    return this.L(x + rr, y + h)
-      .Q(x, y + h, x, y + h - rr)
-      .L(x, y + rr)
-      .Q(x, y, x + rr, y)
-      .Z();
-  }
+/** Venatura del legno: tratti lunghi lungo la sponda, a tre altezze. */
+function grainPaths({ W, H, B, R0, scale }: RailCtx) {
+  return [0.28, 0.52, 0.76].map((k, i) => ({
+    d: roundRect(B * k, B * k, W - 2 * B * k, H - 2 * B * k, R0 - B * k),
+    op: [0.4, 0.3, 0.36][i],
+    dash: [
+      [46, 9, 18, 5],
+      [28, 6, 60, 8],
+      [70, 7, 24, 10],
+    ][i]
+      .map(v => f(v * scale))
+      .join(' '),
+    off: f([0, 17, 40][i] * scale),
+  }));
 }
 
-const polar = (r: number, deg: number): [number, number] => [r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180)];
-
-/** Draws a design for a cloth `w`×`h` with corner radius `rad`. Pure: the same sizes give the same drawing. */
-export function designOf(id: string, w: number, h: number, rad: number): Design | null {
-  const m = Math.min(w, h);
-  const cx = w / 2;
-  const cy = h / 2;
-  const sw = Math.max(0.8, Math.min(2, m * 0.0052));
-  const line = new Pen();
-  const fill = new Pen();
-  switch (id) {
-    case 'filetto': {
-      // A double line a finger from the edge, with a diamond in the middle of each side.
-      const d = Math.max(5, Math.min(18, m * 0.046));
-      const g = Math.max(2.5, sw * 2.4);
-      line.rrect(d, d, w - 2 * d, h - 2 * d, Math.max(3, rad - d));
-      line.rrect(d + g, d + g, w - 2 * (d + g), h - 2 * (d + g), Math.max(2, rad - d - g));
-      const k = Math.max(2.2, m * 0.012);
-      fill.diamond(cx, d + g / 2, k * 1.6, k).diamond(cx, h - d - g / 2, k * 1.6, k);
-      fill.diamond(d + g / 2, cy, k, k * 1.6).diamond(w - d - g / 2, cy, k, k * 1.6);
-      return { line: line.d, fill: fill.d, sw: sw * 0.9, k: 1 };
-    }
-    case 'rosone': {
-      const R = m * 0.3;
-      const c = new Pen(cx, cy);
-      for (let i = 0; i < 8; i++) {
-        const [x0, y0] = polar(R * 0.2, i * 45 - 90);
-        const [x1, y1] = polar(R, i * 45 - 90);
-        c.petal(x0, y0, x1, y1, R * 0.17);
-        const [a0, b0] = polar(R * 0.2, i * 45 - 67.5);
-        const [a1, b1] = polar(R * 0.62, i * 45 - 67.5);
-        c.petal(a0, b0, a1, b1, R * 0.1);
-      }
-      c.circle(0, 0, R * 0.2).circle(0, 0, R * 1.1);
-      const dots = new Pen(cx, cy);
-      dots.circle(0, 0, R * 0.07);
-      for (let i = 0; i < 24; i++) {
-        const [x, y] = polar(R * 1.2, i * 15);
-        dots.circle(x, y, Math.max(0.9, R * 0.022));
-      }
-      return { line: c.d, fill: dots.d, sw, k: 1 };
-    }
-    case 'maiolica': {
-      // Tiles of the cloister: a diamond in each tile, a four-petal flower inside, a dot where tiles meet.
-      const s = Math.max(22, m / 4.2);
-      const nx = Math.ceil(w / s / 2) + 1;
-      const ny = Math.ceil(h / s / 2) + 1;
-      for (let i = -nx; i <= nx; i++) {
-        for (let j = -ny; j <= ny; j++) {
-          const x = cx + i * s;
-          const y = cy + j * s;
-          line.diamond(x, y, s / 2);
-          for (let q = 0; q < 4; q++) {
-            const [x0, y0] = polar(s * 0.07, q * 90);
-            const [x1, y1] = polar(s * 0.34, q * 90);
-            line.petal(x + x0, y + y0, x + x1, y + y1, s * 0.075);
-          }
-          fill.circle(x, y, s * 0.045);
-          fill.circle(x + s / 2, y + s / 2, s * 0.06);
-        }
-      }
-      return { line: line.d, fill: fill.d, sw: sw * 0.8, k: 0.72 };
-    }
-    case 'onde': {
-      // Rows of soft waves, every other row shifted by half a wave.
-      const sp = Math.max(12, m / 8.5);
-      const L = sp * 1.7;
-      const A = sp * 0.2;
-      const rows = Math.ceil(h / sp / 2) + 1;
-      for (let j = -rows; j <= rows; j++) {
-        const y = cy + j * sp;
-        const shift = (Math.abs(j) % 2) * (L / 2);
-        let x = cx - Math.ceil((cx + L) / L) * L - shift;
-        line.M(x, y);
-        let up = true;
-        while (x < w + L) {
-          line.Q(x + L / 4, y + (up ? -A : A), x + L / 2, y);
-          x += L / 2;
-          up = !up;
-        }
-      }
-      return { line: line.d, fill: '', sw: sw * 0.85, k: 0.75 };
-    }
-    case 'sole': {
-      // A Vietri sun: a disc with rings, flames that alternate long and short, a ring of dots.
-      const r1 = m * 0.11;
-      const R = m * 0.36;
-      const c = new Pen(cx, cy);
-      c.circle(0, 0, r1)
-        .circle(0, 0, r1 * 0.62)
-        .circle(0, 0, r1 * 1.24);
-      for (let i = 0; i < 16; i++) {
-        const a = i * 22.5 - 90;
-        const long = i % 2 === 0;
-        const tip = long ? R : R * 0.74;
-        const wv = long ? 9 : 7;
-        const [bx0, by0] = polar(r1 * 1.4, a - wv);
-        const [bx1, by1] = polar(r1 * 1.4, a + wv);
-        const [tx, ty] = polar(tip, a);
-        const [mx0, my0] = polar((r1 * 1.4 + tip) / 2, a - wv * 0.15);
-        const [mx1, my1] = polar((r1 * 1.4 + tip) / 2, a + wv * 0.15);
-        c.M(bx0, by0).Q(mx0, my0, tx, ty).Q(mx1, my1, bx1, by1);
-      }
-      const dots = new Pen(cx, cy);
-      dots.circle(0, 0, r1 * 0.2);
-      for (let i = 0; i < 32; i++) {
-        const [x, y] = polar(R * 1.1, i * 11.25);
-        dots.circle(x, y, Math.max(0.9, m * 0.004));
-      }
-      return { line: c.d, fill: dots.d, sw, k: 1 };
-    }
-    case 'vesuvio': {
-      // The volcano seen from the bay: Somma and the cone, the plume, the horizon and a few waves.
-      const V = Math.min(w * 0.82, m * 1.05);
-      const by = cy + V * 0.13;
-      const c = new Pen(cx, by);
-      c.M(-V / 2, 0)
-        .C(-V * 0.32, -V * 0.04, -V * 0.2, -V * 0.22, -V * 0.13, -V * 0.29)
-        .Q(-V * 0.09, -V * 0.32, -V * 0.05, -V * 0.28)
-        .Q(-V * 0.02, -V * 0.25, V * 0.02, -V * 0.29)
-        .L(V * 0.06, -V * 0.335)
-        .L(V * 0.12, -V * 0.335)
-        .C(V * 0.2, -V * 0.22, V * 0.33, -V * 0.05, V / 2, 0);
-      // The plume, a slow curl.
-      c.M(V * 0.09, -V * 0.35)
-        .C(V * 0.06, -V * 0.42, V * 0.14, -V * 0.45, V * 0.12, -V * 0.51)
-        .C(V * 0.1, -V * 0.57, V * 0.2, -V * 0.6, V * 0.28, -V * 0.56);
-      c.M(-V * 0.58, 0).L(V * 0.58, 0);
-      for (const [x0, y0, len] of [
-        [-V * 0.36, V * 0.05, V * 0.22],
-        [V * 0.08, V * 0.05, V * 0.26],
-        [-V * 0.14, V * 0.1, V * 0.24],
-      ]) {
-        const n = 4;
-        const L = len / n;
-        c.M(x0, y0);
-        for (let i = 0; i < n; i++) c.Q(x0 + L * (i + 0.5), y0 + (i % 2 ? 1 : -1) * V * 0.008, x0 + L * (i + 1), y0);
-      }
-      const dots = new Pen(cx, by);
-      dots.circle(V * 0.34, -V * 0.5, V * 0.01).circle(V * 0.39, -V * 0.47, V * 0.007);
-      return { line: c.d, fill: dots.d, sw, k: 1 };
-    }
-    case 'corno': {
-      // The cornicello: a horn that tapers and curls to one side, with its gold cap, inside a ring.
-      const Hc = m * 0.44;
-      const w0 = Hc * 0.22;
-      const base = Hc * 0.4;
-      type P = [number, number];
-      const bez = (p0: P, p1: P, p2: P, p3: P, t: number): P => {
-        const u = 1 - t;
-        return [
-          u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
-          u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
-        ];
-      };
-      const tip: P = [w0 * 2.3, base - Hc * 0.98];
-      const outer: [P, P, P, P] = [[-w0 / 2, base], [-w0 * 0.7, base - Hc * 0.5], [-w0 * 0.2, base - Hc * 0.98], tip];
-      const inner: [P, P, P, P] = [[w0 / 2, base], [w0 * 0.42, base - Hc * 0.4], [w0 * 0.9, base - Hc * 0.78], tip];
-      const c = new Pen(cx - w0 * 0.7, cy, (-8 * Math.PI) / 180);
-      c.M(...outer[0])
-        .C(...outer[1], ...outer[2], ...outer[3])
-        .C(...inner[2], ...inner[1], ...inner[0])
-        .Z();
-      // The ribs follow the curve and get closer towards the tip.
-      for (const t of [0.12, 0.23, 0.33, 0.42]) {
-        const [ox, oy] = bez(...outer, t);
-        const [ix, iy] = bez(...inner, t * 0.96);
-        const mx = (ox + ix) / 2;
-        const my = (oy + iy) / 2 + w0 * 0.12 * (1 - t);
-        c.M(ox, oy).Q(mx, my, ix, iy);
-      }
-      // A highlight along the horn.
-      const hl: [P, P, P, P] = [
-        [-w0 * 0.12, base - Hc * 0.6],
-        [w0 * 0.05, base - Hc * 0.75],
-        [w0 * 0.4, base - Hc * 0.86],
-        [w0 * 0.85, base - Hc * 0.93],
-      ];
-      c.M(...hl[0]).C(...hl[1], ...hl[2], ...hl[3]);
-      // The cap: a band with a little crown edge, and the ring to hang it.
-      const capH = Hc * 0.09;
-      c.rrect(-w0 * 0.64, base, w0 * 1.28, capH, Hc * 0.02);
-      c.M(-w0 * 0.64, base + capH * 0.5).L(w0 * 0.64, base + capH * 0.5);
-      c.circle(0, base + capH + w0 * 0.22, w0 * 0.2);
-      const ring = new Pen(cx, cy);
-      ring.circle(0, -Hc * 0.05, Hc * 0.66);
-      const dots = new Pen(cx, cy - Hc * 0.05);
-      for (let i = 0; i < 4; i++) {
-        const [x, y] = polar(Hc * 0.66, i * 90 - 90);
-        dots.diamond(x, y, Hc * 0.035);
-      }
-      for (let i = 0; i < 4; i++) {
-        const [x, y] = polar(Hc * 0.66, i * 90 - 45);
-        dots.circle(x, y, Hc * 0.012);
-      }
-      return { line: c.d + ring.d, fill: dots.d, sw, k: 1 };
-    }
-    case 'stemma': {
-      // A shield with a crown, between two laurel branches.
-      const Ws = m * 0.24;
-      const Hs = Ws * 1.18;
-      const top = cy - Hs * 0.42;
-      const c = new Pen(cx, top);
-      const shield = (k: number, dy: number) => {
-        const hw = (Ws / 2) * k;
-        const hh = Hs * k;
-        c.M(-hw, dy)
-          .L(hw, dy)
-          .L(hw, dy + hh * 0.5)
-          .C(hw, dy + hh * 0.8, hw * 0.45, dy + hh * 0.92, 0, dy + hh)
-          .C(-hw * 0.45, dy + hh * 0.92, -hw, dy + hh * 0.8, -hw, dy + hh * 0.5)
-          .Z();
-      };
-      shield(1, 0);
-      shield(0.82, Hs * 0.075);
-      // A band across the shield.
-      c.M(-Ws * 0.41, Hs * 0.38)
-        .L(Ws * 0.41, Hs * 0.38)
-        .M(-Ws * 0.41, Hs * 0.48)
-        .L(Ws * 0.41, Hs * 0.48);
-      // The crown.
-      const cw = Ws * 0.78;
-      const cb = -Hs * 0.08;
-      const ch = Hs * 0.3;
-      c.M(-cw / 2, cb)
-        .L(-cw / 2 - cw * 0.04, cb - ch * 0.75)
-        .L(-cw * 0.25, cb - ch * 0.35)
-        .L(0, cb - ch)
-        .L(cw * 0.25, cb - ch * 0.35)
-        .L(cw / 2 + cw * 0.04, cb - ch * 0.75)
-        .L(cw / 2, cb)
-        .Z();
-      const dots = new Pen(cx, top);
-      dots.circle(-cw / 2 - cw * 0.04, cb - ch * 0.75 - ch * 0.12, ch * 0.1);
-      dots.circle(0, cb - ch - ch * 0.13, ch * 0.11);
-      dots.circle(cw / 2 + cw * 0.04, cb - ch * 0.75 - ch * 0.12, ch * 0.1);
-      dots.diamond(0, Hs * 0.22, Ws * 0.06, Ws * 0.09);
-      dots.diamond(0, Hs * 0.68, Ws * 0.05, Ws * 0.07);
-      // The laurels: a curved stem on each side with leaves along it.
-      for (const side of [-1, 1]) {
-        const R = Ws * 0.95;
-        const ox = 0;
-        const oy = Hs * 0.42;
-        const a0 = 100;
-        const a1 = 200;
-        const pt = (a: number): [number, number] => {
-          const [x, y] = polar(R, a);
-          return [ox + side * -x, oy + y * 0.95];
-        };
-        const [sx, sy] = pt(a0);
-        c.M(sx, sy);
-        for (let a = a0 + 5; a <= a1; a += 5) {
-          const [x, y] = pt(a);
-          c.L(x, y);
-        }
-        for (let i = 0; i < 7; i++) {
-          const a = a0 + 12 + i * 13;
-          const [x, y] = pt(a);
-          const [tx, ty] = pt(a + 4);
-          const dx = tx - x;
-          const dy = ty - y;
-          const len = Math.hypot(dx, dy) || 1;
-          const L = Ws * 0.2;
-          // One leaf outward, one inward, both pointing along the stem.
-          for (const out of [1, -1]) {
-            const nx = (-dy / len) * side * out;
-            const ny = (dx / len) * side * out;
-            c.petal(x, y, x + (dx / len) * L * 0.7 + nx * L * 0.7, y + (dy / len) * L * 0.7 + ny * L * 0.7, L * 0.16);
-          }
-        }
-      }
-      return { line: c.d, fill: dots.d, sw, k: 1 };
-    }
-    default:
-      return null;
+/** La radica: nodi a cerchi concentrici e fibre che ci girano intorno. */
+function burlPath({ B, mid }: RailCtx) {
+  const rng = seeded(71);
+  const p = new Pen();
+  const step = B * 3.2;
+  for (let s = rng() * step; s < mid.len; s += step * (0.7 + rng() * 0.7)) {
+    const [x, y] = mid.pt(s, (rng() - 0.5) * B * 0.5);
+    const a = mid.angle(s) + (rng() - 0.5) * 40;
+    const r = B * (0.22 + rng() * 0.2);
+    for (let k = 1; k <= 3; k++) p.ellipse(x, y, r * k * 0.55 * 1.6, r * k * 0.55, a);
   }
+  // Fibre mosse tra un nodo e l'altro.
+  for (const n of [-0.3, 0.05, 0.32]) {
+    const pts: P[] = [];
+    for (let s = 0; s < mid.len; s += B * 0.9) pts.push(mid.pt(s, B * n + Math.sin(s / (B * 1.7) + n * 9) * B * 0.12));
+    p.smooth(pts, true);
+  }
+  return p.d;
 }
 
-/* ------------------------------------------------------------------ the drawing */
-
-/** A rounded rectangle with true circular corners, as a path (so rings line up with <Rect rx>). */
-function roundRect(x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-  const a = (ex: number, ey: number) => `A${f(rr)} ${f(rr)} 0 0 1 ${f(ex)} ${f(ey)}`;
-  return (
-    `M${f(x + rr)} ${f(y)}H${f(x + w - rr)}${a(x + w, y + rr)}V${f(y + h - rr)}${a(x + w - rr, y + h)}` +
-    `H${f(x + rr)}${a(x, y + h - rr)}V${f(y + rr)}${a(x + rr, y)}Z`
-  );
+/** Il marmo: vene che attraversano la sponda in diagonale e una lunga che la percorre. */
+function marblePath({ B, mid }: RailCtx) {
+  const rng = seeded(83);
+  const strong = new Pen();
+  const soft = new Pen();
+  const step = B * 4.5;
+  for (let s = rng() * step; s < mid.len; s += step * (0.6 + rng() * 0.9)) {
+    const pts: P[] = [];
+    const tilt = (rng() - 0.5) * B * 3;
+    for (let k = -1; k <= 1.01; k += 0.25) pts.push(mid.pt(s + tilt * k + (rng() - 0.5) * B * 0.5, (k * B) / 1.6));
+    (rng() > 0.45 ? strong : soft).smooth(pts);
+  }
+  const long: P[] = [];
+  for (let s = 0; s < mid.len; s += B * 1.2) long.push(mid.pt(s, Math.sin(s / (B * 5)) * B * 0.32 + Math.sin(s / (B * 1.9)) * B * 0.08));
+  soft.smooth(long, true);
+  return { strong: strong.d, soft: soft.d };
 }
 
-/** Points evenly spread along the straight parts of the rail's middle line, for the studs. */
-function studPoints(W: number, H: number, R0: number, c: number, gap: number): [number, number][] {
-  const out: [number, number][] = [];
-  const run = (x0: number, y0: number, x1: number, y1: number) => {
-    const len = Math.hypot(x1 - x0, y1 - y0);
-    const n = Math.max(1, Math.round(len / gap));
-    for (let i = 0; i <= n; i++) out.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
-  };
-  const k = R0 + gap * 0.35;
-  run(k, c, W - k, c);
-  run(k, H - c, W - k, H - c);
-  run(c, k, c, H - k);
-  run(W - c, k, W - c, H - k);
+/** Il granito: puntini fitti di tre toni. */
+function granitePaths({ B, mid }: RailCtx) {
+  const rng = seeded(97);
+  const out = [new Pen(), new Pen(), new Pen()];
+  const n = Math.round((mid.len * B) / 7);
+  for (let i = 0; i < n; i++) {
+    const [x, y] = mid.pt(rng() * mid.len, (rng() - 0.5) * B);
+    const r = B * (0.03 + rng() * rng() * 0.07);
+    out[Math.floor(rng() * 3)].diamond(x, y, r, r * (0.7 + rng() * 0.6));
+  }
+  return out.map(p => p.d);
+}
+
+/** La scacchiera: due file di caselle lungo la sponda, alternate. */
+function checkerPaths({ B, mid }: RailCtx) {
+  const rows = B >= 7 ? 2 : 1;
+  const cell = B / rows;
+  const n = Math.round(mid.len / cell);
+  const step = mid.len / n;
+  const light = new Pen();
+  for (let i = 0; i < n; i++) {
+    for (let r = 0; r < rows; r++) {
+      if ((i + r) % 2) continue;
+      const n0 = -B / 2 + r * cell;
+      const n1 = n0 + cell;
+      const s0 = i * step;
+      const s1 = s0 + step;
+      const sm = (s0 + s1) / 2;
+      light.poly([mid.pt(s0, n0), mid.pt(sm, n0), mid.pt(s1, n0), mid.pt(s1, n1), mid.pt(sm, n1), mid.pt(s0, n1)], true);
+    }
+  }
+  return light.d;
+}
+
+/** Le stelle sulla lacca o sul cosmo: puntini e qualche scintilla a quattro punte. */
+function starPaths({ B, mid }: RailCtx) {
+  const rng = seeded(109);
+  const dots = new Pen();
+  const sparks = new Pen();
+  const n = Math.round(mid.len / (B * 0.85));
+  for (let i = 0; i < n; i++) {
+    const [x, y] = mid.pt(rng() * mid.len, (rng() - 0.5) * B * 0.8);
+    const k = rng();
+    if (k > 0.93) sparks.star(x, y, B * 0.3, B * 0.05, 4, -90);
+    else dots.circle(x, y, B * (0.03 + k * k * 0.07));
+  }
+  return { dots: dots.d, sparks: sparks.d };
+}
+
+/** Il metallo spazzolato: tante righe sottili lungo la sponda, chiare e scure. */
+function brushedPaths({ W, H, B, R0, scale }: RailCtx) {
+  const n = Math.max(4, Math.round(B / 0.85));
+  const out: { d: string; light: boolean; dash: string }[] = [];
+  const rng = seeded(127);
+  for (let i = 1; i < n; i++) {
+    const k = (B * i) / n;
+    out.push({
+      d: roundRect(k, k, W - 2 * k, H - 2 * k, R0 - k),
+      light: i % 2 === 0,
+      dash: `${f((30 + rng() * 120) * scale)} ${f((4 + rng() * 14) * scale)}`,
+    });
+  }
   return out;
 }
 
+/** Il cristallo: faccette che tagliano la sponda di traverso. */
+function facetPath({ B, mid }: RailCtx) {
+  const p = new Pen();
+  const step = B * 1.9;
+  const n = Math.round(mid.len / step);
+  const st = mid.len / n;
+  for (let i = 0; i < n; i++) {
+    const s = i * st;
+    p.M(...mid.pt(s, -B / 2)).L(...mid.pt(s + st * 0.5, B / 2));
+    p.M(...mid.pt(s + st * 0.5, B / 2)).L(...mid.pt(s + st, -B / 2));
+  }
+  return p.d;
+}
+
+/* ------------------------------------------------------------------ i fregi sugli angoli */
+
+/**
+ * Un fregio in un medaglione di raggio r centrato in (0,0): corona, alloro, orologio, diamante,
+ * stella. Restituisce i pezzi da disegnare nel metallo, nella pietra e le linee incise.
+ */
+function emblemParts(kind: NonNullable<TableLook['emblem']>, x: number, y: number, r: number) {
+  const metal = new Pen(x, y);
+  const gem = new Pen(x, y);
+  const engrave = new Pen(x, y);
+  const k = r * 0.78;
+  switch (kind) {
+    case 'crown': {
+      // Fascia, tre punte con le perle, la pietra al centro della fascia.
+      const by = k * 0.42;
+      metal.M(-k * 0.72, by).L(-k * 0.8, -k * 0.35).L(-k * 0.38, k * 0.02).L(0, -k * 0.62).L(k * 0.38, k * 0.02).L(k * 0.8, -k * 0.35).L(k * 0.72, by).Z();
+      metal.rrect(-k * 0.76, by - k * 0.02, k * 1.52, k * 0.26, k * 0.06);
+      metal.circle(-k * 0.8, -k * 0.45, k * 0.12).circle(0, -k * 0.74, k * 0.13).circle(k * 0.8, -k * 0.45, k * 0.12);
+      gem.diamond(0, by + k * 0.11, k * 0.13, k * 0.1);
+      engrave.M(-k * 0.6, by - k * 0.1).L(k * 0.6, by - k * 0.1);
+      break;
+    }
+    case 'laurel': {
+      // Due rami d'alloro che si chiudono in alto, una pietra in mezzo.
+      for (const s of [-1, 1]) {
+        const at = (t: number): P => polar(k * 0.78, 90 + s * (25 + t * 125)) as P;
+        const pts: P[] = [];
+        for (let i = 0; i <= 8; i++) pts.push(at(i / 8));
+        engrave.smooth(pts);
+        for (let i = 0; i < 4; i++) {
+          const t = 0.12 + i * 0.25;
+          const [px, py] = at(t);
+          const [qx, qy] = at(t + 0.08);
+          const len = Math.hypot(qx - px, qy - py) || 1;
+          const ux = (qx - px) / len;
+          const uy = (qy - py) / len;
+          for (const o of [1, -1]) {
+            const nx = -uy * o * s;
+            const ny = ux * o * s;
+            metal.leaf(px, py, px + (ux * 0.7 + nx * 0.7) * k * 0.42, py + (uy * 0.7 + ny * 0.7) * k * 0.42, k * 0.09);
+          }
+        }
+      }
+      gem.circle(0, 0, k * 0.22);
+      break;
+    }
+    case 'clock': {
+      // Il quadrante: anello, le ore, XII III VI IX in cifre romane se c'è posto, le lancette.
+      engrave.circle(0, 0, k * 0.96);
+      const roman = r >= 6;
+      for (let i = 0; i < 12; i++) {
+        const a = i * 30 - 90;
+        if (roman && i % 3 === 0) continue;
+        engrave.M(...polar(k * 0.86, a)).L(...polar(k * (i % 3 ? 0.72 : 0.62), a));
+      }
+      if (roman) {
+        for (const [n, a] of [
+          [12, -90],
+          [3, 0],
+          [6, 90],
+          [9, 180],
+        ]) {
+          const [px, py] = polar(k * 0.66, a);
+          const g = new Pen(x + px, y + py);
+          // Le cifre romane, con le grazie: piccolissime, ma vere.
+          romanTiny(g, n, k * 0.26);
+          engrave.d += g.d;
+        }
+      }
+      metal.petal(0, 0, ...polar(k * 0.42, -150), k * 0.07);
+      metal.petal(0, 0, ...polar(k * 0.6, -60), k * 0.05);
+      gem.circle(0, 0, k * 0.12);
+      break;
+    }
+    case 'diamond': {
+      // Un brillante visto di lato: corona, tavola e padiglione, con le faccette.
+      const t = -k * 0.42;
+      const g0 = -k * 0.12;
+      const b = k * 0.78;
+      gem.M(-k * 0.42, t).L(k * 0.42, t).L(k * 0.82, g0).L(0, b).L(-k * 0.82, g0).Z();
+      engrave.M(-k * 0.82, g0).L(k * 0.82, g0);
+      engrave.M(-k * 0.42, t).L(-k * 0.28, g0).L(0, t).L(k * 0.28, g0).L(k * 0.42, t);
+      engrave.M(-k * 0.28, g0).L(0, b).L(k * 0.28, g0);
+      break;
+    }
+    case 'star': {
+      metal.star(0, 0, k * 0.98, k * 0.42, 5, -90);
+      gem.circle(0, 0, k * 0.2);
+      engrave.star(0, 0, k * 0.98, k * 0.42, 5, -90);
+      break;
+    }
+  }
+  return { metal: metal.d, gem: gem.d, engrave: engrave.d };
+}
+
+/** Le cifre romane XII, III, VI, IX in una penna, centrate, alte gh. */
+function romanTiny(p: Pen, n: number, gh: number) {
+  const s = n === 12 ? 'XII' : n === 3 ? 'III' : n === 6 ? 'VI' : 'IX';
+  const wd = (ch: string) => (ch === 'I' ? 0.16 : 0.46) * gh;
+  const gap = 0.14 * gh;
+  const tot = [...s].reduce((a, ch) => a + wd(ch), 0) + gap * (s.length - 1);
+  let x = -tot / 2;
+  const t = -gh / 2;
+  const b = gh / 2;
+  for (const ch of s) {
+    const W = wd(ch);
+    if (ch === 'I') p.M(x + W / 2, t).L(x + W / 2, b);
+    else if (ch === 'V') p.M(x, t).L(x + W / 2, b).L(x + W, t);
+    else p.M(x, t).L(x + W, b).M(x + W, t).L(x, b);
+    x += W + gap;
+  }
+  return p;
+}
+
+/* ------------------------------------------------------------------ il disegno */
+
 export interface FeltArtProps {
-  /** Felt id (shop.ts). */
+  /** Id del tavolino (catalog.ts, posto «table»). */
+  table: string;
+  /** Id della grafica del panno (catalog.ts, posto «felt»). */
   felt: string;
-  /** Design id (shop.ts), 'nessuno' for plain cloth. */
-  pattern: string;
-  /** Outer size, rail included. */
+  /** Misura esterna, sponda compresa. */
   width: number;
   height: number;
-  /** 1 on the table; smaller in previews, so rail, corners and lines keep their proportions. */
+  /** 1 sul tavolo; più piccolo nelle anteprime, così sponda, angoli e linee restano in proporzione. */
   scale?: number;
-  /** Draw the rail (false: just a piece of cloth). */
+  /** Disegna la sponda (false: solo un pezzo di panno). */
   rim?: boolean;
-  /** Makes the design stronger, for small previews where it would disappear. */
+  /** Rende il disegno più marcato, per le anteprime piccole dove sparirebbe. */
   boost?: number;
 }
 
+const RAIL_LIGHT: Record<TableLook['rail'], { top: number; bottom: number }> = {
+  glass: { top: 0.25, bottom: 0.05 },
+  wood: { top: 0.2, bottom: 0.24 },
+  leather: { top: 0.22, bottom: 0.26 },
+  metal: { top: 0.34, bottom: 0.3 },
+  stone: { top: 0.26, bottom: 0.24 },
+  crystal: { top: 0.4, bottom: 0.12 },
+  lacquer: { top: 0.3, bottom: 0.34 },
+  cosmic: { top: 0.14, bottom: 0.32 },
+};
+
 /**
- * The felt drawn in a box, like a real card table: a rail (glass, padded leather, wood or polished
- * metal, with corners and studs on the rarer ones) around a cloth with its weave, a stitched seam,
- * the light from above and the chosen design pressed into it. No position, no shadow: see Felt.
+ * Il tavolo disegnato in un riquadro, come un vero tavolo da gioco: la sponda del tavolino (vetro,
+ * legno, cuoio, metallo, pietra, cristallo, lacca o cielo, con angoli, borchie, fregi e alone) intorno
+ * al panno, con la sua trama, la cucitura, la luce della lampada e il disegno della grafica.
+ * Niente posizione né ombra esterna: vedi Felt.
  */
-function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boost = 1 }: FeltArtProps) {
+function FeltArtImpl({ table, felt, width, height, scale = 1, rim = true, boost = 1 }: FeltArtProps) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const id = (s: string) => `${s}${uid}`;
-  const look = feltLook(felt);
+  const look = tableLook(table);
+  const cl = clothLook(felt);
   const B = rim ? Math.max(2, RAIL * scale) : 0;
   const w = width - 2 * B;
   const h = height - 2 * B;
   const rad = Math.min(34 * scale, w * 0.09);
   const R0 = rad + B;
-  const cloth = clothStops(look);
-  const glass = look.rail === 'glass';
-  const metal = look.rail === 'metal';
-  // Details that would only be noise in a tiny preview.
+  const cloth = clothStops(cl);
+  const rail = look.rail;
+  const glass = rail === 'glass';
+  const crystal = rail === 'crystal';
+  const metal = rail === 'metal';
+  // Dettagli che in un'anteprima minuscola sarebbero solo rumore.
   const fine = scale >= 0.42;
   const railFine = B >= 4.5;
+  // Le trame del materiale reggono anche su una sponda più sottile (le guarnizioni no).
+  const texFine = B >= 3.4;
 
-  const design = useMemo(() => designOf(pattern, w, h, rad), [pattern, w, h, rad]);
-  // The design is drawn in a lighter tone of the cloth (or in the trim's metal), pressed into the felt.
-  const ink = look.trim ? mix(look.trim, cloth[0], 0.2) : mix(cloth[0], '#FFFFFF', 0.45);
+  /* ---------------- il panno */
+  // Il disegno dipende solo dalla grafica e dalle misure: si ricalcola solo se cambiano.
+  const design = useMemo(() => {
+    const c = clothLook(felt);
+    return designOf(c.design, w, h, rad, c.paint ?? []);
+  }, [felt, w, h, rad]);
+  // Il disegno impresso è un tono più chiaro del panno; la forza dipende da quanto è scuro il panno.
+  const ink = mix(cloth[0], '#FFFFFF', 0.45);
   const dark = luma(cloth[1]) < 0.02;
-  const op = Math.min(0.9, (dark ? 0.27 : 0.23) * (look.velvet ? 1.1 : 1) * boost * (design?.k ?? 1));
-  const emboss = Math.max(0.6, (design?.sw ?? 1) * 0.7);
+  const baseOp = (dark ? 0.27 : 0.23) * (cl.velvet ? 1.1 : 1) * boost;
+  const paintBoost = Math.min(1.5, 1 + (boost - 1) * 0.55);
+  const emboss = Math.max(0.6, clamp(Math.min(w, h) * 0.0052, 0.8, 2) * 0.7);
 
+  /* ---------------- la sponda */
   const ring = useMemo(() => (B ? roundRect(0, 0, width, height, R0) + roundRect(B, B, w, h, rad) : ''), [B, width, height, R0, w, h, rad]);
-  const hasStuds = !!look.studs;
-  const studs = useMemo(
-    () => (B && hasStuds && railFine ? studPoints(width, height, R0, B / 2, Math.max(16, 30 * scale)) : []),
-    [B, hasStuds, railFine, width, height, R0, scale],
+  const railCtx = useMemo<RailCtx | null>(
+    () => (B && texFine ? { W: width, H: height, B, R0, scale, look, mid: new Loop(B / 2, B / 2, width - B, height - B, R0 - B / 2) } : null),
+    [B, texFine, width, height, R0, scale, look],
   );
+  const tex = look.texture;
+  const texture = useMemo(() => {
+    if (!railCtx) return null;
+    switch (tex) {
+      case 'grain':
+        return { grain: grainPaths(railCtx) };
+      case 'burl':
+        return { burl: burlPath(railCtx), grain: grainPaths(railCtx).slice(1) };
+      case 'marble':
+        return { marble: marblePath(railCtx) };
+      case 'granite':
+        return { granite: granitePaths(railCtx) };
+      case 'checker':
+        return { checker: checkerPaths(railCtx) };
+      case 'stars':
+        return { stars: starPaths(railCtx) };
+      case 'brushed':
+        return { brushed: brushedPaths(railCtx) };
+      default:
+        return {};
+    }
+  }, [railCtx, tex]);
+  const facets = useMemo(() => (railCtx && crystal ? facetPath(railCtx) : ''), [railCtx, crystal]);
+  const hasStuds = !!look.studs;
+  const studs = useMemo(() => {
+    if (!B || !hasStuds || !railFine) return [];
+    // Borchie distribuite sui tratti dritti della sponda.
+    const out: P[] = [];
+    const gap = Math.max(16, 30 * scale);
+    const c = B / 2;
+    const k = R0 + gap * 0.35;
+    const run = (x0: number, y0: number, x1: number, y1: number) => {
+      const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / gap));
+      for (let i = 0; i <= n; i++) out.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
+    };
+    run(k, c, width - k, c);
+    run(k, height - c, width - k, height - c);
+    run(c, k, c, height - k);
+    run(width - c, k, width - c, height - k);
+    return out;
+  }, [B, hasStuds, railFine, width, height, R0, scale]);
 
-  // Metal fittings and studs: the trim's metal, or a lighter tone of the rail.
+  // Metallo di guarnizioni e borchie: il filetto, o un tono più chiaro della sponda.
   const metalTone = look.trim ?? mix(look.rim[0], '#FFFFFF', 0.25);
   const metalDark = mix(look.rim[2], '#000000', 0.35);
-  // The seam: a lighter thread on the cloth, a darker one on leather.
+  const gemColor = look.gem ?? cloth[0];
   const thread = mix(cloth[0], '#FFFFFF', 0.5);
   const leatherThread = mix(look.rim[0], '#FFFFFF', 0.55);
-  const grain = mix(look.rim[2], '#000000', 0.35);
+  const grainInk = mix(look.rim[2], '#000000', 0.35);
   const sw = Math.max(0.6, scale);
   const weave = Math.max(2.5, 3.2 * scale);
   const trimIn = Math.max(2.5, 6 * scale);
-  // The seam runs a finger inside the rail, or inside the metal trim.
+  // La cucitura corre un dito dentro la sponda, o dentro il filetto di metallo.
   const seamIn = look.trim ? trimIn + Math.max(3, 5 * scale) : Math.max(3, 7 * scale);
+  const light = RAIL_LIGHT[rail];
+  // Le vene del marmo: chiare su pietra scura (d'oro se c'è il filetto), scure su pietra chiara.
+  const railDark = luma(look.rim[1]) < 0.12;
+  const veinInk = railDark ? (look.trim ?? mix(look.rim[0], '#FFFFFF', 0.5)) : luma(look.rim[1]) < 0.4 ? mix(look.rim[0], '#FFFFFF', 0.55) : mix(look.rim[2], '#3A3440', 0.45);
+
+  /* ---------------- strati del disegno */
+  const layerColor = (c: Ink): string => {
+    if (c === 'ink') return ink;
+    if (c === 'shade') return '#000000';
+    if (typeof c === 'number') return cl.paint?.[c] ?? cl.paint?.[0] ?? ink;
+    return c;
+  };
+  const layerOp = (c: Ink, op: number) => Math.min(0.92, c === 'ink' || c === 'shade' ? baseOp * op : op * paintBoost);
+  const defsExtra: ReactElement[] = [];
+  const drawn: ReactElement[] = [];
+  design?.layers.forEach((L, i) => {
+    const color = layerColor(L.ink);
+    const op = layerOp(L.ink, L.op);
+    if (L.k === 'glow') {
+      const gid = id(`g${i}`);
+      defsExtra.push(
+        <RadialGradient key={gid} id={gid} cx="50%" cy="50%" rx="50%" ry="50%">
+          <Stop offset="0" stopColor={color} stopOpacity={op} />
+          <Stop offset="0.45" stopColor={color} stopOpacity={op * 0.55} />
+          <Stop offset="1" stopColor={color} stopOpacity={0} />
+        </RadialGradient>,
+      );
+      drawn.push(
+        <Ellipse
+          key={i}
+          cx={L.cx}
+          cy={L.cy}
+          rx={Math.max(0.5, L.rx)}
+          ry={Math.max(0.5, L.ry)}
+          fill={`url(#${gid})`}
+          transform={L.rot ? `rotate(${f(L.rot)} ${f(L.cx)} ${f(L.cy)})` : undefined}
+        />,
+      );
+      return;
+    }
+    let paint = color;
+    let alpha = op;
+    if (L.fade) {
+      const gid = id(`f${i}`);
+      defsExtra.push(
+        <RadialGradient key={gid} id={gid} cx={L.fade.cx} cy={L.fade.cy} r={L.fade.r} fx={L.fade.cx} fy={L.fade.cy} gradientUnits="userSpaceOnUse">
+          {L.fade.stops.map(([o, k], j) => (
+            <Stop key={j} offset={o} stopColor={color} stopOpacity={op * k} />
+          ))}
+        </RadialGradient>,
+      );
+      paint = `url(#${gid})`;
+      alpha = 1;
+    }
+    const shape = (fillC: string, a: number, key: string | number) =>
+      L.k === 'line' ? (
+        <Path
+          key={key}
+          d={L.d}
+          fill="none"
+          stroke={fillC}
+          strokeOpacity={a}
+          strokeWidth={L.w}
+          strokeLinecap={L.cap ?? 'round'}
+          strokeLinejoin="round"
+          strokeDasharray={L.dash}
+        />
+      ) : (
+        <Path key={key} d={L.d} fill={fillC} fillOpacity={a} />
+      );
+    if (L.emboss) {
+      // Impresso nel panno: una linea scura appena sotto, quella chiara sopra.
+      drawn.push(
+        <G key={`e${i}`} transform={`translate(0 ${f(emboss)})`}>
+          {shape('#000000', Math.min(0.5, op * 0.6), 0)}
+        </G>,
+      );
+    }
+    drawn.push(shape(paint, alpha, i));
+  });
+
+  // L'alone del tavolino lungo il bordo interno.
+  const glowC = look.glow;
+  const emblem = look.emblem;
+  const cornerPts: [number, number, number][] = [
+    [R0, R0, 180],
+    [width - R0, R0, 270],
+    [width - R0, height - R0, 0],
+    [R0, height - R0, 90],
+  ];
 
   return (
     <Svg width={width} height={height}>
       <Defs>
         <LinearGradient id={id('rim')} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={look.rim[0]} stopOpacity={glass ? 0.95 : 1} />
-          <Stop offset="0.5" stopColor={look.rim[1]} stopOpacity={glass ? 0.6 : 1} />
-          <Stop offset="1" stopColor={look.rim[2]} stopOpacity={glass ? 0.42 : 1} />
+          <Stop offset="0" stopColor={look.rim[0]} stopOpacity={glass ? 0.95 : crystal ? 0.9 : 1} />
+          <Stop offset="0.5" stopColor={look.rim[1]} stopOpacity={glass ? 0.6 : crystal ? 0.66 : 1} />
+          <Stop offset="1" stopColor={look.rim[2]} stopOpacity={glass ? 0.42 : crystal ? 0.58 : 1} />
         </LinearGradient>
-        {/* The rail is rounded: light on top, shade below. */}
+        {/* La sponda è tonda: luce sopra, ombra sotto. */}
         <LinearGradient id={id('volume')} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={glass ? 0.25 : metal ? 0.34 : 0.2} />
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={light.top} />
           <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0} />
-          <Stop offset="1" stopColor="#000000" stopOpacity={glass ? 0.05 : metal ? 0.3 : 0.24} />
+          <Stop offset="1" stopColor="#000000" stopOpacity={light.bottom} />
         </LinearGradient>
-        {/* Polished metal catches two bands of light. */}
+        {/* Il metallo lucido prende due bande di luce. */}
         <LinearGradient id={id('shine')} x1="0" y1="0" x2="1" y2="0.6">
           <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
           <Stop offset="0.16" stopColor="#FFFFFF" stopOpacity={0.5} />
@@ -547,27 +575,51 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
           <Stop offset="0.7" stopColor="#FFFFFF" stopOpacity={0.3} />
           <Stop offset="0.8" stopColor="#FFFFFF" stopOpacity={0} />
         </LinearGradient>
+        {/* Il riflesso della lacca e della pietra lucida: una riga di luce che si spegne verso il basso. */}
+        <LinearGradient id={id('gloss')} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.75} />
+          <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={0.12} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.04} />
+        </LinearGradient>
+        {tex === 'iridescent' ? (
+          <LinearGradient id={id('iri')} x1="0" y1="0.2" x2="1" y2="0.8">
+            {['#FF8AD8', '#B58CFF', '#7FD0FF', '#9FFFE0', '#FFE38A', '#FF8AD8'].map((c, i) => (
+              <Stop key={i} offset={i / 5} stopColor={c} stopOpacity={0.5} />
+            ))}
+          </LinearGradient>
+        ) : null}
+        {rail === 'cosmic' ? (
+          <RadialGradient id={id('neb')} cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0" stopColor={look.glow ?? look.rim[0]} stopOpacity={0.55} />
+            <Stop offset="1" stopColor={look.glow ?? look.rim[0]} stopOpacity={0} />
+          </RadialGradient>
+        ) : null}
         <RadialGradient id={id('cloth')} cx="50%" cy="38%" rx="72%" ry="64%">
           <Stop offset="0" stopColor={cloth[0]} />
-          <Stop offset={look.velvet ? '0.62' : '0.55'} stopColor={cloth[1]} />
+          <Stop offset={cl.velvet ? '0.62' : '0.55'} stopColor={cloth[1]} />
           <Stop offset="1" stopColor={cloth[2]} />
         </RadialGradient>
-        {/* The light of a lamp over the table. */}
+        {/* La luce di una lampada sopra il tavolo. */}
         <RadialGradient id={id('lamp')} cx="50%" cy="30%" rx="46%" ry="34%">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={look.velvet ? 0.12 : 0.09} />
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={cl.velvet ? 0.12 : 0.09} />
           <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
         </RadialGradient>
-        {/* The weave of the cloth: fine threads both ways, barely there. On velvet, softer still. */}
+        {/* La trama del tessuto: fili sottili nei due versi, appena visibili. Sul velluto ancora meno. */}
         <Pattern id={id('weave')} x={B} y={B} width={weave} height={weave} patternUnits="userSpaceOnUse">
-          <Line x1={0} y1={weave} x2={weave} y2={0} stroke="#FFFFFF" strokeOpacity={look.velvet ? 0.035 : 0.06} strokeWidth={0.7} />
-          <Line x1={0} y1={0} x2={weave} y2={weave} stroke="#000000" strokeOpacity={look.velvet ? 0.05 : 0.08} strokeWidth={0.7} />
+          <Line x1={0} y1={weave} x2={weave} y2={0} stroke="#FFFFFF" strokeOpacity={cl.velvet ? 0.035 : 0.06} strokeWidth={0.7} />
+          <Line x1={0} y1={0} x2={weave} y2={weave} stroke="#000000" strokeOpacity={cl.velvet ? 0.05 : 0.08} strokeWidth={0.7} />
         </Pattern>
         <ClipPath id={id('clip')}>
           <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} />
         </ClipPath>
-        {look.velvet ? (
+        {B ? (
+          <ClipPath id={id('ring')}>
+            <Path d={ring} fillRule="evenodd" clipRule="evenodd" />
+          </ClipPath>
+        ) : null}
+        {cl.velvet ? (
           <>
-            {/* Velvet: a wide, soft sheen from above and a deeper edge. */}
+            {/* Velluto: un riflesso largo e morbido dall'alto e un bordo più profondo. */}
             <RadialGradient id={id('sheen')} cx="50%" cy="22%" rx="62%" ry="48%">
               <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.13} />
               <Stop offset="0.6" stopColor="#FFFFFF" stopOpacity={0.04} />
@@ -579,38 +631,99 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
             </RadialGradient>
           </>
         ) : null}
+        {emblem && railFine ? (
+          <RadialGradient id={id('medal')} cx="38%" cy="32%" rx="70%" ry="70%">
+            <Stop offset="0" stopColor={mix(metalTone, '#FFFFFF', 0.45)} />
+            <Stop offset="0.55" stopColor={metalTone} />
+            <Stop offset="1" stopColor={mix(metalTone, '#000000', 0.35)} />
+          </RadialGradient>
+        ) : null}
+        {defsExtra}
       </Defs>
 
-      {/* ------------------------------------------------ the rail */}
+      {/* ------------------------------------------------ la sponda */}
       {B ? (
         <>
           <Path d={ring} fillRule="evenodd" fill={`url(#${id('rim')})`} />
-          <Path d={ring} fillRule="evenodd" fill={`url(#${id('volume')})`} />
-          {metal ? <Path d={ring} fillRule="evenodd" fill={`url(#${id('shine')})`} /> : null}
-          {look.rail === 'wood' && railFine ? (
-            // The grain of the wood, running along the rail.
-            <G fill="none" stroke={grain} strokeWidth={sw * 0.7} strokeLinecap="round">
-              <Path
-                d={roundRect(B * 0.28, B * 0.28, width - B * 0.56, height - B * 0.56, R0 - B * 0.28)}
-                strokeOpacity={0.4}
-                strokeDasharray={`${f(46 * scale)} ${f(9 * scale)} ${f(18 * scale)} ${f(5 * scale)}`}
-              />
-              <Path
-                d={roundRect(B * 0.52, B * 0.52, width - B * 1.04, height - B * 1.04, R0 - B * 0.52)}
-                strokeOpacity={0.3}
-                strokeDasharray={`${f(28 * scale)} ${f(6 * scale)} ${f(60 * scale)} ${f(8 * scale)}`}
-                strokeDashoffset={f(17 * scale)}
-              />
-              <Path
-                d={roundRect(B * 0.76, B * 0.76, width - B * 1.52, height - B * 1.52, R0 - B * 0.76)}
-                strokeOpacity={0.36}
-                strokeDasharray={`${f(70 * scale)} ${f(7 * scale)} ${f(24 * scale)} ${f(10 * scale)}`}
-                strokeDashoffset={f(40 * scale)}
-              />
+          {texture?.checker ? (
+            // L'intarsio: caselle scure su tutta la sponda, quelle chiare sopra.
+            <>
+              <Path d={ring} fillRule="evenodd" fill={mix(look.rim[1], look.rim[2], 0.4)} />
+              <Path d={texture.checker} fill={look.rim[0]} clipPath={`url(#${id('ring')})`} />
+            </>
+          ) : null}
+          {texFine ? (
+            <G clipPath={`url(#${id('ring')})`}>
+              {rail === 'cosmic'
+                ? // Nubi di luce lungo la sponda.
+                  [0.08, 0.3, 0.52, 0.74, 0.92].map((t, i) => {
+                    const [x, y] = railCtx!.mid.pt(railCtx!.mid.len * t);
+                    return <Ellipse key={i} cx={x} cy={y} rx={B * 4.5} ry={B * 2.2} fill={`url(#${id('neb')})`} opacity={i % 2 ? 0.7 : 1} />;
+                  })
+                : null}
+              {texture?.grain?.map((g, i) => (
+                <Path
+                  key={i}
+                  d={g.d}
+                  fill="none"
+                  stroke={grainInk}
+                  strokeWidth={sw * 0.7}
+                  strokeLinecap="round"
+                  strokeOpacity={g.op}
+                  strokeDasharray={g.dash}
+                  strokeDashoffset={g.off}
+                />
+              ))}
+              {texture?.burl ? <Path d={texture.burl} fill="none" stroke={grainInk} strokeOpacity={0.32} strokeWidth={sw * 0.55} /> : null}
+              {texture?.marble ? (
+                <>
+                  <Path d={texture.marble.soft} fill="none" stroke={veinInk} strokeOpacity={0.32} strokeWidth={sw * 0.5} />
+                  <Path d={texture.marble.strong} fill="none" stroke={veinInk} strokeOpacity={0.2} strokeWidth={sw * 1.6} />
+                  <Path d={texture.marble.strong} fill="none" stroke={veinInk} strokeOpacity={0.6} strokeWidth={sw * 0.55} />
+                </>
+              ) : null}
+              {texture?.granite ? (
+                <>
+                  <Path d={texture.granite[0]} fill="#000000" fillOpacity={0.45} />
+                  <Path d={texture.granite[1]} fill="#FFFFFF" fillOpacity={0.4} />
+                  <Path d={texture.granite[2]} fill={mix(look.rim[0], '#FFFFFF', 0.3)} fillOpacity={0.5} />
+                </>
+              ) : null}
+              {texture?.brushed?.map((b, i) => (
+                <Path
+                  key={i}
+                  d={b.d}
+                  fill="none"
+                  stroke={b.light ? '#FFFFFF' : '#000000'}
+                  strokeOpacity={b.light ? 0.16 : 0.1}
+                  strokeWidth={0.5}
+                  strokeDasharray={b.dash}
+                />
+              ))}
+              {texture?.stars ? (
+                <>
+                  <Path d={texture.stars.dots} fill={look.trim ?? '#FFFFFF'} fillOpacity={0.75} />
+                  <Path d={texture.stars.sparks} fill="#FFFFFF" fillOpacity={0.85} />
+                </>
+              ) : null}
+              {facets ? <Path d={facets} fill="none" stroke="#FFFFFF" strokeOpacity={0.4} strokeWidth={0.6} /> : null}
             </G>
           ) : null}
-          {look.rail === 'leather' && railFine ? (
-            // Padded leather, stitched along the middle.
+          {tex === 'iridescent' ? <Path d={ring} fillRule="evenodd" fill={`url(#${id('iri')})`} /> : null}
+          <Path d={ring} fillRule="evenodd" fill={`url(#${id('volume')})`} />
+          {metal ? <Path d={ring} fillRule="evenodd" fill={`url(#${id('shine')})`} /> : null}
+          {(rail === 'lacquer' || rail === 'stone' || crystal || rail === 'cosmic') && texFine ? (
+            // Lucido: una riga di luce sul dorso della sponda.
+            <Path
+              d={roundRect(B * 0.3, B * 0.3, width - B * 0.6, height - B * 0.6, R0 - B * 0.3)}
+              fill="none"
+              stroke={`url(#${id('gloss')})`}
+              strokeOpacity={rail === 'stone' ? 0.5 : crystal ? 0.9 : 0.75}
+              strokeWidth={Math.max(0.6, B * 0.1)}
+            />
+          ) : null}
+          {rail === 'leather' && texFine ? (
+            // Cuoio imbottito, cucito a metà.
             <Path
               d={roundRect(B / 2, B / 2, width - B, height - B, R0 - B / 2)}
               fill="none"
@@ -622,41 +735,43 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
             />
           ) : null}
           {metal && railFine ? (
-            // An engraved line along the middle of the metal.
+            // Una riga incisa a metà del metallo.
             <Path d={roundRect(B / 2, B / 2, width - B, height - B, R0 - B / 2)} fill="none" stroke={metalDark} strokeOpacity={0.45} strokeWidth={sw * 0.8} />
           ) : null}
-          {/* The outer edge catches the light; the inner lip drops into the cloth. */}
-          <Path d={roundRect(0.5, 0.5, width - 1, height - 1, R0 - 0.5)} fill="none" stroke="#FFFFFF" strokeOpacity={glass ? 0.9 : 0.35} strokeWidth={1} />
-          <Path d={roundRect(B - 0.5, B - 0.5, w + 1, h + 1, rad + 0.5)} fill="none" stroke="#000000" strokeOpacity={glass ? 0.18 : 0.42} strokeWidth={1} />
+          {/* Il bordo esterno prende la luce; il labbro interno scende nel panno. */}
+          <Path
+            d={roundRect(0.5, 0.5, width - 1, height - 1, R0 - 0.5)}
+            fill="none"
+            stroke="#FFFFFF"
+            strokeOpacity={glass ? 0.9 : crystal ? 0.8 : rail === 'cosmic' ? 0.22 : 0.35}
+            strokeWidth={1}
+          />
+          <Path
+            d={roundRect(B - 0.5, B - 0.5, w + 1, h + 1, rad + 0.5)}
+            fill="none"
+            stroke={crystal ? '#FFFFFF' : '#000000'}
+            strokeOpacity={glass ? 0.18 : crystal ? 0.55 : 0.42}
+            strokeWidth={1}
+          />
         </>
       ) : null}
 
-      {/* ------------------------------------------------ the cloth */}
+      {/* ------------------------------------------------ il panno */}
       <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('cloth')})`} />
       {fine ? <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('weave')})`} /> : null}
       <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('lamp')})`} />
-      {design ? (
+      {drawn.length ? (
         <G clipPath={`url(#${id('clip')})`}>
-          <G transform={`translate(${B} ${B})`}>
-            {/* Pressed into the cloth: a dark line just below, the light line on top. */}
-            <G opacity={Math.min(0.5, op * 0.6)} transform={`translate(0 ${f(emboss)})`}>
-              <Path d={design.line} fill="none" stroke="#000000" strokeWidth={design.sw} strokeLinecap="round" strokeLinejoin="round" />
-              {design.fill ? <Path d={design.fill} fill="#000000" /> : null}
-            </G>
-            <G opacity={op}>
-              <Path d={design.line} fill="none" stroke={ink} strokeWidth={design.sw} strokeLinecap="round" strokeLinejoin="round" />
-              {design.fill ? <Path d={design.fill} fill={ink} /> : null}
-            </G>
-          </G>
+          <G transform={`translate(${B} ${B})`}>{drawn}</G>
         </G>
       ) : null}
-      {look.velvet ? (
+      {cl.velvet ? (
         <>
           <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('sheen')})`} />
           <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('vignette')})`} />
         </>
       ) : null}
-      {look.trim ? (
+      {B && look.trim ? (
         <Rect
           x={B + trimIn}
           y={B + trimIn}
@@ -671,7 +786,7 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
         />
       ) : null}
       {fine && rim ? (
-        // The seam where the cloth is stitched to the table.
+        // La cucitura dove il panno è fissato al tavolo.
         <Rect
           x={B + seamIn}
           y={B + seamIn}
@@ -687,24 +802,37 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
           strokeLinecap="round"
         />
       ) : null}
-      {/* The rail casts a soft shadow on the cloth. */}
-      <G clipPath={`url(#${id('clip')})`}>
-        <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke="#000" strokeOpacity={0.1} strokeWidth={Math.max(4, 16 * scale)} />
-        <Rect
-          x={B}
-          y={B}
-          width={w}
-          height={h}
-          rx={rad}
-          ry={rad}
-          fill="none"
-          stroke="#000"
-          strokeOpacity={look.velvet ? 0.3 : 0.24}
-          strokeWidth={Math.max(2, 5 * scale)}
-        />
-      </G>
+      {/* La sponda fa un'ombra morbida sul panno. */}
+      {B ? (
+        <G clipPath={`url(#${id('clip')})`}>
+          <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke="#000" strokeOpacity={0.1} strokeWidth={Math.max(4, 16 * scale)} />
+          <Rect
+            x={B}
+            y={B}
+            width={w}
+            height={h}
+            rx={rad}
+            ry={rad}
+            fill="none"
+            stroke="#000"
+            strokeOpacity={cl.velvet ? 0.3 : 0.24}
+            strokeWidth={Math.max(2, 5 * scale)}
+          />
+          {glowC ? (
+            // L'alone: una luce che sale dal bordo interno, solo lungo il bordo.
+            <>
+              <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke={glowC} strokeOpacity={0.1} strokeWidth={Math.max(6, 26 * scale)} />
+              <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke={glowC} strokeOpacity={0.16} strokeWidth={Math.max(3, 11 * scale)} />
+              <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke={glowC} strokeOpacity={0.5} strokeWidth={Math.max(1, 2.4 * scale)} />
+            </>
+          ) : null}
+        </G>
+      ) : null}
+      {B && glowC ? (
+        <Path d={roundRect(B - 0.5, B - 0.5, w + 1, h + 1, rad + 0.5)} fill="none" stroke={mix(glowC, '#FFFFFF', 0.35)} strokeOpacity={0.85} strokeWidth={1} />
+      ) : null}
 
-      {/* ------------------------------------------------ fittings on the rail */}
+      {/* ------------------------------------------------ guarnizioni sulla sponda */}
       {studs.map(([x, y], i) => (
         <G key={i}>
           <Circle cx={x} cy={y + 0.4} r={B * 0.22} fill="#000000" fillOpacity={0.35} />
@@ -712,14 +840,9 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
           <Circle cx={x - B * 0.06} cy={y - B * 0.06} r={B * 0.08} fill="#FFFFFF" fillOpacity={0.8} />
         </G>
       ))}
-      {B && look.corners && railFine
-        ? [
-            [R0, R0, 180],
-            [width - R0, R0, 270],
-            [width - R0, height - R0, 0],
-            [R0, height - R0, 90],
-          ].map(([cx, cy, a0], i) => {
-            // A metal fitting over each corner of the rail, with a diamond in the middle.
+      {B && (look.corners || emblem) && railFine
+        ? cornerPts.map(([cx, cy, a0], i) => {
+            // Una guarnizione di metallo su ogni angolo della sponda, con un rombo o un fregio nel mezzo.
             const r = R0 - B / 2;
             const p = (a: number) => polar(r, a).map((v, k) => v + (k ? cy : cx)) as [number, number];
             const [x0, y0] = p(a0 + 6);
@@ -727,24 +850,51 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
             const [mx, my] = p(a0 + 45);
             const arc = `M${f(x0)} ${f(y0)}A${f(r)} ${f(r)} 0 0 1 ${f(x1)} ${f(y1)}`;
             const k = B * 0.95;
-            const dia = new Pen(mx, my, ((a0 + 45) * Math.PI) / 180).diamond(0, 0, k * 0.7, k).d;
+            const dia = new Pen(mx, my, a0 + 45).diamond(0, 0, k * 0.7, k).d;
+            const em = emblem ? emblemParts(emblem, mx, my, B * 0.86) : null;
             return (
               <G key={i}>
-                <Path d={arc} fill="none" stroke={metalDark} strokeOpacity={0.85} strokeWidth={B * 0.95 + 1.6} strokeLinecap="round" />
-                <Path d={arc} fill="none" stroke={metalTone} strokeWidth={B * 0.95} strokeLinecap="round" />
-                <Path d={arc} fill="none" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={B * 0.2} strokeLinecap="round" />
-                {[
-                  [x0, y0],
-                  [x1, y1],
-                ].map(([x, y], j) => (
-                  <Circle key={j} cx={x} cy={y} r={B * 0.16} fill={metalDark} fillOpacity={0.7} />
-                ))}
-                <Path d={dia} fill={metalTone} stroke={metalDark} strokeWidth={1} />
-                {/* A stone in the middle, the colour of the cloth. */}
-                <Circle cx={mx} cy={my} r={B * 0.26} fill={cloth[0]} stroke={metalDark} strokeWidth={0.6} />
-                <Circle cx={mx - B * 0.08} cy={my - B * 0.08} r={B * 0.09} fill="#FFFFFF" fillOpacity={0.85} />
+                {look.corners ? (
+                  <>
+                    <Path d={arc} fill="none" stroke={metalDark} strokeOpacity={0.85} strokeWidth={B * 0.95 + 1.6} strokeLinecap="round" />
+                    <Path d={arc} fill="none" stroke={metalTone} strokeWidth={B * 0.95} strokeLinecap="round" />
+                    <Path d={arc} fill="none" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={B * 0.2} strokeLinecap="round" />
+                    {[
+                      [x0, y0],
+                      [x1, y1],
+                    ].map(([x, y], j) => (
+                      <Circle key={j} cx={x} cy={y} r={B * 0.16} fill={metalDark} fillOpacity={0.7} />
+                    ))}
+                  </>
+                ) : null}
+                {em ? (
+                  // Il fregio: un medaglione di metallo con il disegno in rilievo e la pietra.
+                  <>
+                    <Circle cx={mx} cy={my + 0.6} r={B * 0.9} fill="#000000" fillOpacity={0.35} />
+                    <Circle cx={mx} cy={my} r={B * 0.86} fill={mix(look.rim[2], '#000000', 0.45)} stroke={`url(#${id('medal')})`} strokeWidth={B * 0.16} />
+                    <Path d={em.metal} fill={`url(#${id('medal')})`} stroke={metalDark} strokeOpacity={0.5} strokeWidth={0.35} />
+                    <Path d={em.engrave} fill="none" stroke={emblem === 'diamond' ? '#FFFFFF' : metalTone} strokeOpacity={emblem === 'diamond' ? 0.75 : 0.9} strokeWidth={0.45} strokeLinecap="round" />
+                    {em.gem ? <Path d={em.gem} fill={gemColor} fillOpacity={emblem === 'diamond' ? 0.75 : 1} stroke={emblem === 'diamond' ? '#FFFFFF' : metalDark} strokeWidth={0.35} /> : null}
+                    {emblem === 'diamond' ? <Path d={em.engrave} fill="none" stroke="#FFFFFF" strokeOpacity={0.8} strokeWidth={0.35} /> : null}
+                    <Path d={new Pen(mx, my).arc(0, 0, B * 0.7, 200, 250).d} fill="none" stroke="#FFFFFF" strokeOpacity={0.55} strokeWidth={Math.max(0.5, B * 0.08)} strokeLinecap="round" />
+                  </>
+                ) : (
+                  <>
+                    <Path d={dia} fill={metalTone} stroke={metalDark} strokeWidth={1} />
+                    {/* Una pietra nel mezzo, del colore scelto o del panno. */}
+                    <Circle cx={mx} cy={my} r={B * 0.26} fill={gemColor} stroke={metalDark} strokeWidth={0.6} />
+                    <Circle cx={mx - B * 0.08} cy={my - B * 0.08} r={B * 0.09} fill="#FFFFFF" fillOpacity={0.85} />
+                  </>
+                )}
               </G>
             );
+          })
+        : null}
+      {B && look.corners && !railFine
+        ? // In miniatura: solo la pietra negli angoli.
+          cornerPts.map(([cx, cy, a0], i) => {
+            const [mx, my] = polar(R0 - B / 2, a0 + 45).map((v, k) => v + (k ? cy : cx));
+            return <Circle key={i} cx={mx} cy={my} r={Math.max(0.9, B * 0.42)} fill={metalTone} stroke={metalDark} strokeWidth={0.4} />;
           })
         : null}
     </Svg>
@@ -753,8 +903,8 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
 
 export const FeltArt = memo(FeltArtImpl);
 
-/** The table: the felt with its rail and the chosen design. Drawn once, never moves. */
-export function Felt({ rect, felt = 'smeraldo', pattern = 'nessuno' }: { rect: R; felt?: string; pattern?: string }) {
+/** Il tavolo in partita: il tavolino con il suo panno. Disegnato una volta, non si muove mai. */
+export function Felt({ rect, table = STARTER_TABLE.id, felt = STARTER_FELT }: { rect: R; table?: string; felt?: string }) {
   const rad = Math.min(34, rect.w * 0.09);
   const W = rect.w + RAIL * 2;
   const H = rect.h + RAIL * 2;
@@ -764,7 +914,7 @@ export function Felt({ rect, felt = 'smeraldo', pattern = 'nessuno' }: { rect: R
       pointerEvents="none"
       style={[styles.wrap, { left: rect.x - RAIL, top: rect.y - RAIL, width: W, height: H, borderRadius: rad + RAIL }]}
     >
-      <FeltArt felt={felt} pattern={pattern} width={W} height={H} />
+      <FeltArt table={table} felt={felt} width={W} height={H} />
     </View>
   );
 }
