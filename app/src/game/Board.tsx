@@ -88,7 +88,7 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
   return (
     <View style={styles.fill}>
       <Pressable style={StyleSheet.absoluteFill} onPress={clearSelection} accessible={false} />
-      <Felt rect={g.felt} felt={equipped.felt} pattern={equipped.pattern} />
+      <Felt rect={g.felt} table={equipped.table} felt={equipped.felt} />
       <View testID="fixed-topbar" style={[styles.topBar, { left: g.cx - g.colW / 2 }]}>
         <TopBar onMenu={onMenu} />
       </View>
