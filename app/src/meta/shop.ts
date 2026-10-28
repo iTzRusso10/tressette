@@ -1,6 +1,6 @@
 // Il negozio: cosa si compra, a che prezzo, l'offerta del giorno. Il catalogo è in catalog.ts.
 
-import { itemByKey, itemOf, keyOf, STARTER_KEYS, type Item, type Slot } from './catalog.ts';
+import { itemOf, keyOf, STARTER_KEYS, type Item, type Slot } from './catalog.ts';
 
 export * from './catalog.ts';
 export { RARITY_NAMES, RARITIES, type Rarity } from './rarity.ts';
@@ -42,4 +42,3 @@ export function canEquip(slot: Slot, id: string, owned: readonly string[]): bool
 
 export const ownsKey = (owned: readonly string[], key: string) => owned.includes(key) || STARTER_KEYS.includes(key);
 
-export { itemByKey };

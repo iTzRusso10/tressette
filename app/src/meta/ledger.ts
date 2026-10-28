@@ -12,7 +12,7 @@ import { BALANCE } from './balance.ts';
 import { DEFAULT_EQUIPPED, ITEMS, itemByKey, itemOf, migrateCosmetics, SLOTS, STARTER_KEYS, type Slot } from './catalog.ts';
 import { claimBonusOn, type BonusState } from './economy.ts';
 import { levelInfo } from './levels.ts';
-import { distinctProgress, missionById, missionsFor, weekOf, type MissionEvent } from './missions.ts';
+import { distinctProgress, missionsFor, weekOf, type MissionEvent } from './missions.ts';
 import { addHand, addMatch, emptyStats, normalizeStats, type HandRecord, type MatchRecord, type Stats } from './progress.ts';
 import { reqProgress, type ReqView } from './reqs.ts';
 import { levelReward, legendReward, prestigeReward } from './rewards.ts';

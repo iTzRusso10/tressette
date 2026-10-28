@@ -233,8 +233,9 @@ describe('missioni', () => {
   });
   it('ricompense nei limiti: 30–100 al giorno, 200–500 alla settimana', () => {
     for (const m of MISSIONS) {
-      if (m.period === 'daily') expect(m.coins).toBeGreaterThanOrEqual(30), expect(m.coins).toBeLessThanOrEqual(100);
-      else expect(m.coins).toBeGreaterThanOrEqual(200), expect(m.coins).toBeLessThanOrEqual(500);
+      const [lo, hi] = m.period === 'daily' ? [30, 100] : [200, 500];
+      expect(m.coins).toBeGreaterThanOrEqual(lo);
+      expect(m.coins).toBeLessThanOrEqual(hi);
     }
   });
   it('si completano giocando e pagano una volta; il giorno dopo ne arrivano di nuove', () => {
