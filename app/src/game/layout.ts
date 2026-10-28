@@ -55,6 +55,12 @@ export interface Geometry {
 
 export const TAG_H = 42;
 export const TAG_W = 132;
+/** The table's rail around the cloth (drawn by Felt): wood, leather, metal, depending on the felt. */
+export const RAIL = 9;
+/** Cards on the table never get bigger than this, relative to your hand: the felt must show. */
+const TABLE_MAX = 0.76;
+/** How much of the top player's cards shows above their name. */
+const PEEK = 0.46;
 const PAD = 12;
 /** Side players' cards, relative to the top player's: smaller, so the table gets the room. */
 const SIDE = 0.62;
@@ -94,37 +100,48 @@ export function measure(m: Match, W: number, H: number): Geometry {
   const os = m.game === 'tressette' && m.n === 2 ? 0.4 : 0.46;
   const oppTop = TOP_BAR + 6;
   const oppH = ch * os;
-  const topTagY = oppTop + oppH + 4;
-  const myTagY = handTop - 10 - TAG_H;
-  const feltTop = topTagY + TAG_H + 4;
-  const feltBottom = myTagY - 6;
-  const felt: Rect = { x: left + PAD, y: feltTop, w: colW - 2 * PAD, h: Math.max(120, feltBottom - feltTop) };
+  // The names sit on the table's edge, half on the rail, like players at a real table: the top
+  // player's name in front of their cards (the backs peek out above it), yours just above your hand.
+  const topTagY = Math.round(oppTop + oppH * PEEK);
+  const myTagY = Math.round(handTop - 8 - TAG_H);
+  const tableTop = topTagY + TAG_H / 2;
+  const tableBottom = myTagY + TAG_H / 2;
+  // The felt is the cloth, inside the rail.
+  const felt: Rect = {
+    x: left + PAD + RAIL,
+    y: tableTop + RAIL,
+    w: colW - 2 * PAD - 2 * RAIL,
+    h: Math.max(120, tableBottom - tableTop - 2 * RAIL),
+  };
 
-  // In four the side players' names sit on the felt's top corners: cards are played below them.
-  const band = m.n === 4 ? TAG_H + 16 : 0;
-  const area: Rect = { x: felt.x, y: felt.y + band, w: felt.w, h: felt.h - band - (m.n === 4 ? 4 : 0) };
+  // Where cards can be played: the cloth, minus the names that reach into it.
+  // In four the side players' names sit in the cloth's top corners, below the top player's name.
+  const sideTagY = m.n === 4 ? Math.max(felt.y + 8, topTagY + TAG_H + 6) : 0;
+  const top = m.n === 4 ? sideTagY + TAG_H + 8 : topTagY + TAG_H + 8;
+  const bottom = myTagY - 8;
+  const area: Rect = { x: felt.x, y: top, w: felt.w, h: Math.max(80, bottom - top) };
 
-  // In four the side players' cards lie along the felt's edges, inside the screen.
-  const sideW = m.n === 4 ? ch * os * SIDE : 0;
+  // In four the side players' cards lie along the felt's edges.
+  const sideW = m.n === 4 ? ch * os * SIDE + 8 : 0;
 
-  // Cards on the table.
+  // Cards on the table: smaller than your hand, so the felt you chose shows around them.
   let ts: number;
   if (m.game === 'scopa') {
-    const fitW = (area.w - 2 * sideW - 20) / (4 * cw * 1.06);
-    const fitH = (area.h - 16) / (3 * ch * 1.04);
-    ts = Math.min(0.86, fitW, fitH);
+    const fitW = (area.w - 2 * sideW - 16) / (4 * cw * 1.06);
+    const fitH = (area.h - 8) / (3 * ch * 1.04);
+    ts = Math.min(TABLE_MAX, fitW, fitH);
   } else {
     // Two cards one above the other (offset 0.58 or 0.6 of a card each way), plus a margin.
-    const fitH = (area.h - 16) / (ch * 2.24);
-    const fitW = (area.w - 2 * sideW - 20) / (cw * (m.n === 2 ? 1.2 : 3));
-    ts = Math.min(1, fitH, fitW);
+    const fitH = (area.h - 8) / (ch * 2.24);
+    const fitW = (area.w - 2 * sideW - 16) / (cw * (m.n === 2 ? 1.2 : 3));
+    ts = Math.min(TABLE_MAX, fitH, fitW);
   }
 
   const tags: Record<Side, TagPos> = {
-    b: { x: left + PAD, y: myTagY, a: 'l' },
+    b: { x: left + PAD + RAIL + 6, y: myTagY, a: 'l' },
     t: { x: cx, y: topTagY, a: 'c' },
-    l: { x: left + PAD + 4, y: felt.y + 10, a: 'l' },
-    r: { x: left + colW - PAD - 4, y: felt.y + 10, a: 'r' },
+    l: { x: felt.x + 6, y: sideTagY, a: 'l' },
+    r: { x: felt.x + felt.w - 6, y: sideTagY, a: 'r' },
   };
   const ds = Math.min(0.5, os * 1.15);
   const deck = { x: left + PAD + (cw * ds) / 2 + 6, y: oppTop + (ch * ds) / 2, s: ds };

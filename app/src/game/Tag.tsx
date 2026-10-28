@@ -85,9 +85,11 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     paddingRight: 10,
     borderRadius: TAG_H / 2,
-    backgroundColor: colors.shade,
+    // Solid enough to sit on the table's edge and in front of the top player's cards.
+    backgroundColor: 'rgba(34,10,62,0.93)',
     borderWidth: 1,
     borderColor: colors.glassLineSoft,
+    boxShadow: '0px 4px 12px rgba(20,4,40,0.38)',
     zIndex: 600,
   },
   ring: { position: 'absolute', left: -2, top: -2, right: -2, bottom: -2, borderRadius: TAG_H / 2 + 2, borderWidth: 2 },

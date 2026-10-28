@@ -64,6 +64,7 @@
     "check:visual": "node scripts/visual-check.mjs",
     "check:online": "node scripts/online-check.mjs",
     "check:hub": "node scripts/hub-check.mjs",
+    "check:felts": "node scripts/felt-shots.mjs",
     "check": "tsc --noEmit && expo lint && vitest run",
     "ios:telefono": "expo run:ios --device --configuration Release",
     "android:telefono": "expo run:android --device --variant release"

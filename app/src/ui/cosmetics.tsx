@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { backImage, FRONTS } from '@/game/cardImages';
-import { FeltArt, RIM } from '@/game/Felt';
+import { FeltArt, RAIL } from '@/game/Felt';
 import { useProfile } from '@/meta/profile';
 import type { Item } from '@/meta/shop';
 import { CARD_RATIO, cardRadius, shadow } from './theme';
@@ -49,7 +49,7 @@ export interface TablePreviewProps {
 /** A small table: the same felt as in a match, in scale, with a few cards on it like a photo. */
 export const TablePreview = memo(function TablePreview({ felt, pattern, back, width, height, cards }: TablePreviewProps) {
   const s = Math.max(0.3, Math.min(1, width / TABLE_W));
-  const B = Math.max(1.5, RIM * s);
+  const B = Math.max(2, RAIL * s);
   const rad = Math.min(34 * s, (width - 2 * B) * 0.09) + B;
   const iw = width - 2 * B;
   const ih = height - 2 * B;

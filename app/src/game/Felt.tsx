@@ -1,17 +1,18 @@
 import { memo, useId, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { ClipPath, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { itemById, type FeltLook } from '@/meta/shop';
-import type { Rect as R } from './layout';
+import { RAIL, type Rect as R } from './layout';
 
-/** The rim around the cloth, outside the felt rectangle (the cards never go over it). */
-export const RIM = 3;
+/** The rail around the cloth, outside the felt rectangle (the cards never go over it). */
+export { RAIL };
 
 const SMERALDO: FeltLook = {
   cloth: ['#14806A', '#0B4D42', '#06352E'],
   rim: ['#FFFFFF', '#FFE3F0', '#FFFFFF'],
   trim: null,
   velvet: false,
+  rail: 'glass',
 };
 
 /** The look of a felt from its id in the shop (emerald when unknown). */
@@ -433,59 +434,136 @@ export function designOf(id: string, w: number, h: number, rad: number): Design 
 
 /* ------------------------------------------------------------------ the drawing */
 
+/** A rounded rectangle with true circular corners, as a path (so rings line up with <Rect rx>). */
+function roundRect(x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  const a = (ex: number, ey: number) => `A${f(rr)} ${f(rr)} 0 0 1 ${f(ex)} ${f(ey)}`;
+  return (
+    `M${f(x + rr)} ${f(y)}H${f(x + w - rr)}${a(x + w, y + rr)}V${f(y + h - rr)}${a(x + w - rr, y + h)}` +
+    `H${f(x + rr)}${a(x, y + h - rr)}V${f(y + rr)}${a(x + rr, y)}Z`
+  );
+}
+
+/** Points evenly spread along the straight parts of the rail's middle line, for the studs. */
+function studPoints(W: number, H: number, R0: number, c: number, gap: number): [number, number][] {
+  const out: [number, number][] = [];
+  const run = (x0: number, y0: number, x1: number, y1: number) => {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(1, Math.round(len / gap));
+    for (let i = 0; i <= n; i++) out.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
+  };
+  const k = R0 + gap * 0.35;
+  run(k, c, W - k, c);
+  run(k, H - c, W - k, H - c);
+  run(c, k, c, H - k);
+  run(W - c, k, W - c, H - k);
+  return out;
+}
+
 export interface FeltArtProps {
   /** Felt id (shop.ts). */
   felt: string;
   /** Design id (shop.ts), 'nessuno' for plain cloth. */
   pattern: string;
-  /** Outer size, rim included. */
+  /** Outer size, rail included. */
   width: number;
   height: number;
-  /** 1 on the table; smaller in previews, so rim, corners and lines keep their proportions. */
+  /** 1 on the table; smaller in previews, so rail, corners and lines keep their proportions. */
   scale?: number;
-  /** Draw the rim (false: just a piece of cloth). */
+  /** Draw the rail (false: just a piece of cloth). */
   rim?: boolean;
   /** Makes the design stronger, for small previews where it would disappear. */
   boost?: number;
 }
 
-/** The felt drawn in a box: rim, cloth, sheen, design, trim. No position, no shadow: see Felt. */
+/**
+ * The felt drawn in a box, like a real card table: a rail (glass, padded leather, wood or polished
+ * metal, with corners and studs on the rarer ones) around a cloth with its weave, a stitched seam,
+ * the light from above and the chosen design pressed into it. No position, no shadow: see Felt.
+ */
 function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boost = 1 }: FeltArtProps) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const id = (s: string) => `${s}${uid}`;
   const look = feltLook(felt);
-  const B = rim ? Math.max(1.5, RIM * scale) : 0;
+  const B = rim ? Math.max(2, RAIL * scale) : 0;
   const w = width - 2 * B;
   const h = height - 2 * B;
   const rad = Math.min(34 * scale, w * 0.09);
+  const R0 = rad + B;
   const cloth = clothStops(look);
-  const glass = look.rim[0] === look.rim[2];
-  // The emerald's rim is white glass over the sky; the others are solid wood, brass, silver, gold.
-  const rimOp = glass ? [0.95, 0.55, 0.35] : [1, 1, 1];
+  const glass = look.rail === 'glass';
+  const metal = look.rail === 'metal';
+  // Details that would only be noise in a tiny preview.
+  const fine = scale >= 0.42;
+  const railFine = B >= 4.5;
+
   const design = useMemo(() => designOf(pattern, w, h, rad), [pattern, w, h, rad]);
   // The design is drawn in a lighter tone of the cloth (or in the trim's metal), pressed into the felt.
-  const ink = look.trim ? mix(look.trim, cloth[0], 0.25) : mix(cloth[0], '#FFFFFF', 0.42);
+  const ink = look.trim ? mix(look.trim, cloth[0], 0.2) : mix(cloth[0], '#FFFFFF', 0.45);
   const dark = luma(cloth[1]) < 0.02;
-  const op = Math.min(0.9, (dark ? 0.22 : 0.19) * (look.velvet ? 1.1 : 1) * boost * (design?.k ?? 1));
+  const op = Math.min(0.9, (dark ? 0.27 : 0.23) * (look.velvet ? 1.1 : 1) * boost * (design?.k ?? 1));
   const emboss = Math.max(0.6, (design?.sw ?? 1) * 0.7);
-  const trimIn = Math.max(2.5, 5 * scale);
-  const id = (s: string) => `${s}${uid}`;
+
+  const ring = useMemo(() => (B ? roundRect(0, 0, width, height, R0) + roundRect(B, B, w, h, rad) : ''), [B, width, height, R0, w, h, rad]);
+  const hasStuds = !!look.studs;
+  const studs = useMemo(
+    () => (B && hasStuds && railFine ? studPoints(width, height, R0, B / 2, Math.max(16, 30 * scale)) : []),
+    [B, hasStuds, railFine, width, height, R0, scale],
+  );
+
+  // Metal fittings and studs: the trim's metal, or a lighter tone of the rail.
+  const metalTone = look.trim ?? mix(look.rim[0], '#FFFFFF', 0.25);
+  const metalDark = mix(look.rim[2], '#000000', 0.35);
+  // The seam: a lighter thread on the cloth, a darker one on leather.
+  const thread = mix(cloth[0], '#FFFFFF', 0.5);
+  const leatherThread = mix(look.rim[0], '#FFFFFF', 0.55);
+  const grain = mix(look.rim[2], '#000000', 0.35);
+  const sw = Math.max(0.6, scale);
+  const weave = Math.max(2.5, 3.2 * scale);
+  const trimIn = Math.max(2.5, 6 * scale);
+  // The seam runs a finger inside the rail, or inside the metal trim.
+  const seamIn = look.trim ? trimIn + Math.max(3, 5 * scale) : Math.max(3, 7 * scale);
 
   return (
     <Svg width={width} height={height}>
       <Defs>
         <LinearGradient id={id('rim')} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={look.rim[0]} stopOpacity={rimOp[0]} />
-          <Stop offset="0.5" stopColor={look.rim[1]} stopOpacity={rimOp[1]} />
-          <Stop offset="1" stopColor={look.rim[2]} stopOpacity={rimOp[2]} />
+          <Stop offset="0" stopColor={look.rim[0]} stopOpacity={glass ? 0.95 : 1} />
+          <Stop offset="0.5" stopColor={look.rim[1]} stopOpacity={glass ? 0.6 : 1} />
+          <Stop offset="1" stopColor={look.rim[2]} stopOpacity={glass ? 0.42 : 1} />
         </LinearGradient>
-        <RadialGradient id={id('cloth')} cx="50%" cy="34%" rx="75%" ry="66%">
+        {/* The rail is rounded: light on top, shade below. */}
+        <LinearGradient id={id('volume')} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={glass ? 0.25 : metal ? 0.34 : 0.2} />
+          <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="1" stopColor="#000000" stopOpacity={glass ? 0.05 : metal ? 0.3 : 0.24} />
+        </LinearGradient>
+        {/* Polished metal catches two bands of light. */}
+        <LinearGradient id={id('shine')} x1="0" y1="0" x2="1" y2="0.6">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.16" stopColor="#FFFFFF" stopOpacity={0.5} />
+          <Stop offset="0.28" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.6" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.7" stopColor="#FFFFFF" stopOpacity={0.3} />
+          <Stop offset="0.8" stopColor="#FFFFFF" stopOpacity={0} />
+        </LinearGradient>
+        <RadialGradient id={id('cloth')} cx="50%" cy="38%" rx="72%" ry="64%">
           <Stop offset="0" stopColor={cloth[0]} />
           <Stop offset={look.velvet ? '0.62' : '0.55'} stopColor={cloth[1]} />
           <Stop offset="1" stopColor={cloth[2]} />
         </RadialGradient>
-        {/* The design stays on the cloth, inside the trim when there is one. */}
+        {/* The light of a lamp over the table. */}
+        <RadialGradient id={id('lamp')} cx="50%" cy="30%" rx="46%" ry="34%">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={look.velvet ? 0.12 : 0.09} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+        </RadialGradient>
+        {/* The weave of the cloth: fine threads both ways, barely there. On velvet, softer still. */}
+        <Pattern id={id('weave')} x={B} y={B} width={weave} height={weave} patternUnits="userSpaceOnUse">
+          <Line x1={0} y1={weave} x2={weave} y2={0} stroke="#FFFFFF" strokeOpacity={look.velvet ? 0.035 : 0.06} strokeWidth={0.7} />
+          <Line x1={0} y1={0} x2={weave} y2={weave} stroke="#000000" strokeOpacity={look.velvet ? 0.05 : 0.08} strokeWidth={0.7} />
+        </Pattern>
         <ClipPath id={id('clip')}>
-          <Rect x={B + 2} y={B + 2} width={w - 4} height={h - 4} rx={Math.max(0, rad - 2)} ry={Math.max(0, rad - 2)} />
+          <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} />
         </ClipPath>
         {look.velvet ? (
           <>
@@ -502,8 +580,61 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
           </>
         ) : null}
       </Defs>
-      {rim ? <Rect x={0} y={0} width={width} height={height} rx={rad + B} ry={rad + B} fill={`url(#${id('rim')})`} /> : null}
+
+      {/* ------------------------------------------------ the rail */}
+      {B ? (
+        <>
+          <Path d={ring} fillRule="evenodd" fill={`url(#${id('rim')})`} />
+          <Path d={ring} fillRule="evenodd" fill={`url(#${id('volume')})`} />
+          {metal ? <Path d={ring} fillRule="evenodd" fill={`url(#${id('shine')})`} /> : null}
+          {look.rail === 'wood' && railFine ? (
+            // The grain of the wood, running along the rail.
+            <G fill="none" stroke={grain} strokeWidth={sw * 0.7} strokeLinecap="round">
+              <Path
+                d={roundRect(B * 0.28, B * 0.28, width - B * 0.56, height - B * 0.56, R0 - B * 0.28)}
+                strokeOpacity={0.4}
+                strokeDasharray={`${f(46 * scale)} ${f(9 * scale)} ${f(18 * scale)} ${f(5 * scale)}`}
+              />
+              <Path
+                d={roundRect(B * 0.52, B * 0.52, width - B * 1.04, height - B * 1.04, R0 - B * 0.52)}
+                strokeOpacity={0.3}
+                strokeDasharray={`${f(28 * scale)} ${f(6 * scale)} ${f(60 * scale)} ${f(8 * scale)}`}
+                strokeDashoffset={f(17 * scale)}
+              />
+              <Path
+                d={roundRect(B * 0.76, B * 0.76, width - B * 1.52, height - B * 1.52, R0 - B * 0.76)}
+                strokeOpacity={0.36}
+                strokeDasharray={`${f(70 * scale)} ${f(7 * scale)} ${f(24 * scale)} ${f(10 * scale)}`}
+                strokeDashoffset={f(40 * scale)}
+              />
+            </G>
+          ) : null}
+          {look.rail === 'leather' && railFine ? (
+            // Padded leather, stitched along the middle.
+            <Path
+              d={roundRect(B / 2, B / 2, width - B, height - B, R0 - B / 2)}
+              fill="none"
+              stroke={leatherThread}
+              strokeOpacity={0.85}
+              strokeWidth={sw * 0.9}
+              strokeDasharray={`${f(3.4 * scale)} ${f(2.6 * scale)}`}
+              strokeLinecap="round"
+            />
+          ) : null}
+          {metal && railFine ? (
+            // An engraved line along the middle of the metal.
+            <Path d={roundRect(B / 2, B / 2, width - B, height - B, R0 - B / 2)} fill="none" stroke={metalDark} strokeOpacity={0.45} strokeWidth={sw * 0.8} />
+          ) : null}
+          {/* The outer edge catches the light; the inner lip drops into the cloth. */}
+          <Path d={roundRect(0.5, 0.5, width - 1, height - 1, R0 - 0.5)} fill="none" stroke="#FFFFFF" strokeOpacity={glass ? 0.9 : 0.35} strokeWidth={1} />
+          <Path d={roundRect(B - 0.5, B - 0.5, w + 1, h + 1, rad + 0.5)} fill="none" stroke="#000000" strokeOpacity={glass ? 0.18 : 0.42} strokeWidth={1} />
+        </>
+      ) : null}
+
+      {/* ------------------------------------------------ the cloth */}
       <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('cloth')})`} />
+      {fine ? <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('weave')})`} /> : null}
+      <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill={`url(#${id('lamp')})`} />
       {design ? (
         <G clipPath={`url(#${id('clip')})`}>
           <G transform={`translate(${B} ${B})`}>
@@ -535,39 +666,103 @@ function FeltArtImpl({ felt, pattern, width, height, scale = 1, rim = true, boos
           ry={Math.max(2, rad - trimIn)}
           fill="none"
           stroke={look.trim}
-          strokeOpacity={0.8}
-          strokeWidth={Math.max(0.75, 1.1 * scale)}
+          strokeOpacity={0.85}
+          strokeWidth={Math.max(0.75, 1.3 * scale)}
         />
       ) : null}
-      {/* The cloth goes a little under the rim. */}
-      <Rect
-        x={B + 1}
-        y={B + 1}
-        width={w - 2}
-        height={h - 2}
-        rx={Math.max(0, rad - 1)}
-        ry={Math.max(0, rad - 1)}
-        fill="none"
-        stroke="#000"
-        strokeOpacity={look.velvet ? 0.28 : 0.22}
-        strokeWidth={Math.max(2, 4 * scale)}
-      />
+      {fine && rim ? (
+        // The seam where the cloth is stitched to the table.
+        <Rect
+          x={B + seamIn}
+          y={B + seamIn}
+          width={w - 2 * seamIn}
+          height={h - 2 * seamIn}
+          rx={Math.max(2, rad - seamIn)}
+          ry={Math.max(2, rad - seamIn)}
+          fill="none"
+          stroke={look.trim ? mix(look.trim, cloth[1], 0.35) : thread}
+          strokeOpacity={look.trim ? 0.4 : 0.3}
+          strokeWidth={sw}
+          strokeDasharray={`${f(4.5 * scale)} ${f(3.5 * scale)}`}
+          strokeLinecap="round"
+        />
+      ) : null}
+      {/* The rail casts a soft shadow on the cloth. */}
+      <G clipPath={`url(#${id('clip')})`}>
+        <Rect x={B} y={B} width={w} height={h} rx={rad} ry={rad} fill="none" stroke="#000" strokeOpacity={0.1} strokeWidth={Math.max(4, 16 * scale)} />
+        <Rect
+          x={B}
+          y={B}
+          width={w}
+          height={h}
+          rx={rad}
+          ry={rad}
+          fill="none"
+          stroke="#000"
+          strokeOpacity={look.velvet ? 0.3 : 0.24}
+          strokeWidth={Math.max(2, 5 * scale)}
+        />
+      </G>
+
+      {/* ------------------------------------------------ fittings on the rail */}
+      {studs.map(([x, y], i) => (
+        <G key={i}>
+          <Circle cx={x} cy={y + 0.4} r={B * 0.22} fill="#000000" fillOpacity={0.35} />
+          <Circle cx={x} cy={y} r={B * 0.2} fill={metalTone} />
+          <Circle cx={x - B * 0.06} cy={y - B * 0.06} r={B * 0.08} fill="#FFFFFF" fillOpacity={0.8} />
+        </G>
+      ))}
+      {B && look.corners && railFine
+        ? [
+            [R0, R0, 180],
+            [width - R0, R0, 270],
+            [width - R0, height - R0, 0],
+            [R0, height - R0, 90],
+          ].map(([cx, cy, a0], i) => {
+            // A metal fitting over each corner of the rail, with a diamond in the middle.
+            const r = R0 - B / 2;
+            const p = (a: number) => polar(r, a).map((v, k) => v + (k ? cy : cx)) as [number, number];
+            const [x0, y0] = p(a0 + 6);
+            const [x1, y1] = p(a0 + 84);
+            const [mx, my] = p(a0 + 45);
+            const arc = `M${f(x0)} ${f(y0)}A${f(r)} ${f(r)} 0 0 1 ${f(x1)} ${f(y1)}`;
+            const k = B * 0.95;
+            const dia = new Pen(mx, my, ((a0 + 45) * Math.PI) / 180).diamond(0, 0, k * 0.7, k).d;
+            return (
+              <G key={i}>
+                <Path d={arc} fill="none" stroke={metalDark} strokeOpacity={0.85} strokeWidth={B * 0.95 + 1.6} strokeLinecap="round" />
+                <Path d={arc} fill="none" stroke={metalTone} strokeWidth={B * 0.95} strokeLinecap="round" />
+                <Path d={arc} fill="none" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={B * 0.2} strokeLinecap="round" />
+                {[
+                  [x0, y0],
+                  [x1, y1],
+                ].map(([x, y], j) => (
+                  <Circle key={j} cx={x} cy={y} r={B * 0.16} fill={metalDark} fillOpacity={0.7} />
+                ))}
+                <Path d={dia} fill={metalTone} stroke={metalDark} strokeWidth={1} />
+                {/* A stone in the middle, the colour of the cloth. */}
+                <Circle cx={mx} cy={my} r={B * 0.26} fill={cloth[0]} stroke={metalDark} strokeWidth={0.6} />
+                <Circle cx={mx - B * 0.08} cy={my - B * 0.08} r={B * 0.09} fill="#FFFFFF" fillOpacity={0.85} />
+              </G>
+            );
+          })
+        : null}
     </Svg>
   );
 }
 
 export const FeltArt = memo(FeltArtImpl);
 
-/** The table's felt, with its rim and the chosen design. Drawn once, never moves. */
+/** The table: the felt with its rail and the chosen design. Drawn once, never moves. */
 export function Felt({ rect, felt = 'smeraldo', pattern = 'nessuno' }: { rect: R; felt?: string; pattern?: string }) {
   const rad = Math.min(34, rect.w * 0.09);
-  const W = rect.w + RIM * 2;
-  const H = rect.h + RIM * 2;
+  const W = rect.w + RAIL * 2;
+  const H = rect.h + RAIL * 2;
   return (
     <View
       testID="fixed-felt"
       pointerEvents="none"
-      style={[styles.wrap, { left: rect.x - RIM, top: rect.y - RIM, width: W, height: H, borderRadius: rad + RIM }]}
+      style={[styles.wrap, { left: rect.x - RAIL, top: rect.y - RAIL, width: W, height: H, borderRadius: rad + RAIL }]}
     >
       <FeltArt felt={felt} pattern={pattern} width={W} height={H} />
     </View>
@@ -575,5 +770,5 @@ export function Felt({ rect, felt = 'smeraldo', pattern = 'nessuno' }: { rect: R
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', boxShadow: '0px 22px 46px rgba(40,8,70,0.45)' },
+  wrap: { position: 'absolute', boxShadow: '0px 22px 46px rgba(40,8,70,0.45), 0px 3px 8px rgba(40,8,70,0.3)' },
 });

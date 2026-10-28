@@ -94,7 +94,8 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
       </View>
 
       {h && hasDeck(m) && h.deck.length > 0 && event?.k !== 'deal' ? (
-        <View pointerEvents="none" style={[styles.deckCount, { left: g.deck.x - 16, top: g.deck.y + (g.ch * g.deck.s) / 2 - 4 }]}>
+        // On the pile itself, near its foot: the pile lies on the table's corner.
+        <View pointerEvents="none" style={[styles.deckCount, { left: g.deck.x - 16, top: g.deck.y + (g.ch * g.deck.s) / 2 - 26 }]}>
           <Text allowFontScaling={false} style={styles.deckCountText}>
             {h.deck.length}
           </Text>

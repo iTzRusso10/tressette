@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { chooseMove, createMatch, play, seeded, startHand, type GameId, type Match, type Mode } from '@/engine';
-import { assignSlots, layoutCards, measure, sideOf, TAG_H, TAG_W, type Geometry, type Place } from '../layout';
+import { assignSlots, layoutCards, measure, RAIL, sideOf, TAG_H, TAG_W, type Geometry, type Place } from '../layout';
 
 vi.mock('@/ui/theme', () => ({ CARD_RATIO: 575 / 360 }));
 
@@ -80,7 +80,8 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
   for (const c of h.hands[top]) {
     const b = box(places[c], g);
     expect(b.y0, `${where}: le carte in alto finiscono sotto il tabellone`).toBeGreaterThanOrEqual(g.topBar);
-    expect(b.y1, `${where}: le carte in alto coprono il nome`).toBeLessThanOrEqual(g.tags.t.y + 1);
+    // The name sits in front of the top player's cards: the backs must still show above it.
+    expect(g.tags.t.y - b.y0, `${where}: le carte in alto sono nascoste dal nome`).toBeGreaterThanOrEqual(g.ch * g.os * 0.4);
   }
   // The names fit inside the column and don't overlap each other.
   tags.forEach(t => {
@@ -91,8 +92,11 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
     for (let j = i + 1; j < tags.length; j++) {
       expect(hits(tags[i], tags[j]), `${where}: due nomi si sovrappongono`).toBe(false);
     }
-  expect(f.y, `${where}: il panno sale sotto il nome in alto`).toBeGreaterThanOrEqual(g.tags.t.y + TAG_H);
-  expect(f.y + f.h, `${where}: il panno scende sotto il tuo nome`).toBeLessThanOrEqual(g.tags.b.y);
+  // The names sit half on the table's edge.
+  expect(Math.abs(f.y - RAIL - (g.tags.t.y + TAG_H / 2)), `${where}: il nome in alto non è sul bordo`).toBeLessThanOrEqual(1);
+  expect(Math.abs(f.y + f.h + RAIL - (g.tags.b.y + TAG_H / 2)), `${where}: il tuo nome non è sul bordo`).toBeLessThanOrEqual(1);
+  // The table's cards stay smaller than your hand, so the felt shows.
+  expect(g.ts, `${where}: le carte in tavola sono troppo grandi`).toBeLessThanOrEqual(0.76);
 }
 
 describe('geometria del tavolo', () => {
