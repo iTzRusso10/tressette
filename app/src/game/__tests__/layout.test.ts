@@ -43,6 +43,12 @@ function tagRects(m: Match, g: Geometry) {
   });
 }
 
+/** The menu button, top left of the column. */
+const menu = (g: Geometry) => {
+  const x0 = g.cx - g.colW / 2 + 12;
+  return { x0, x1: x0 + 44, y0: 5, y1: 49 };
+};
+
 const hits = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }) =>
   a.x0 < b.x1 - 1 && b.x0 < a.x1 - 1 && a.y0 < b.y1 - 1 && b.y0 < a.y1 - 1;
 
@@ -79,9 +85,18 @@ function check(m: Match, g: Geometry, slots: Map<number, number>, where: string)
   const top = m.n === 2 ? 1 : 2;
   for (const c of h.hands[top]) {
     const b = box(places[c], g);
-    expect(b.y0, `${where}: le carte in alto finiscono sotto il tabellone`).toBeGreaterThanOrEqual(g.topBar);
+    expect(b.y0, `${where}: le carte in alto escono dallo schermo`).toBeGreaterThanOrEqual(0);
+    expect(hits(b, menu(g)), `${where}: le carte in alto coprono il menu`).toBe(false);
     // The name sits in front of the top player's cards: the backs must still show above it.
     expect(g.tags.t.y - b.y0, `${where}: le carte in alto sono nascoste dal nome`).toBeGreaterThanOrEqual(g.ch * g.os * 0.4);
+  }
+  // The deck: on screen, off the menu and the names.
+  for (const c of h.deck) {
+    const b = box(places[c], g);
+    expect(b.x1, `${where}: il mazzo esce a destra`).toBeLessThanOrEqual(g.W);
+    expect(b.y0, `${where}: il mazzo esce in alto`).toBeGreaterThanOrEqual(0);
+    expect(hits(b, menu(g)), `${where}: il mazzo copre il menu`).toBe(false);
+    tags.forEach((t, i) => expect(hits(b, t), `${where}: il mazzo copre il nome ${i}`).toBe(false));
   }
   // The names fit inside the column and don't overlap each other.
   tags.forEach(t => {

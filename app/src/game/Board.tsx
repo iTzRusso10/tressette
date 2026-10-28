@@ -90,7 +90,7 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
       <Pressable style={StyleSheet.absoluteFill} onPress={clearSelection} accessible={false} />
       <Felt rect={g.felt} felt={equipped.felt} pattern={equipped.pattern} />
       <View testID="fixed-topbar" style={[styles.topBar, { left: g.cx - g.colW / 2 }]}>
-        <TopBar m={m} viewer={viewer} onMenu={onMenu} width={g.colW} />
+        <TopBar onMenu={onMenu} />
       </View>
 
       {h && hasDeck(m) && h.deck.length > 0 && event?.k !== 'deal' ? (

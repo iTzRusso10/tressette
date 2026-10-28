@@ -100,15 +100,18 @@ function Moment({ fx, g }: { fx: Fx; g: Geometry }) {
   );
 }
 
-/** Notices drop in over the score bar, like a system notification: they never cover a card. */
+/**
+ * Notices drop in at the top, beside the menu button, like a system notification: over covered
+ * cards for a moment, never over a card in play.
+ */
 function Toast({ fx, g }: { fx: Fx; g: Geometry }) {
-  const left = g.cx - g.colW / 2 + 12;
+  const left = g.cx - g.colW / 2 + 12 + 44 + 8;
   return (
     <Animated.View
       entering={SlideInUp.duration(dur.enter).easing(ease.in)}
       exiting={FadeOutUp.duration(dur.exit).easing(ease.out)}
       pointerEvents="none"
-      style={[styles.toast, { left, width: g.colW - 24, top: 5 }]}
+      style={[styles.toast, { left, width: g.colW - 24 - 52, top: 5 }]}
     >
       <Text allowFontScaling={false} numberOfLines={1} style={styles.toastTitle}>
         {fx.text}
@@ -182,7 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: radius.pill,
     justifyContent: 'center',
-    backgroundColor: colors.shadeStrong,
+    backgroundColor: 'rgba(34,10,62,0.96)',
     borderWidth: 1,
     borderColor: colors.glassLine,
     boxShadow: '0px 10px 26px rgba(40,8,70,0.4)',

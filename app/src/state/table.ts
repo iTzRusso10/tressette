@@ -362,10 +362,8 @@ async function present(st: Step, g: number) {
       return;
     case 'play':
       sfxAt(g, 'card', landAt(flight()), { haptic: false });
-      if (e.sig) {
-        pushFx('bubble', e.sig + '!', { p: e.p, ms: 2400 });
-        pushFx('toast', nameOf(m, e.p), { sub: `${e.sig.toLowerCase()} a ${SUITS[suitOf(e.c)].toLowerCase()}`, ms: 1800 });
-      }
+      // The signal is said over the player's name; the suit is the card just played.
+      if (e.sig) pushFx('bubble', e.sig + '!', { p: e.p, ms: 2400 });
       await wait(h.inPlay ? T.play : T.play + (m.game === 'scopa' ? 150 : 0));
       return;
     case 'capture':
