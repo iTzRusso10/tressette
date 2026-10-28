@@ -11,7 +11,7 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - `src/online/`: stanze online. `room.ts` (host autorevole, si trasmettono solo le mosse e gli ospiti le rigiocano con il motore), `transport.ts` (in memoria per i test, tra schede con `?local`), `supabase.ts` (Supabase Realtime), `session.ts` (stato per le schermate).
 - `src/meta/`: tutto quello che sta fuori dalla partita. `economy.ts` (monete, bonus giornaliero, livelli) e `progress.ts` (statistiche, trofei) sono funzioni pure condivise con il server; `profile.ts` è lo stato sul telefono; `sync.ts` lo allinea al server quando sei collegato; `auth.ts` (Apple, Google, Facebook), `friends.ts`, `stakes.ts` e `pot.ts` (posta online), `ads.ts` e `admob.native.ts` (video premio).
 - `supabase/`: tabelle, regole di sicurezza e funzioni del server (vedi `supabase/README.md` per attivare tutti i servizi). Monete e trofei di chi è collegato li cambia solo il server, con le stesse regole di `src/meta`.
-- `src/meta/arenas.ts` (trofei e arene) e `src/meta/shop.ts` (catalogo del negozio: panni, decori, dorsi; offerta del giorno) sono funzioni pure condivise con il server; `leaderboard.ts` legge le classifiche.
+- Progressione (funzioni pure, condivise con il server): `balance.ts` (tutti i numeri modificabili), `ledger.ts` (il registro: stato del giocatore e ogni azione che lo cambia, eseguito identico su telefono e server), `arenas.ts` (30 arene in 5 capitoli, trofei, Leggenda), `levels.ts` (100 livelli e Prestigio), `achievements.ts` (183), `titles.ts` (60), `missions.ts`, `seasons.ts`, `sets.ts` (15), `catalog.ts` (40 tavolini, 60 panni, 60 dorsi più la Collezione Napoli di prima), `shop.ts` (offerta del giorno), `sources.ts` (da dove si ottiene ogni oggetto), `reqs.ts` (requisiti verificabili). `leaderboard.ts` legge le classifiche (trofei e stagione).
 - `src/app/`: le schermate (Expo Router). `index.tsx` apre l'hub (`src/sections/Hub.tsx`): cinque sezioni a pagine orizzontali con la barra in basso — Negozio, Amici, **Gioca** (al centro, dove si apre l'app), Classifica, Trofei (arene e medaglie). `src/ui/`: tema, testo, componenti; `cosmetics.tsx` (anteprime di tavoli e dorsi), `ArenaScene.tsx` (illustrazioni delle arene), `ArenaReveal.tsx` (lo svelamento di una nuova arena).
 - `assets/cards/`: le 40 scansioni (`0.jpg` … `39.jpg`) e il retro. `scripts/make-art.mjs` disegna retro, icona e splash; `scripts/make-sounds.py` genera i suoni.
 
@@ -34,15 +34,15 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 
 ## Monete e premi
 
-- Si parte con 1000 monete. Bonus giornaliero da 100 a 500 a seconda della serie di giorni, raddoppiabile con un video. Vincere contro il computer: 20, 40 o 80 monete secondo il livello.
+- I numeri sono tutti in `src/meta/balance.ts`. Si parte con 1000 monete. Prima vittoria del giorno 100, vittoria 15, sconfitta in una partita finita 5 (le partite abbandonate non danno niente). Bonus giornaliero da 100 a 500 (raddoppiabile con un video). Missioni giornaliere 30–100, settimanali 200–500, achievement 100–1000, capitolo completato 500, livelli, gradi di Prestigio e di Leggenda.
 - Online si sceglie una posta (100, 500, 1000, 5000 o niente): pagano e incassano solo le persone, il piatto va a chi vince e il server paga solo quando la maggioranza dei giocatori conferma lo stesso risultato.
 
-## Trofei, arene e negozio
+## Progressione: trofei, livelli, achievement, stagioni
 
-- **Trofei** (la strada delle arene, `cups` nel codice) e **medaglie** (i traguardi con premio, `trophies` nel codice e sul server per ragioni storiche) sono due cose diverse.
-- Vittoria: Facile +1, Medio +2, Esperto +3, online +3. Sconfitta: −1, ma contro il Facile non si perde niente.
-- Ogni 8 trofei si sale di arena (10 arene napoletane, dal Vicolo alla Reggia). Un'arena raggiunta resta: non si scende sotto il suo primo trofeo. L'arena dà monete, il suo panno (messo subito sul tavolo) e a volte un dorso. Dopo la Reggia i trofei continuano a contare (Leggenda).
-- Il negozio vende con le monete panni, decori e dorsi; ogni giorno un oggetto è scontato del 30%. I pagamenti con soldi veri non ci sono: la monetizzazione la decide Giuseppe.
+- Quattro percorsi indipendenti che si premiano a vicenda. **Trofei** (`cups` nel codice): vittoria Facile +10, Medio +20, Esperto e online +30; sconfitta 0, −5, −10. **30 arene** in cinque capitoli, una ogni 100 trofei (0…2900); alcune avanzate chiedono un requisito (livello, vittorie contro l'Esperto, vittorie in tutti e tre i giochi). I trofei non si azzerano mai e non si scende sotto il primo trofeo dell'arena raggiunta. Dopo la trentesima, un grado di **Leggenda** ogni 200 trofei, senza fine. Un giocatore medio arriva in cima in circa 375–445 partite (`scripts/sim-trofei.py`).
+- **Livello**: 100 livelli con esperienza crescente, poi gradi di **Prestigio** ogni 10.000 punti. **Achievement** (`trophies` nel codice e sul server per ragioni storiche): 183 in 16 categorie, bronzo/argento/oro/platino. **Titoli**: 60, ognuno con un requisito, si scelgono nella sezione Trofei. **Missioni**: 3 al giorno e 4 alla settimana, scelte con il seme del giocatore. **Stagioni**: 60 giorni, dalla prima del 2 novembre 2026; azzerano solo i punti stagione.
+- **Cosmetici**: tavolino (la sponda), grafica del panno (la superficie) e dorso, liberamente combinabili; sei rarità; si ottengono dal negozio, dalle arene, dagli achievement, dai livelli, dalle stagioni, dai set, dagli eventi. Gli oggetti «in arrivo» aspettano un'illustrazione (`docs/asset-mancanti.md`, generato da `scripts/asset-mancanti.mjs`): si vedono ma non si comprano né si usano. Gli id degli oggetti in `owned` hanno il posto davanti (`felt:verde-smeraldo`); i vecchi id li converte `migrateCosmetics`.
+- Ogni regola sta in `ledger.ts`: per cambiare un comportamento si cambia lì (e i test in `src/meta/__tests__/progression.test.ts`), poi si ripubblica la funzione `progress`. Nessun oggetto dà vantaggi in partita.
 - Lo svelamento di una nuova arena aspetta che si lasci il tavolo.
 
 ## Qualità

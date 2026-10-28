@@ -51,7 +51,7 @@ export const BALANCE = {
   levelCoins: { base: 50, per: 5 },
   /** Monete per ogni grado di Prestigio (livello) e di Leggenda (trofei). */
   prestigeCoins: 1000,
-  legendCoins: 1000,
+  legendCoins: 500,
 
   missions: {
     /** Quante missioni al giorno e alla settimana. */

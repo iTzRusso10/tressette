@@ -18,6 +18,8 @@ npx supabase db push                     # applica solo le migrazioni nuove
 npx supabase functions deploy progress   # la funzione usa src/meta/arenas.ts e shop.ts: va ripubblicata a ogni loro modifica
 ```
 
+La migrazione `20261028000000_progressione_lunga.sql` aggiunge la colonna `meta` (arena raggiunta, missioni, stagione, set, titolo), il calendario delle stagioni, i punteggi e le classifiche di stagione (`leaderboard_season`, `my_season_rank`) e `close_seasons()`, che ogni notte scrive la classifica finale delle stagioni finite (serve l'estensione **pg_cron**: Database → Extensions; senza, lanciala a mano dopo la fine di ogni stagione). Le righe dei profili vecchi le converte la funzione alla prima chiamata, senza perdere oggetti o medaglie. Per aggiungere una stagione: una voce in `src/meta/seasons.ts` e una riga nella tabella `seasons` (stesse date).
+
 Pubblica prima la migrazione e poi la funzione: la funzione nuova legge le colonne `cups`, `best_cups`, `owned` ed `equipped`. Un'app vecchia continua a funzionare con il server nuovo, e una nuova con il server vecchio tiene trofei e oggetti sul telefono finché non aggiorni.
 
 Classifiche: `leaderboard('mondo' | 'amici')` (prime 100 posizioni per trofei; a parità chi ci è arrivato prima, poi l'esperienza) e `my_rank()` (la tua posizione nel mondo). Restituiscono solo nome, foto, trofei, esperienza e posizione, e solo a chi ha fatto l'accesso.
