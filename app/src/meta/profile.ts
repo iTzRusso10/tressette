@@ -20,11 +20,13 @@ import {
 import type { HandRecord, MatchRecord } from './progress';
 import type { Slot } from './catalog';
 import { BALANCE } from './balance';
+import { achievementById } from './achievements';
 
 export type { Gain, Progress };
 
 /** Qualcosa da festeggiare sullo schermo (una nuova arena prende tutto lo schermo). */
-export type Celebration = Gain & { id: number };
+/** `cid` è il numero della festa (non `id`: un achievement o un set hanno già il loro `id`). */
+export type Celebration = Gain & { cid: number };
 
 /** I trofei dell'ultima partita, per il riepilogo a fine partita. */
 export interface LastMatch {
@@ -101,24 +103,39 @@ export function progressOf(s: ProfileState = get()): Progress {
 
 const today = () => dayOf(new Date());
 
-/** Quali guadagni meritano un avviso: le monete solo per la vittoria, gli oggetti solo se arrivano da soli. */
+/**
+ * Quali guadagni meritano un avviso: le monete solo per la vittoria, gli oggetti solo se arrivano da
+ * soli. Tanti achievement o livelli insieme (un profilo che arriva da una versione vecchia) diventano
+ * un avviso solo, invece di una fila lunghissima.
+ */
 function worthShowing(gains: Gain[]): Gain[] {
   const big = gains.some(g => g.k === 'arena' || g.k === 'achievement' || g.k === 'set' || g.k === 'seasonTier' || g.k === 'legend' || g.k === 'prestige');
-  return gains.filter(g => {
-    if (g.k === 'coins') return g.why === 'Prima vittoria del giorno' || g.why === 'Vittoria';
+  const achievements = gains.filter(g => g.k === 'achievement');
+  const levels = gains.filter(g => g.k === 'level');
+  const many = achievements.length > 3;
+  const out = gains.filter(g => {
+    if (g.k === 'coins') return !many && (g.why === 'Prima vittoria del giorno' || g.why === 'Vittoria');
     if (g.k === 'item') return !big;
     if (g.k === 'chapter') return false;
+    if (g.k === 'achievement') return !many;
+    if (g.k === 'level') return levels.length <= 2 || g === levels[levels.length - 1];
+    if (g.k === 'mission') return !many;
     return true;
   });
+  if (many) {
+    const coins = achievements.reduce((a, g) => a + (achievementById((g as { id: string }).id)?.coins ?? 0), 0);
+    out.unshift({ k: 'coins', amount: coins, why: `${achievements.length} achievement completati` });
+  }
+  return out;
 }
 
 function adopt(p: Progress, gains: Gain[]) {
-  const show = worthShowing(gains).map(g => ({ ...g, id: ++seq }) as Celebration);
+  const show = worthShowing(gains).map(g => ({ ...g, cid: ++seq }) as Celebration);
   set(s => ({ ...p, celebrations: s.celebrations.concat(show) }));
 }
 
-export function dismissCelebration(id: number) {
-  set(s => ({ celebrations: s.celebrations.filter(c => c.id !== id) }));
+export function dismissCelebration(cid: number) {
+  set(s => ({ celebrations: s.celebrations.filter(c => c.cid !== cid) }));
 }
 
 export function recordHand(h: HandRecord) {
@@ -197,7 +214,7 @@ export function spend(n: number): boolean {
 }
 
 export function celebrateCoins(amount: number, why: string) {
-  set(s => ({ celebrations: s.celebrations.concat({ k: 'coins', amount, why, id: ++seq }) }));
+  set(s => ({ celebrations: s.celebrations.concat({ k: 'coins', amount, why, cid: ++seq }) }));
 }
 
 export function earn(n: number) {

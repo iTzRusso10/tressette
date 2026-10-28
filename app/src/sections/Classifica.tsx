@@ -110,7 +110,7 @@ export function Classifica({ active }: { active: boolean }) {
 
   return (
     <SectionScroll>
-      <SectionTitle title="Classifica" sub={board === 'trofei' ? 'Chi ha più trofei sale. Chi perde, scende.' : 'Ogni stagione si riparte da zero: conta come giochi adesso.'} />
+      <SectionTitle title="Classifica" sub="I trofei di sempre e i punti della stagione." />
       <View style={{ marginBottom: space.l }}>
         <Choice<Board>
           label="Quale classifica"

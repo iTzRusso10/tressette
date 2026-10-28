@@ -35,7 +35,7 @@ function Banner({ c }: { c: BannerC }) {
   const w = Math.min(width - 24, 420);
   useEffect(() => {
     sfx(bannerSound(c) as never, { haptic: true });
-    const t = setTimeout(() => dismissCelebration(c.id), c.k === 'achievement' || c.k === 'set' ? 3200 : 2400);
+    const t = setTimeout(() => dismissCelebration(c.cid), c.k === 'achievement' || c.k === 'set' ? 3200 : 2400);
     return () => clearTimeout(t);
   }, [c]);
   let art: ReactNode = null;
@@ -151,9 +151,9 @@ export function Overlays() {
   const { width } = useWindowDimensions();
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: 5000 }]}>
-      {c && c.k !== 'arena' ? <Banner key={c.id} c={c} /> : null}
-      {c?.k === 'arena' && !atTable ? <ArenaReveal key={c.id} arena={ARENAS[c.index]} onClose={() => dismissCelebration(c.id)} /> : null}
-      {c?.k === 'achievement' || c?.k === 'set' ? <Confetti key={'k' + c.id} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.id} /> : null}
+      {c && c.k !== 'arena' ? <Banner key={c.cid} c={c} /> : null}
+      {c?.k === 'arena' && !atTable ? <ArenaReveal key={c.cid} arena={ARENAS[c.index]} onClose={() => dismissCelebration(c.cid)} /> : null}
+      {c?.k === 'achievement' || c?.k === 'set' ? <Confetti key={'k' + c.cid} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.cid} /> : null}
       <AdSim />
     </View>
   );

@@ -71,7 +71,8 @@ function Price({ price, full, big }: { price: number; full?: number | null; big?
   );
 }
 
-const CARD_FOOT = 86;
+/** Sotto l'anteprima: rarità, nome e prezzo (con i margini della scheda). */
+const CARD_FOOT = 104;
 
 function ItemCard({ item, width, artH, day, onOpen }: { item: Item; width: number; artH: number; day: string; onOpen: () => void }) {
   const owned = useProfile(s => s.owned);

@@ -396,19 +396,10 @@ export function Trofei({ active: _active }: { active: boolean }) {
   const { width } = useWindowDimensions();
   const [tab, setTab] = useState<Tab>('arene');
   const colW = Math.min(width, 560) - 40;
-  const cups = useProfile(s => s.cups);
   return (
     <View style={{ flex: 1 }}>
       <View style={[styles.head, { width: colW }]}>
-        <SectionTitle
-          title="Trofei"
-          right={
-            <View style={styles.cupPill} accessibilityLabel={`${cups} trofei`}>
-              <TrophyIcon size={20} />
-              <Text style={styles.cupText}>{n(cups)}</Text>
-            </View>
-          }
-        />
+        <SectionTitle title="Trofei" sub="Arene, achievement e titoli." />
         <Choice<Tab>
           label="Trofei"
           value={tab}
@@ -430,8 +421,6 @@ const styles = StyleSheet.create({
   head: { alignSelf: 'center', paddingTop: space.s, paddingBottom: space.m },
   list: { alignSelf: 'center', paddingHorizontal: 20, paddingTop: space.s, paddingBottom: space.xxxl },
   intro: { marginBottom: space.m },
-  cupPill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.shade, borderWidth: 1, borderColor: colors.glassLine },
-  cupText: { fontFamily: fonts.display, fontSize: 16, lineHeight: 20, color: colors.text, fontVariant: ['tabular-nums'] },
   // arene
   stop: { marginBottom: space.m, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.panelLine },
   stopCurrent: { borderWidth: 2, borderColor: colors.sun, boxShadow: '0px 0px 26px rgba(255,224,102,0.35)' },
