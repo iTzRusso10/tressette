@@ -62,6 +62,8 @@ export interface Meta {
   /** Ultimi id di partita: la stessa partita non conta due volte. */
   recent: string[];
   lastMatchAt: number;
+  /** Mani contate dall'ultima partita finita (più di tante sono dati inventati). */
+  handsSince: number;
   /** Tavolino, panno e dorso della partita prima (per la missione «cambia cosmetico»). */
   lastEquip: string | null;
   title: string;
@@ -112,6 +114,7 @@ export function emptyMeta(seed: string): Meta {
     sets: [],
     recent: [],
     lastMatchAt: 0,
+    handsSince: 0,
     lastEquip: null,
     title: DEFAULT_TITLE,
   };
@@ -171,6 +174,7 @@ export function normalize(raw: Partial<Progress> & { trophies?: Record<string, n
       sets: strArr(m.sets).filter(id => SETS.some(s => s.id === id)),
       recent: strArr(m.recent).slice(-BALANCE.antiAbuse.recentMatches),
       lastMatchAt: int(m.lastMatchAt),
+      handsSince: int(m.handsSince),
       lastEquip: typeof m.lastEquip === 'string' ? m.lastEquip : null,
       title: typeof m.title === 'string' && titleById(m.title) ? m.title : DEFAULT_TITLE,
     },
@@ -404,7 +408,9 @@ function run(p: Progress, day: string, f: (tx: Tx) => void): { p: Progress; gain
 /* ================================================================== azioni */
 
 export function applyHand(p: Progress, hand: HandRecord, day: string) {
+  if (p.meta.handsSince >= BALANCE.antiAbuse.maxHandsPerMatch) return { p, gains: [] as Gain[] };
   return run(p, day, tx => {
+    tx.p.meta.handsSince++;
     tx.p.stats = addHand(tx.p.stats, hand);
     tx.p.xp += BALANCE.xp.hand + hand.scope * BALANCE.xp.scopa;
   });
@@ -458,6 +464,7 @@ export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number
     q.meta.lastEquip = equippedKey;
     q.meta.recent = [...q.meta.recent, r.id].slice(-BALANCE.antiAbuse.recentMatches);
     q.meta.lastMatchAt = now;
+    q.meta.handsSince = 0;
   });
   return { ...out, delta };
 }

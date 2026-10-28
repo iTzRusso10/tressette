@@ -146,7 +146,7 @@ export interface TrophyMatch {
 
 export function trophyDelta(r: TrophyMatch): number {
   const k = r.online ? 'online' : r.level;
-  return r.won ? BALANCE.trophies.win[k] : -BALANCE.trophies.loss[k];
+  return r.won ? BALANCE.trophies.win[k] : 0 - BALANCE.trophies.loss[k] || 0;
 }
 
 /** Applica una partita ai trofei, rispettando il pavimento dell'arena raggiunta. */

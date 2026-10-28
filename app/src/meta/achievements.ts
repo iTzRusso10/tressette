@@ -118,7 +118,7 @@ A('cinquemila-partite', 'Cinquemila partite', 'partite', 'platino', { k: 'stat',
 A('cento-mani', 'Cento mani', 'partite', 'bronzo', { k: 'stat', key: 'hands', n: 100 });
 A('mille-mani', 'Mille mani', 'partite', 'argento', { k: 'stat', key: 'hands', n: 1000 });
 A('diecimila-mani', 'Diecimila mani', 'partite', 'platino', { k: 'stat', key: 'hands', n: 10000 });
-A('di-casa', 'Di casa', 'partite', 'argento', { k: 'stat', key: 'bonusStreak', n: 7 });
+A('di-casa', 'Di casa', 'partite', 'argento', { k: 'stat', key: 'bonusStreak', n: 7 }, ['back:ottone']);
 A('fedelissimo', 'Fedelissimo', 'partite', 'oro', { k: 'stat', key: 'bonusStreak', n: 30 });
 A('sette-giorni', 'Una settimana al tavolo', 'partite', 'bronzo', { k: 'stat', key: 'days', n: 7 });
 A('trenta-giorni', 'Un mese al tavolo', 'partite', 'argento', { k: 'stat', key: 'days', n: 30 });
@@ -194,8 +194,8 @@ A('mano-perfetta-10', 'Dieci mani perfette', 'scopa', 'platino', { k: 'stat', ke
 
 /* ---------------------------------------------------------------- Briscola */
 A('briscola-80', 'Ottanta punti', 'briscola', 'bronzo', { k: 'stat', key: 'briscolaBest', n: 80 });
-A('briscola-100', 'Cento punti', 'briscola', 'argento', { k: 'stat', key: 'briscola100', n: 1 });
-A('briscola-100-x10', 'Dieci volte cento', 'briscola', 'oro', { k: 'stat', key: 'briscola100', n: 10 });
+A('briscola-cento-punti', 'Cento punti', 'briscola', 'argento', { k: 'stat', key: 'briscola100', n: 1 });
+A('briscola-cento-punti-x10', 'Dieci volte cento', 'briscola', 'oro', { k: 'stat', key: 'briscola100', n: 10 });
 A('briscola-120', 'Tutto il mazzo', 'briscola', 'platino', { k: 'stat', key: 'briscola120', n: 1 });
 A('briscola-mani-100', 'Cento mani di Briscola', 'briscola', 'argento', { k: 'stat', key: 'briscolaHandsWon', n: 100 });
 A('briscola-mani-500', 'Cinquecento mani di Briscola', 'briscola', 'oro', { k: 'stat', key: 'briscolaHandsWon', n: 500 });

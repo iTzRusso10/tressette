@@ -522,7 +522,7 @@ export const NAPOLI_BACKS: BackItem[] = [
   legacyBack('vietri', 'Sole di Vietri', 'Un sole a raggi giallo e arancio.', 'epico', 5000, ['#F4E7C8', '#E2CB98', '#F08A24', '#2A6FB0'], 'sole'),
   legacyBack('tramonto', 'Vesuvio al tramonto', 'Il vulcano al tramonto.', 'epico', 6000, ['#4B2A7E', '#22113F', '#FF8A3D', '#FFD9A0'], 'vesuvio'),
   legacyBack('tarocco', 'Antico', 'Cornici e fregi come i mazzi dell’Ottocento.', 'leggendario', 9000, ['#6E1E31', '#3A0E19', '#E0B04A', '#FFE7A3'], 'tarocco'),
-  legacyBack('ottone', 'Gran Caffè', 'Velluto verde e ottone, dal Gran Caffè: lo aveva chi è passato dalla vecchia arena.', 'epico', 4000, ['#174A33', '#0A2A1D', '#C8A15A', '#F3D58C'], 'maiolica', false),
+  legacyBack('ottone', 'Gran Caffè', 'Velluto verde e ottone, come al Gran Caffè: per chi passa ogni giorno.', 'epico', 4000, ['#174A33', '#0A2A1D', '#C8A15A', '#F3D58C'], 'maiolica', false),
 ];
 
 /* ================================================================== indice */

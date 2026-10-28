@@ -114,10 +114,9 @@ const toUtc = (day: string) => {
 export function weekOf(day: string): string {
   const t = new Date(toUtc(day));
   const dow = (t.getUTCDay() + 6) % 7; // lunedì = 0
-  t.setUTCDate(t.getUTCDate() - dow + 3); // il giovedì della settimana
+  t.setUTCDate(t.getUTCDate() - dow + 3); // il giovedì della settimana decide l'anno
   const y = t.getUTCFullYear();
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const w = 1 + Math.round((t.getTime() - jan4.getTime()) / 86400000 / 7 - ((jan4.getUTCDay() + 6) % 7) / 7 + 3 / 7);
+  const w = Math.floor((t.getTime() - Date.UTC(y, 0, 1)) / 86400000 / 7) + 1;
   return `${y}-W${String(w).padStart(2, '0')}`;
 }
 
