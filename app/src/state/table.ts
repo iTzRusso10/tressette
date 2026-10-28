@@ -433,11 +433,19 @@ async function present(st: Step, g: number) {
       const out = h.result?.out;
       const myTeam = teamOf(m, me);
       // Your progress: statistics, trophies, coins and experience.
+      // La riga della tua squadra nel risultato della mano (punti di Briscola, denari e primiera di Scopa…).
+      const row = h.result?.rows.find(r => r.t === myTeam) as Record<string, unknown> | undefined;
       recordHand({
+        game: m.game,
         scope: m.game === 'scopa' ? h.scope[me] : 0,
         settebello: m.game === 'scopa' && h.capt[me].includes(SETTEBELLO),
         napoletana: h.accusi.some(a => a.p === me && a.label.startsWith('Napoletana')),
         cappotto: e.cappotto >= 0 && e.cappotto === myTeam,
+        accusi: h.accusi.filter(a => a.p === me).length,
+        ultima: m.game === 'tressette' && !!row?.ult,
+        briscolaPts: m.game === 'briscola' ? Number(row?.pts ?? 0) : -1,
+        denari: m.game === 'scopa' ? Number(row?.den ?? 0) : 0,
+        perfect: m.game === 'scopa' && !!row && row.pCards === 1 && row.pDen === 1 && row.pSb === 1 && row.pPrim === 1,
       });
       if (out) recordMatch({ game: m.game, mode: m.mode, level: m.level, online: !!net, won: out.winners.includes(myTeam) });
       if (out && out.winners.includes(myTeam)) sfx('win');

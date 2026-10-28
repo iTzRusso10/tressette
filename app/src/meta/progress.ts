@@ -1,52 +1,178 @@
+// Le statistiche del giocatore: tutto quello che serve per verificare achievement, titoli, missioni e
+// requisiti delle arene. Funzioni pure, condivise con il server.
+
 import type { GameId, Level, Mode } from '../engine/types.ts';
-import { CPU_WIN_COINS, XP } from './economy.ts';
+
+export const GAME_IDS: GameId[] = ['tressette', 'briscola', 'scopa'];
+
+export interface GameStats {
+  played: number;
+  won: number;
+  /** Vittorie contro il computer Esperto. */
+  expert: number;
+}
 
 export interface Stats {
   played: number;
   won: number;
-  byGame: Record<GameId, { played: number; won: number }>;
-  hands: number;
-  scope: number;
-  settebelli: number;
-  napoletane: number;
-  cappotti: number;
-  expertWins: number;
-  onlineWins: number;
+  byGame: Record<GameId, GameStats>;
+  /** Partite in quattro (a coppie) giocate e vinte. */
+  played4: number;
+  won4: number;
   perdereWins: number;
-  /** Wins in a row now, and the best ever. */
+  perderePlayed: number;
+  expertWins: number;
+  /** Vittorie di fila (tutte le partite) e contro l'Esperto, adesso e il massimo. */
   streak: number;
   bestStreak: number;
-  /** Best daily-bonus streak. */
+  expertStreak: number;
+  bestExpertStreak: number;
+  onlinePlayed: number;
+  onlineWins: number;
+  /** Vittorie online a coppie (in quattro). */
+  onlinePairWins: number;
+
+  hands: number;
+  // Scopa
+  scope: number;
+  /** Il massimo di scope in una sola mano. */
+  maxScopeHand: number;
+  settebelli: number;
+  /** Mani in cui la tua squadra ha preso tutti e dieci i denari. */
+  allDenari: number;
+  /** Mani con carte, denari, settebello e primiera presi tutti dalla tua squadra. */
+  perfectScopa: number;
+  // Briscola
+  /** Il massimo di punti in una mano di Briscola, e le mani da almeno 100 e da 120. */
+  briscolaBest: number;
+  briscola100: number;
+  briscola120: number;
+  briscolaHandsWon: number;
+  // Tressette
+  napoletane: number;
+  accusi: number;
+  ultime: number;
+  cappotti: number;
+
+  /** Giorni diversi in cui hai finito almeno una partita, e l'ultimo. */
+  days: number;
+  lastDay: string | null;
   bonusStreak: number;
+  coinsEarned: number;
+  coinsSpent: number;
+  /** Trofei vinti in totale (solo i guadagni). */
+  trophiesWon: number;
+  missionsDone: number;
+  weeklyDone: number;
+  seasonsPlayed: number;
 }
+
+const game = (): GameStats => ({ played: 0, won: 0, expert: 0 });
 
 export const emptyStats = (): Stats => ({
   played: 0,
   won: 0,
-  byGame: { tressette: { played: 0, won: 0 }, briscola: { played: 0, won: 0 }, scopa: { played: 0, won: 0 } },
-  hands: 0,
-  scope: 0,
-  settebelli: 0,
-  napoletane: 0,
-  cappotti: 0,
-  expertWins: 0,
-  onlineWins: 0,
+  byGame: { tressette: game(), briscola: game(), scopa: game() },
+  played4: 0,
+  won4: 0,
   perdereWins: 0,
+  perderePlayed: 0,
+  expertWins: 0,
   streak: 0,
   bestStreak: 0,
+  expertStreak: 0,
+  bestExpertStreak: 0,
+  onlinePlayed: 0,
+  onlineWins: 0,
+  onlinePairWins: 0,
+  hands: 0,
+  scope: 0,
+  maxScopeHand: 0,
+  settebelli: 0,
+  allDenari: 0,
+  perfectScopa: 0,
+  briscolaBest: 0,
+  briscola100: 0,
+  briscola120: 0,
+  briscolaHandsWon: 0,
+  napoletane: 0,
+  accusi: 0,
+  ultime: 0,
+  cappotti: 0,
+  days: 0,
+  lastDay: null,
   bonusStreak: 0,
+  coinsEarned: 0,
+  coinsSpent: 0,
+  trophiesWon: 0,
+  missionsDone: 0,
+  weeklyDone: 0,
+  seasonsPlayed: 0,
 });
 
-/** What happened to you in a hand. */
+/** Statistiche salvate prima di questo file (o mandate dal server): i campi che mancano valgono 0. */
+export function normalizeStats(s: unknown): Stats {
+  const base = emptyStats();
+  if (!s || typeof s !== 'object') return base;
+  const o = s as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...base };
+  for (const k of Object.keys(base) as (keyof Stats)[]) {
+    if (k === 'byGame' || k === 'lastDay') continue;
+    const v = Number(o[k]);
+    out[k] = Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+  }
+  out.lastDay = typeof o.lastDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.lastDay) ? o.lastDay : null;
+  const bg = (o.byGame ?? {}) as Record<string, Partial<GameStats>>;
+  out.byGame = Object.fromEntries(
+    (['tressette', 'briscola', 'scopa'] as GameId[]).map(g => [
+      g,
+      { played: Math.max(0, Math.floor(Number(bg[g]?.played) || 0)), won: Math.max(0, Math.floor(Number(bg[g]?.won) || 0)), expert: Math.max(0, Math.floor(Number(bg[g]?.expert) || 0)) },
+    ]),
+  );
+  return out as unknown as Stats;
+}
+
+/** Cosa è successo a te (alla tua squadra) in una mano. */
 export interface HandRecord {
+  game: GameId;
   scope: number;
   settebello: boolean;
   napoletana: boolean;
+  /** Cappotto a Tressette a perdere (l'unico che vale, per le regole della casa). */
   cappotto: boolean;
+  /** Accusi dichiarati da te. */
+  accusi: number;
+  /** La tua squadra ha preso l'ultima (Tressette). */
+  ultima: boolean;
+  /** Briscola: punti della tua squadra nella mano (0…120); −1 negli altri giochi. */
+  briscolaPts: number;
+  /** Scopa: denari presi dalla tua squadra (0…10). */
+  denari: number;
+  /** Scopa: carte, denari, settebello e primiera tutti alla tua squadra. */
+  perfect: boolean;
 }
 
-/** How a match ended for you. */
+/** I dati di una mano ripuliti: valori impossibili tornano nei limiti (il server non si fida). */
+export function cleanHand(h: Partial<HandRecord> | undefined): HandRecord {
+  const g = (['tressette', 'briscola', 'scopa'] as const).includes(h?.game as GameId) ? (h!.game as GameId) : 'tressette';
+  const clamp = (v: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
+  return {
+    game: g,
+    scope: g === 'scopa' ? clamp(h?.scope, 0, 20) : 0,
+    settebello: g === 'scopa' && !!h?.settebello,
+    napoletana: g === 'tressette' && !!h?.napoletana,
+    cappotto: g === 'tressette' && !!h?.cappotto,
+    accusi: g === 'tressette' ? clamp(h?.accusi, 0, 6) : 0,
+    ultima: g === 'tressette' && !!h?.ultima,
+    briscolaPts: g === 'briscola' ? clamp(h?.briscolaPts, 0, 120) : -1,
+    denari: g === 'scopa' ? clamp(h?.denari, 0, 10) : 0,
+    perfect: g === 'scopa' && !!h?.perfect && !!h?.settebello && clamp(h?.denari, 0, 10) >= 6,
+  };
+}
+
+/** Come è finita una partita per te. `id` la identifica: la stessa partita non conta due volte. */
 export interface MatchRecord {
+  id: string;
   game: GameId;
   mode: Mode;
   level: Level;
@@ -54,113 +180,50 @@ export interface MatchRecord {
   won: boolean;
 }
 
-export type Glyph = 'cup' | 'star' | 'flame' | 'crown' | 'broom' | 'seven' | 'sun' | 'cards' | 'friends' | 'medal';
-
-export interface Trophy {
-  id: string;
-  title: string;
-  desc: string;
-  glyph: Glyph;
-  /** Coins and experience when unlocked. */
-  coins: number;
-  xp: number;
-  /** Progress towards the goal: [now, goal]. */
-  progress: (s: Stats) => [number, number];
-}
-
-const count =
-  (key: keyof Omit<Stats, 'byGame'>, goal: number) =>
-  (s: Stats): [number, number] => [Math.min(goal, s[key] as number), goal];
-
-export const TROPHIES: Trophy[] = [
-  { id: 'prima-vittoria', title: 'Prima vittoria', desc: 'Vinci una partita.', glyph: 'medal', coins: 100, xp: 50, progress: count('won', 1) },
-  { id: 'prima-scopa', title: 'Prima scopa', desc: 'Spazza il tavolo a Scopa.', glyph: 'broom', coins: 50, xp: 30, progress: count('scope', 1) },
-  {
-    id: 'napoletana',
-    title: 'Napoletana',
-    desc: 'Accusa Asso, Due e Tre dello stesso seme.',
-    glyph: 'cards',
-    coins: 150,
-    xp: 60,
-    progress: count('napoletane', 1),
-  },
-  { id: 'tris-vittorie', title: 'Tris di vittorie', desc: 'Vinci tre partite di fila.', glyph: 'flame', coins: 200, xp: 80, progress: count('bestStreak', 3) },
-  { id: 'dieci-vittorie', title: 'Dieci vittorie', desc: 'Vinci dieci partite.', glyph: 'star', coins: 300, xp: 120, progress: count('won', 10) },
-  {
-    id: 'settebello',
-    title: 'Collezionista',
-    desc: 'Prendi il Settebello dieci volte.',
-    glyph: 'seven',
-    coins: 200,
-    xp: 80,
-    progress: count('settebelli', 10),
-  },
-  { id: 'meno-peggio', title: 'Il meno peggio', desc: 'Vinci una partita a perdere.', glyph: 'sun', coins: 150, xp: 60, progress: count('perdereWins', 1) },
-  { id: 'esperto', title: 'Batti l’Esperto', desc: 'Vinci contro il computer Esperto.', glyph: 'crown', coins: 300, xp: 120, progress: count('expertWins', 1) },
-  { id: 'amici', title: 'Al tavolo con gli amici', desc: 'Vinci una partita online.', glyph: 'friends', coins: 200, xp: 80, progress: count('onlineWins', 1) },
-  {
-    id: 'tuttofare',
-    title: 'Tuttofare',
-    desc: 'Vinci a Tressette, a Briscola e a Scopa.',
-    glyph: 'cards',
-    coins: 300,
-    xp: 120,
-    progress: s => [(['tressette', 'briscola', 'scopa'] as GameId[]).filter(g => s.byGame[g].won > 0).length, 3],
-  },
-  {
-    id: 'cappotto',
-    title: 'Cappotto!',
-    desc: 'Prendi tutti i punti di una mano a perdere.',
-    glyph: 'crown',
-    coins: 500,
-    xp: 150,
-    progress: count('cappotti', 1),
-  },
-  { id: 'spazzino', title: 'Spazzino', desc: 'Fai cinquanta scope.', glyph: 'broom', coins: 500, xp: 150, progress: count('scope', 50) },
-  { id: 'di-casa', title: 'Di casa', desc: 'Ritira il bonus sette giorni di fila.', glyph: 'sun', coins: 500, xp: 150, progress: count('bonusStreak', 7) },
-  { id: 'imbattibile', title: 'Imbattibile', desc: 'Vinci dieci partite di fila.', glyph: 'flame', coins: 1000, xp: 300, progress: count('bestStreak', 10) },
-  { id: 'cento-vittorie', title: 'Leggenda', desc: 'Vinci cento partite.', glyph: 'cup', coins: 2000, xp: 500, progress: count('won', 100) },
-];
-
-export const isUnlocked = (t: Trophy, s: Stats) => {
-  const [a, b] = t.progress(s);
-  return a >= b;
-};
-
-/** Trophies reached with these stats that weren't unlocked yet. */
-export const newlyUnlocked = (s: Stats, have: Record<string, number>) => TROPHIES.filter(t => !have[t.id] && isUnlocked(t, s));
-
 export function addHand(s: Stats, h: HandRecord): Stats {
   return {
     ...s,
     hands: s.hands + 1,
     scope: s.scope + h.scope,
+    maxScopeHand: Math.max(s.maxScopeHand, h.scope),
     settebelli: s.settebelli + (h.settebello ? 1 : 0),
+    allDenari: s.allDenari + (h.denari === 10 ? 1 : 0),
+    perfectScopa: s.perfectScopa + (h.perfect ? 1 : 0),
+    briscolaBest: Math.max(s.briscolaBest, h.briscolaPts),
+    briscola100: s.briscola100 + (h.briscolaPts >= 100 ? 1 : 0),
+    briscola120: s.briscola120 + (h.briscolaPts === 120 ? 1 : 0),
+    briscolaHandsWon: s.briscolaHandsWon + (h.briscolaPts > 60 ? 1 : 0),
     napoletane: s.napoletane + (h.napoletana ? 1 : 0),
+    accusi: s.accusi + h.accusi,
+    ultime: s.ultime + (h.ultima ? 1 : 0),
     cappotti: s.cappotti + (h.cappotto ? 1 : 0),
   };
 }
 
-export function addMatch(s: Stats, r: MatchRecord): Stats {
+export function addMatch(s: Stats, r: MatchRecord, day: string): Stats {
   const streak = r.won ? s.streak + 1 : 0;
+  const expert = !r.online && r.level === 'difficile';
+  const expertStreak = expert ? (r.won ? s.expertStreak + 1 : 0) : s.expertStreak;
   const g = s.byGame[r.game];
+  const four = r.mode === '4';
   return {
     ...s,
     played: s.played + 1,
     won: s.won + (r.won ? 1 : 0),
-    byGame: { ...s.byGame, [r.game]: { played: g.played + 1, won: g.won + (r.won ? 1 : 0) } },
-    expertWins: s.expertWins + (r.won && !r.online && r.level === 'difficile' ? 1 : 0),
-    onlineWins: s.onlineWins + (r.won && r.online ? 1 : 0),
+    byGame: { ...s.byGame, [r.game]: { played: g.played + 1, won: g.won + (r.won ? 1 : 0), expert: g.expert + (r.won && expert ? 1 : 0) } },
+    played4: s.played4 + (four ? 1 : 0),
+    won4: s.won4 + (four && r.won ? 1 : 0),
+    perderePlayed: s.perderePlayed + (r.mode === 'perdere' ? 1 : 0),
     perdereWins: s.perdereWins + (r.won && r.mode === 'perdere' ? 1 : 0),
+    expertWins: s.expertWins + (r.won && expert ? 1 : 0),
     streak,
     bestStreak: Math.max(s.bestStreak, streak),
-  };
-}
-
-/** Coins and experience for the end of a match (trophies come on top). */
-export function matchReward(r: MatchRecord): { coins: number; xp: number } {
-  return {
-    coins: r.won && !r.online ? CPU_WIN_COINS[r.level] : 0,
-    xp: r.won ? XP.win : XP.loss,
+    expertStreak,
+    bestExpertStreak: Math.max(s.bestExpertStreak, expertStreak),
+    onlinePlayed: s.onlinePlayed + (r.online ? 1 : 0),
+    onlineWins: s.onlineWins + (r.won && r.online ? 1 : 0),
+    onlinePairWins: s.onlinePairWins + (r.won && r.online && four ? 1 : 0),
+    days: s.lastDay === day ? s.days : s.days + 1,
+    lastDay: s.lastDay && s.lastDay > day ? s.lastDay : day,
   };
 }

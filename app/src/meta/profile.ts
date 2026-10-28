@@ -1,21 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { canClaim, claimBonus, levelOf, REFILL, REFILL_BELOW, START_COINS, XP, type BonusState } from './economy';
-import { addHand, addMatch, emptyStats, matchReward, newlyUnlocked, TROPHIES, type HandRecord, type MatchRecord, type Stats, type Trophy } from './progress';
-import { applyTrophies, arenaItems, type Arena } from './arenas';
-import { buy, canEquip, DEFAULT_EQUIPPED, STARTER_ITEMS, type BuyResult, type Slot } from './shop';
+import { canClaim, dayOf } from './economy';
+import {
+  applyHand,
+  applyMatch,
+  buyItem as buyInLedger,
+  claimDaily as claimInLedger,
+  equipItem,
+  newProgress,
+  normalize,
+  refill as refillInLedger,
+  selectTitle,
+  touch,
+  type Gain,
+  type Progress,
+  type BuyRefusal,
+} from './ledger';
+import type { HandRecord, MatchRecord } from './progress';
+import type { Slot } from './catalog';
+import { BALANCE } from './balance';
 
-/** Something to celebrate on screen: a medal, a new level, coins earned, a new arena. */
-export type Celebration =
-  | { id: number; kind: 'trophy'; trophy: Trophy }
-  | { id: number; kind: 'level'; level: number }
-  | { id: number; kind: 'coins'; amount: number; why: string }
-  | { id: number; kind: 'arena'; arena: Arena };
+export type { Gain, Progress };
 
-/** How the last match went for trophies: shown in the summary at the end of the match. */
+/** Qualcosa da festeggiare sullo schermo (una nuova arena prende tutto lo schermo). */
+export type Celebration = Gain & { id: number };
+
+/** I trofei dell'ultima partita, per il riepilogo a fine partita. */
 export interface LastMatch {
-  /** Trophies won (positive) or lost (negative). */
   delta: number;
   cups: number;
   at: number;
@@ -28,49 +40,31 @@ export interface Account {
   provider: 'apple' | 'google' | 'facebook';
 }
 
-interface ProfileState {
-  coins: number;
-  xp: number;
-  stats: Stats;
-  /** Medals: id → when it was unlocked (ms). (Called trophies in the code and on the server for history.) */
-  trophies: Record<string, number>;
-  /** Trophies of the arena road ("trofei" on screen), and the most ever held (it sets the arena floor). */
-  cups: number;
-  bestCups: number;
-  /** Shop and arena items owned (the starters are always owned), and the ones in use. */
-  owned: string[];
-  equipped: Record<Slot, string>;
-  bonus: BonusState;
+interface ProfileState extends Progress {
   account: Account | null;
-  /** Your code for friends to add you (from the server). */
+  /** Il tuo codice per farti aggiungere dagli amici (dal server). */
   friendCode: string | null;
-  /** Not saved: what is waiting to be shown. */
+  /** Non salvati: cosa aspetta di essere mostrato, e i trofei dell'ultima partita. */
   celebrations: Celebration[];
-  /** Not saved: trophies of the last match, for its summary. */
   lastMatch: LastMatch | null;
 }
 
 let seq = 0;
+const randomSeed = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-/** Sends an event to the server when signed in (set by sync.ts, to avoid an import cycle). */
+/** Manda un evento al server quando sei collegato (lo imposta sync.ts, per evitare un import circolare). */
 type Remote = (action: string, payload: Record<string, unknown>) => void;
 let remote: Remote = () => {};
 export function setRemote(r: Remote) {
   remote = r;
 }
 
+const progressKeys = ['coins', 'xp', 'stats', 'achievements', 'cups', 'bestCups', 'owned', 'equipped', 'bonus', 'meta'] as const;
+
 export const useProfile = create<ProfileState>()(
   persist(
     (): ProfileState => ({
-      coins: START_COINS,
-      xp: 0,
-      stats: emptyStats(),
-      trophies: {},
-      cups: 0,
-      bestCups: 0,
-      owned: [...STARTER_ITEMS],
-      equipped: { ...DEFAULT_EQUIPPED },
-      bonus: { lastDay: null, streak: 0 },
+      ...newProgress(randomSeed()),
       account: null,
       friendCode: null,
       celebrations: [],
@@ -78,10 +72,21 @@ export const useProfile = create<ProfileState>()(
     }),
     {
       name: 'napoletane.profilo.v1',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ celebrations: _c, lastMatch: _l, ...rest }) => rest,
-      // Profiles saved before trophies and the shop existed.
-      merge: (saved, current) => ({ ...current, ...(saved as Partial<ProfileState>) }),
+      // Versione 1: il vecchio negozio (panno+sponda, decori), le medaglie in `trophies`, 8 trofei per arena.
+      migrate: (saved, version) => {
+        const s = (saved ?? {}) as Record<string, unknown>;
+        if (version >= 2) return s as unknown as ProfileState;
+        const p = normalize(s as Parameters<typeof normalize>[0], randomSeed());
+        return { ...p, account: (s.account as Account) ?? null, friendCode: (s.friendCode as string) ?? null } as ProfileState;
+      },
+      merge: (saved, current) => {
+        const s = (saved ?? {}) as Partial<ProfileState>;
+        const p = normalize(s as Parameters<typeof normalize>[0], current.meta.seed);
+        return { ...current, ...s, ...p };
+      },
     },
   ),
 );
@@ -89,103 +94,102 @@ export const useProfile = create<ProfileState>()(
 const set = useProfile.setState;
 const get = useProfile.getState;
 
-export const level = () => levelOf(get().xp);
+/** Lo stato di progressione, senza i campi del solo telefono. */
+export function progressOf(s: ProfileState = get()): Progress {
+  return Object.fromEntries(progressKeys.map(k => [k, s[k]])) as unknown as Progress;
+}
 
-type NewCelebration = Celebration extends infer C ? (C extends Celebration ? Omit<C, 'id'> : never) : never;
+const today = () => dayOf(new Date());
 
-function celebrate(c: NewCelebration) {
-  set(s => ({ celebrations: s.celebrations.concat({ ...c, id: ++seq } as Celebration) }));
+/** Quali guadagni meritano un avviso: le monete solo per la vittoria, gli oggetti solo se arrivano da soli. */
+function worthShowing(gains: Gain[]): Gain[] {
+  const big = gains.some(g => g.k === 'arena' || g.k === 'achievement' || g.k === 'set' || g.k === 'seasonTier' || g.k === 'legend' || g.k === 'prestige');
+  return gains.filter(g => {
+    if (g.k === 'coins') return g.why === 'Prima vittoria del giorno' || g.why === 'Vittoria';
+    if (g.k === 'item') return !big;
+    if (g.k === 'chapter') return false;
+    return true;
+  });
+}
+
+function adopt(p: Progress, gains: Gain[]) {
+  const show = worthShowing(gains).map(g => ({ ...g, id: ++seq }) as Celebration);
+  set(s => ({ ...p, celebrations: s.celebrations.concat(show) }));
 }
 
 export function dismissCelebration(id: number) {
   set(s => ({ celebrations: s.celebrations.filter(c => c.id !== id) }));
 }
 
-/** Adds experience and coins, checks new trophies (which pay out in turn) and level-ups. */
-function apply(stats: Stats, coins: number, xp: number) {
-  const before = get();
-  const levelBefore = levelOf(before.xp);
-  const fresh = newlyUnlocked(stats, before.trophies);
-  const now = Date.now();
-  const trophies = { ...before.trophies };
-  let c = coins;
-  let x = xp;
-  for (const t of fresh) {
-    trophies[t.id] = now;
-    c += t.coins;
-    x += t.xp;
-  }
-  set({ stats, trophies, coins: before.coins + c, xp: before.xp + x });
-  fresh.forEach(t => celebrate({ kind: 'trophy', trophy: t }));
-  const levelAfter = levelOf(before.xp + x);
-  if (levelAfter > levelBefore) celebrate({ kind: 'level', level: levelAfter });
-}
-
 export function recordHand(h: HandRecord) {
-  apply(addHand(get().stats, h), 0, XP.hand + h.scope * XP.scopa);
-  remote('hand', { hand: h });
+  const day = today();
+  const r = applyHand(progressOf(), h, day);
+  adopt(r.p, r.gains);
+  remote('hand', { hand: h, day });
 }
 
-export function recordMatch(r: MatchRecord) {
-  const reward = matchReward(r);
-  apply(addMatch(get().stats, r), reward.coins, reward.xp);
-  if (reward.coins) celebrate({ kind: 'coins', amount: reward.coins, why: 'Vittoria' });
-  const t = applyTrophies(get().cups, get().bestCups, r);
-  set({ cups: t.trophies, bestCups: t.best, lastMatch: { delta: t.delta, cups: t.trophies, at: Date.now() } });
-  for (const a of t.arenas) reachArena(a);
-  remote('match', { match: r });
+export function recordMatch(m: Omit<MatchRecord, 'id'>) {
+  const day = today();
+  const rec: MatchRecord = { ...m, id: randomSeed() };
+  const r = applyMatch(progressOf(), rec, day, Date.now());
+  adopt(r.p, r.gains);
+  set({ lastMatch: { delta: r.delta, cups: r.p.cups, at: Date.now() } });
+  remote('match', { match: rec, day });
 }
 
-/** A new arena: its coins, its items, and its felt (and back) on the table straight away. */
-function reachArena(a: Arena) {
-  const s = get();
-  const items = arenaItems(a);
-  const equipped = { ...s.equipped, felt: a.felt, ...(a.back ? { back: a.back } : {}) };
-  set({ coins: s.coins + a.coins, owned: [...new Set([...s.owned, ...items])], equipped });
-  celebrate({ kind: 'arena', arena: a });
+/** Compra un oggetto con le monete. */
+export function buyItem(slot: Slot, id: string): { ok: true } | { ok: false; why: BuyRefusal } {
+  const day = today();
+  const r = buyInLedger(progressOf(), slot, id, day);
+  if (!r.ok) return r;
+  adopt(r.p, r.gains);
+  remote('buy', { slot, item: id, day });
+  return { ok: true };
 }
 
-/** Buys an item from the shop with coins (`day` is today, for the offer of the day). */
-export function buyItem(id: string, day: string): BuyResult {
-  const s = get();
-  const r = buy(id, s.coins, s.owned, day);
-  if (r.ok) {
-    set({ coins: r.coins, owned: r.owned });
-    remote('buy', { item: id, day });
-  }
-  return r;
-}
-
-/** Puts an owned item on the table (or on the cards). */
+/** Mette sul tavolo (o sulle carte) un oggetto posseduto. */
 export function equip(slot: Slot, id: string) {
-  const s = get();
-  if (!canEquip(id, slot, s.owned)) return;
-  set({ equipped: { ...s.equipped, [slot]: id } });
+  const p = equipItem(progressOf(), slot, id);
+  if (!p) return;
+  set({ equipped: p.equipped });
   remote('equip', { slot, item: id });
+}
+
+export function chooseTitle(id: string) {
+  const p = selectTitle(progressOf(), id);
+  if (!p) return;
+  set({ meta: p.meta });
+  remote('title', { title: id });
 }
 
 export const bonusAvailable = (now = new Date()) => canClaim(get().bonus, now);
 
-/** Today's bonus; with `doubled` (after watching a video) it pays twice. */
+/** Il bonus di oggi; con `doubled` (dopo un video) vale il doppio. */
 export function claimDaily(doubled: boolean, now = new Date()): number {
-  const { state, amount } = claimBonus(get().bonus, now);
-  const total = doubled ? amount * 2 : amount;
-  const stats = { ...get().stats, bonusStreak: Math.max(get().stats.bonusStreak, state.streak) };
-  set({ bonus: state, coins: get().coins + total });
-  apply(stats, 0, 0);
-  remote('bonus', { doubled, day: state.lastDay });
-  return total;
+  const day = dayOf(now);
+  const r = claimInLedger(progressOf(), day, doubled);
+  if (!r) return 0;
+  adopt(r.p, r.gains);
+  remote('bonus', { doubled, day });
+  return r.amount;
 }
 
-export const canRefill = () => get().coins < REFILL_BELOW;
+/** All'apertura e a ogni cambio di giorno: nuove missioni, stagione nuova. */
+export function refreshDay() {
+  const r = touch(progressOf(), today());
+  adopt(r.p, r.gains);
+}
 
-/** Free coins after a video, when the wallet runs low. */
+export const canRefill = () => get().coins < BALANCE.coins.refillBelow;
+
 export function refill() {
-  set(s => ({ coins: s.coins + REFILL }));
+  const p = refillInLedger(progressOf());
+  if (!p) return;
+  set({ coins: p.coins });
   remote('refill', {});
 }
 
-/** Takes coins (a stake); false if there aren't enough. */
+/** Toglie monete (una posta); false se non bastano. */
 export function spend(n: number): boolean {
   if (get().coins < n) return false;
   set(s => ({ coins: s.coins - n }));
@@ -193,7 +197,7 @@ export function spend(n: number): boolean {
 }
 
 export function celebrateCoins(amount: number, why: string) {
-  celebrate({ kind: 'coins', amount, why });
+  set(s => ({ celebrations: s.celebrations.concat({ k: 'coins', amount, why, id: ++seq }) }));
 }
 
 export function earn(n: number) {
@@ -203,5 +207,3 @@ export function earn(n: number) {
 export function setAccount(a: Account | null) {
   set({ account: a });
 }
-
-export { TROPHIES };
