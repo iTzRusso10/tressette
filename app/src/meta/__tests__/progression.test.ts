@@ -297,7 +297,8 @@ describe('dal vecchio negozio', () => {
 
 describe('server', () => {
   it('il calendario delle stagioni nella migrazione è lo stesso di seasons.ts', async () => {
-    const { readFileSync } = await import('node:fs');
+    const mod = 'node:fs';
+    const { readFileSync } = (await import(/* @vite-ignore */ mod)) as { readFileSync: (p: URL, enc: string) => string };
     const sql = readFileSync(new URL('../../../supabase/migrations/20261028000000_progressione_lunga.sql', import.meta.url), 'utf8');
     const rows = [...sql.matchAll(/\('([a-z-]+)', (\d+), '[^']+', '(\d{4}-\d\d-\d\d)', '(\d{4}-\d\d-\d\d)'\)/g)].map(m => [m[1], Number(m[2]), m[3], m[4]]);
     expect(rows).toEqual(SEASONS.map(s => [s.id, s.n, seasonWindow(s).start, seasonWindow(s).end]));

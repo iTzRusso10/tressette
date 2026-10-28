@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { levelOf } from '@/meta/economy';
+import { levelLabel } from '@/meta/levels';
 import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
 import { sfx } from '@/ui/feedback';
@@ -49,7 +49,7 @@ function HubTop({ onTrophies }: { onTrophies: () => void }) {
   const shown = account?.name || name;
   return (
     <View style={styles.top}>
-      <Squish accessibilityRole="button" accessibilityLabel={`Il tuo profilo, livello ${levelOf(xp)}`} onPress={() => router.push('/profilo')} scaleTo={0.94}>
+      <Squish accessibilityRole="button" accessibilityLabel={`Il tuo profilo, ${levelLabel(xp).toLowerCase()}`} onPress={() => router.push('/profilo')} scaleTo={0.94}>
         <View style={styles.me}>
           <LevelAvatar name={shown} xp={xp} size={44} />
           <Text v="label" numberOfLines={1} style={styles.meName}>

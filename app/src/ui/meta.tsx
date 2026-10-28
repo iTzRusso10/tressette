@@ -4,8 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { dur, ease } from '@/ui/motion';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
-import { levelOf, levelProgress } from '@/meta/economy';
-import type { Glyph } from '@/meta/progress';
+import { levelInfo, levelProgress } from '@/meta/levels';
 import { Text } from './Text';
 import { colors, fonts, gradients, radius } from './theme';
 
@@ -64,12 +63,14 @@ export function CoinPill({ coins }: { coins: number }) {
 
 /** An avatar with a ring that fills as you approach the next level, and the level number. */
 export function LevelAvatar({ name, xp, size = 52 }: { name: string; xp: number; size?: number }) {
-  const lvl = levelOf(xp);
+  const info = levelInfo(xp);
+  // Dopo il livello 100 il numero diventa il grado di Prestigio, su fondo d'oro.
+  const lvl = info.prestige > 0 ? `P${info.prestige}` : String(info.level);
   const p = levelProgress(xp);
   const r = size / 2 - 2;
   const c = 2 * Math.PI * r;
   return (
-    <View style={{ width: size, height: size }} accessibilityLabel={`Livello ${lvl}`}>
+    <View style={{ width: size, height: size }} accessibilityLabel={info.prestige > 0 ? `Prestigio ${info.prestige}` : `Livello ${info.level}`}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.25)" strokeWidth={3} fill="none" />
         <Circle
@@ -87,16 +88,36 @@ export function LevelAvatar({ name, xp, size = 52 }: { name: string; xp: number;
       <LinearGradient colors={gradients.sun.colors} style={[styles.avatarIn, { margin: 6, borderRadius: (size - 12) / 2 }]}>
         <Text style={[styles.avatarText, { fontSize: size * 0.36, lineHeight: size * 0.44 }]}>{(name || 'T').slice(0, 1).toUpperCase()}</Text>
       </LinearGradient>
-      <View style={styles.levelChip}>
+      <View style={[styles.levelChip, info.prestige > 0 && { backgroundColor: '#B8860B' }]}>
         <Text style={styles.levelText}>{lvl}</Text>
       </View>
     </View>
   );
 }
 
-/* ------------------------------------------------------------------ trophy badge */
+/* ------------------------------------------------------------------ medaglie degli achievement */
 
-const GLYPHS: Record<Glyph, string> = {
+export type Glyph =
+  | 'cup'
+  | 'star'
+  | 'flame'
+  | 'crown'
+  | 'broom'
+  | 'seven'
+  | 'sun'
+  | 'cards'
+  | 'friends'
+  | 'medal'
+  | 'table'
+  | 'cloth'
+  | 'back'
+  | 'gem'
+  | 'list'
+  | 'calendar'
+  | 'bolt'
+  | 'castle';
+
+export const GLYPHS: Record<Glyph, string> = {
   cup: 'M7 4h10v4a5 5 0 0 1-10 0zM7 6H4.5a2.5 2.5 0 0 0 2.6 4M17 6h2.5a2.5 2.5 0 0 1-2.6 4M12 13v4M8.5 20h7M9.5 17h5',
   star: 'M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z',
   flame: 'M12 21c-3.6 0-6-2.5-6-5.8 0-3.4 2.6-5 3.4-8.2 1.9 1.4 2.4 3 2.3 4.6 1.2-.8 1.8-2 1.8-3.6 2.6 2 4.5 4.6 4.5 7.3C18 18.5 15.6 21 12 21z',
@@ -107,20 +128,33 @@ const GLYPHS: Record<Glyph, string> = {
   cards: 'M5 7.5l7-2.4 3.5 10.4-7 2.4zM12.6 5.6l5.2 1.4-2.6 10.6',
   friends: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M16 11a2.6 2.6 0 1 0 0-5.2M17 14c2 .4 3.3 2 3.7 5',
   medal: 'M8 3l2.5 5M16 3l-2.5 5M12 9.5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zM12 12.3l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z',
+  table: 'M4.5 9.5h15a1.5 1.5 0 0 1 0 3h-15a1.5 1.5 0 0 1 0-3zM6.5 12.5L5.5 20M17.5 12.5l1 7.5M9 12.5v4M15 12.5v4',
+  cloth: 'M4 6.5h16v11H4zM7 9.5h10v5H7z',
+  back: 'M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5zM12 8.5l3.5 3.5-3.5 3.5-3.5-3.5z',
+  gem: 'M7 4.5h10l3 4.5-8 11-8-11zM4 9h16M9.5 4.5L8.5 9 12 20M14.5 4.5l1 4.5L12 20',
+  list: 'M9 6.5h10M9 12h10M9 17.5h10M4.5 6.5l1 1 2-2M4.5 12l1 1 2-2M4.5 17.5l1 1 2-2',
+  calendar: 'M5 6h14v14H5zM5 10h14M9 3.5V7M15 3.5V7M9 14h2M13 14h2M9 17h2',
+  bolt: 'M13.5 3L6 13.5h5L10 21l8-11h-5.2z',
+  castle: 'M5 20V9l2-1V5h2v2h2V5h2v2h2V5h2v3l2 1v11zM10 20v-4a2 2 0 0 1 4 0v4',
 };
 
-/** Tier colors by reward: bronze-ish pink, silver-ish sky, gold. */
-function tier(coins: number): [string, string] {
-  if (coins >= 500) return ['#FFE27A', '#F59E0B'];
-  if (coins >= 200) return ['#B9E2FF', '#5B8CFF'];
-  return ['#FFC2DD', '#F0457A'];
-}
+export type Tier = 'bronzo' | 'argento' | 'oro' | 'platino';
 
-export function Badge({ glyph, coins, size = 64, locked }: { glyph: Glyph; coins: number; size?: number; locked?: boolean }) {
-  const [a, b] = locked ? ['#C9BCD8', '#7C6B93'] : tier(coins);
-  const id = `b${glyph}${coins}${locked ? 'l' : ''}`;
+/** I colori dei quattro livelli di difficoltà: bronzo, argento, oro, platino. */
+export const TIER_COLORS: Record<Tier, [string, string]> = {
+  bronzo: ['#FFD2B0', '#C2703A'],
+  argento: ['#F4F6FA', '#8A96AA'],
+  oro: ['#FFE27A', '#E8930B'],
+  platino: ['#EFE6FF', '#8F6BFF'],
+};
+export const TIER_NAMES: Record<Tier, string> = { bronzo: 'Bronzo', argento: 'Argento', oro: 'Oro', platino: 'Platino' };
+
+/** La medaglia di un achievement: lo scudo del suo livello con il simbolo della categoria. */
+export function Medal({ glyph, tier, size = 56, locked }: { glyph: Glyph; tier: Tier; size?: number; locked?: boolean }) {
+  const [a, b] = locked ? ['#C9BCD8', '#7C6B93'] : TIER_COLORS[tier];
+  const id = `md${glyph}${tier}${locked ? 'l' : ''}`;
   return (
-    <Svg width={size} height={size} viewBox="0 0 64 64" style={locked ? { opacity: 0.55 } : undefined}>
+    <Svg width={size} height={size} viewBox="0 0 64 64" style={locked ? { opacity: 0.6 } : undefined}>
       <Defs>
         <RadialGradient id={id} cx="35%" cy="30%" r="80%">
           <Stop offset="0" stopColor={a} />
@@ -130,9 +164,22 @@ export function Badge({ glyph, coins, size = 64, locked }: { glyph: Glyph; coins
       <Path d="M32 3l24 10v18c0 15-10 26-24 30C18 57 8 46 8 31V13z" fill={`url(#${id})`} stroke="#FFFFFF" strokeOpacity={0.8} strokeWidth={2} />
       <Path d="M32 9l18 7.5V31c0 11.5-7.5 20-18 23.5C21.5 51 14 42.5 14 31V16.5z" fill="#FFFFFF" fillOpacity={0.14} />
       <G transform="translate(17 16) scale(1.25)">
-        <Path d={GLYPHS[glyph]} fill="none" stroke="#FFFFFF" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+        <Path d={GLYPHS[glyph]} fill="none" stroke={tier === 'argento' && !locked ? '#3A4458' : '#FFFFFF'} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
       </G>
       {locked ? <Rect x={26} y={44} width={12} height={9} rx={2} fill="#FFFFFF" fillOpacity={0.85} /> : null}
+    </Svg>
+  );
+}
+
+/** Un piccolo simbolo su fondo tondo (stemmi dei set, titoli). */
+export function Emblem({ glyph, colors: [bg, fg], size = 40, locked }: { glyph: Glyph; colors: [string, string]; size?: number; locked?: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" style={locked ? { opacity: 0.5 } : undefined}>
+      <Circle cx={20} cy={20} r={18.5} fill={locked ? '#4A3A62' : bg} stroke={locked ? '#9A8BB2' : fg} strokeWidth={2} />
+      <Circle cx={20} cy={20} r={14.5} fill="none" stroke={locked ? '#9A8BB2' : fg} strokeOpacity={0.45} strokeWidth={1} />
+      <G transform="translate(9 9) scale(0.92)">
+        <Path d={GLYPHS[glyph]} fill="none" stroke={locked ? '#C9BCD8' : fg} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      </G>
     </Svg>
   );
 }

@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { arenaOf, arenaProgress } from '@/meta/arenas';
+import { ARENAS, arenaProgress } from '@/meta/arenas';
 import { useProfile } from '@/meta/profile';
-import { Pips } from '@/sections/parts';
+import { Bar } from '@/ui/progression';
 import { TrophyIcon } from '@/ui/icons';
 import { dur } from '@/ui/motion';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -38,9 +38,10 @@ function details(m: Match, r: HandRow): string[] {
 /** Trophies won or lost with the match, and how far the next arena is. */
 function TrophyLine() {
   const last = useProfile(s => s.lastMatch);
+  const arenaIdx = useProfile(s => s.meta.arena);
   if (!last) return null;
-  const arena = arenaOf(last.cups);
-  const { have } = arenaProgress(last.cups);
+  const arena = ARENAS[arenaIdx];
+  const { have, need } = arenaProgress(last.cups, arenaIdx);
   const d = last.delta;
   return (
     <Animated.View entering={FadeIn.delay(300).duration(dur.enter)} style={styles.cups}>
@@ -50,10 +51,10 @@ function TrophyLine() {
           {d > 0 ? `+${d} ${d === 1 ? 'trofeo' : 'trofei'}` : d < 0 ? `${d} ${d === -1 ? 'trofeo' : 'trofei'}` : 'Trofei invariati'}
         </Text>
         <Text v="small" numberOfLines={1}>
-          {arena.name}, {Math.min(have, 8)} su 8
+          {arena.name}, {Math.min(have, need)} su {need}
         </Text>
+        <Bar have={have} need={need} height={6} style={{ marginTop: 4 }} />
       </View>
-      <Pips have={Math.min(have, 8)} fresh={d > 0 ? Math.min(have, d) : 0} size={14} gap={3} />
     </Animated.View>
   );
 }

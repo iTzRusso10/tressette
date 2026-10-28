@@ -1,70 +1,133 @@
 import { usePathname } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
 import { dur, ease } from './motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Confetti } from '@/game/Confetti';
 import { useAdSim } from '@/meta/ads';
+import { achievementById } from '@/meta/achievements';
+import { ARENAS } from '@/meta/arenas';
+import { itemByKey } from '@/meta/catalog';
+import { roman } from '@/meta/levels';
 import { dismissCelebration, useProfile, type Celebration } from '@/meta/profile';
+import { seasonById } from '@/meta/seasons';
+import { SETS } from '@/meta/sets';
+import { ItemPreview } from './cosmetics';
+import { Icon } from './icons';
+import { CATEGORY_GLYPH } from './progression';
 import { sfx } from './feedback';
 import { ArenaReveal } from './ArenaReveal';
-import { Badge, CoinIcon } from './meta';
+import { CoinIcon, Emblem, Medal, TIER_NAMES } from './meta';
 import { Text } from './Text';
 import { colors, fonts, radius } from './theme';
 
-/** One celebration at a time, dropping in from the top: a medal, a new level, coins earned. (A new arena gets the whole screen.) */
-function Banner({ c }: { c: Exclude<Celebration, { kind: 'arena' }> }) {
+type BannerC = Exclude<Celebration, { k: 'arena' }>;
+
+function bannerSound(c: BannerC) {
+  return c.k === 'coins' ? 'coin' : c.k === 'achievement' ? 'trophy' : 'win';
+}
+
+/** Una festa alla volta, che scende dall'alto: achievement, livello, missione, oggetto, set… (una nuova arena prende tutto lo schermo). */
+function Banner({ c }: { c: BannerC }) {
   const ins = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const w = Math.min(width - 24, 420);
   useEffect(() => {
-    sfx(c.kind === 'coins' ? 'coin' : c.kind === 'trophy' ? 'trophy' : 'win', { haptic: true });
-    const t = setTimeout(() => dismissCelebration(c.id), c.kind === 'trophy' ? 3200 : 2400);
+    sfx(bannerSound(c) as never, { haptic: true });
+    const t = setTimeout(() => dismissCelebration(c.id), c.k === 'achievement' || c.k === 'set' ? 3200 : 2400);
     return () => clearTimeout(t);
   }, [c]);
+  let art: ReactNode = null;
+  let kicker = '';
+  let title = '';
+  let coins = 0;
+  switch (c.k) {
+    case 'achievement': {
+      const a = achievementById(c.id)!;
+      art = <Medal glyph={CATEGORY_GLYPH[a.category]} tier={a.tier} size={54} />;
+      kicker = `Achievement · ${TIER_NAMES[a.tier]}`;
+      title = a.name;
+      coins = a.coins;
+      break;
+    }
+    case 'level':
+    case 'prestige':
+    case 'legend':
+      art = (
+        <View style={styles.levelBig}>
+          <Text style={styles.levelBigText}>{c.k === 'level' ? c.level : roman(c.n)}</Text>
+        </View>
+      );
+      kicker = c.k === 'level' ? 'Nuovo livello' : c.k === 'prestige' ? 'Nuovo grado di Prestigio' : 'Nuovo grado di Leggenda';
+      title = c.k === 'level' ? `Sei al livello ${c.level}` : c.k === 'prestige' ? `Prestigio ${c.n}` : `Leggenda ${roman(c.n)}`;
+      break;
+    case 'item': {
+      const i = itemByKey(c.key)!;
+      art = <ItemPreview item={i} width={64} height={46} />;
+      kicker = 'Nuovo oggetto';
+      title = i.name;
+      break;
+    }
+    case 'set': {
+      const st = SETS.find(x => x.id === c.id)!;
+      art = <Emblem glyph="gem" colors={st.badge.colors} size={50} />;
+      kicker = 'Set completato';
+      title = st.name;
+      coins = st.coins;
+      break;
+    }
+    case 'mission':
+      art = (
+        <View style={[styles.levelBig, { backgroundColor: colors.mint }]}>
+          <Icon name="check" size={26} color={colors.ink} stroke={3} />
+        </View>
+      );
+      kicker = 'Missione completata';
+      title = c.text;
+      break;
+    case 'seasonTier': {
+      const season = seasonById(c.season);
+      const tier = season?.tiers[c.index];
+      art = (
+        <View style={styles.levelBig}>
+          <Icon name="podium" size={26} color={colors.ink} stroke={2.4} />
+        </View>
+      );
+      kicker = season ? season.name : 'Stagione';
+      title = tier ? `Traguardo dei ${tier.points} punti` : 'Traguardo di stagione';
+      break;
+    }
+    case 'coins':
+    case 'chapter':
+      art = <CoinIcon size={40} />;
+      kicker = c.k === 'coins' ? c.why : 'Capitolo completato';
+      title = c.k === 'coins' ? `+${c.amount} monete` : '';
+      break;
+  }
   return (
     <Animated.View
       entering={SlideInUp.duration(dur.enter + 40).easing(ease.in)}
       exiting={SlideOutUp.duration(dur.exit).easing(ease.out)}
       pointerEvents="none"
+      accessibilityLiveRegion="polite"
       style={[styles.banner, { top: ins.top + 8, width: w, left: (width - w) / 2 }]}
     >
-      {c.kind === 'trophy' ? (
-        <>
-          <Animated.View entering={FadeIn.delay(160).duration(dur.enter)}>
-            <Badge glyph={c.trophy.glyph} coins={c.trophy.coins} size={54} />
-          </Animated.View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>Medaglia vinta</Text>
-            <Text style={styles.title} numberOfLines={1}>
-              {c.trophy.title}
-            </Text>
-            <View style={styles.reward}>
-              <CoinIcon size={16} />
-              <Text style={styles.rewardText}>+{c.trophy.coins}</Text>
-            </View>
+      <Animated.View entering={FadeIn.delay(160).duration(dur.enter)}>{art}</Animated.View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.kicker} numberOfLines={1}>
+          {kicker}
+        </Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        {coins ? (
+          <View style={styles.reward}>
+            <CoinIcon size={16} />
+            <Text style={styles.rewardText}>+{coins}</Text>
           </View>
-        </>
-      ) : c.kind === 'level' ? (
-        <>
-          <View style={styles.levelBig}>
-            <Text style={styles.levelBigText}>{c.level}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>Nuovo livello</Text>
-            <Text style={styles.title}>Sei al livello {c.level}</Text>
-          </View>
-        </>
-      ) : (
-        <>
-          <CoinIcon size={40} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>{c.why}</Text>
-            <Text style={styles.title}>+{c.amount} monete</Text>
-          </View>
-        </>
-      )}
+        ) : null}
+      </View>
     </Animated.View>
   );
 }
@@ -88,9 +151,9 @@ export function Overlays() {
   const { width } = useWindowDimensions();
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: 5000 }]}>
-      {c && c.kind !== 'arena' ? <Banner key={c.id} c={c} /> : null}
-      {c?.kind === 'arena' && !atTable ? <ArenaReveal key={c.id} arena={c.arena} onClose={() => dismissCelebration(c.id)} /> : null}
-      {c?.kind === 'trophy' ? <Confetti key={'k' + c.id} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.id} /> : null}
+      {c && c.k !== 'arena' ? <Banner key={c.id} c={c} /> : null}
+      {c?.k === 'arena' && !atTable ? <ArenaReveal key={c.id} arena={ARENAS[c.index]} onClose={() => dismissCelebration(c.id)} /> : null}
+      {c?.k === 'achievement' || c?.k === 'set' ? <Confetti key={'k' + c.id} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.id} /> : null}
       <AdSim />
     </View>
   );

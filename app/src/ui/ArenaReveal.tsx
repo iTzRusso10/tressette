@@ -5,12 +5,12 @@ import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Confetti } from '@/game/Confetti';
 import type { Arena } from '@/meta/arenas';
-import { itemById } from '@/meta/shop';
+import { BALANCE } from '@/meta/balance';
+import { roman } from '@/meta/levels';
 import { ArenaScene } from './ArenaScene';
-import { TablePreview } from './cosmetics';
 import { sfx } from './feedback';
 import { Button } from './kit';
-import { CoinIcon } from './meta';
+import { RewardRow } from './progression';
 import { dur, ease } from './motion';
 import { Text } from './Text';
 import { colors, fonts, radius, space } from './theme';
@@ -21,9 +21,6 @@ export function ArenaReveal({ arena, onClose }: { arena: Arena; onClose: () => v
   const ins = useSafeAreaInsets();
   const w = Math.min(width - 40, 440);
   const sceneH = Math.round(Math.min(w * 0.62, height * 0.3));
-  const tw = Math.round(w * 0.78);
-  const felt = itemById(arena.felt);
-  const back = arena.back ? itemById(arena.back) : null;
   useEffect(() => {
     sfx('arena', { haptic: true });
   }, []);
@@ -43,36 +40,27 @@ export function ArenaReveal({ arena, onClose }: { arena: Arena; onClose: () => v
           <ArenaScene id={arena.id} width={w} height={sceneH} />
           <LinearGradient colors={['rgba(20,4,40,0)', 'rgba(20,4,40,0.8)']} style={[StyleSheet.absoluteFill, { top: sceneH * 0.4 }]} />
           <View style={styles.sceneText}>
-            <Text style={styles.number}>Arena {arena.index + 1}</Text>
+            <Text style={styles.number}>
+              Arena {arena.n} · Capitolo {roman(arena.chapter.n)}
+            </Text>
             <Text style={styles.name}>{arena.name}</Text>
           </View>
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(520).duration(dur.enter + 80).easing(ease.in)} style={{ marginTop: -sceneH * 0.12 }}>
-          <TablePreview felt={arena.felt} pattern="nessuno" back={arena.back ?? 'classico'} width={tw} height={Math.round(tw * 0.56)} cards />
-        </Animated.View>
-        <Animated.View entering={FadeIn.delay(800).duration(dur.enter)} style={styles.won}>
+        <Animated.View entering={FadeIn.delay(600).duration(dur.enter)} style={styles.won}>
           <Text v="body" style={{ textAlign: 'center' }}>
             {arena.desc}
           </Text>
-          <View style={styles.rewards}>
-            <View style={styles.reward}>
-              <Text style={styles.rewardText}>Panno {felt?.name}</Text>
-            </View>
-            {back ? (
-              <View style={styles.reward}>
-                <Text style={styles.rewardText}>Dorso {back.name}</Text>
-              </View>
-            ) : null}
-            {arena.coins ? (
-              <View style={styles.reward}>
-                <CoinIcon size={18} />
-                <Text style={styles.rewardText}>+{arena.coins.toLocaleString('it-IT')}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text v="small" style={{ textAlign: 'center' }}>
-            Il nuovo tavolo è già sul tuo panno. Puoi cambiarlo quando vuoi nel Negozio.
-          </Text>
+          <RewardRow reward={arena.reward} extraCoins={arena.chapterEnd ? BALANCE.coins.chapter : 0} size={64} />
+          {arena.chapterEnd ? (
+            <Text v="small" style={{ textAlign: 'center', color: colors.sun }}>
+              Capitolo {roman(arena.chapter.n)} completato: {arena.chapter.name}.
+            </Text>
+          ) : null}
+          {arena.reward.items?.length ? (
+            <Text v="small" style={{ textAlign: 'center' }}>
+              Lo trovi nel Negozio, tra i tuoi oggetti: lo metti sul tavolo quando vuoi.
+            </Text>
+          ) : null}
         </Animated.View>
         <Animated.View entering={FadeIn.delay(1000).duration(dur.enter)} style={{ alignSelf: 'stretch', marginTop: space.xl }}>
           <Button label="Avanti" onPress={onClose} />

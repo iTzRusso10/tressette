@@ -6,8 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Match } from '@/engine';
 import { Sheet } from '@/game/Sheet';
 import { canClaim } from '@/meta/economy';
-import { ARENAS, arenaOf, arenaProgress, LAST_ARENA } from '@/meta/arenas';
-import { bonusAvailable, useProfile } from '@/meta/profile';
+import { ARENAS, arenaProgress, blockedArena, LAST_ARENA } from '@/meta/arenas';
+import { BALANCE } from '@/meta/balance';
+import { roman } from '@/meta/levels';
+import { bonusAvailable, refreshDay, useProfile } from '@/meta/profile';
+import { legendOf } from '@/meta/reqs';
 import { loadSaved } from '@/state/table';
 import { ArenaScene } from '@/ui/ArenaScene';
 import { TablePreview } from '@/ui/cosmetics';
@@ -19,32 +22,27 @@ import { Text } from '@/ui/Text';
 import { colors, fonts, gradients, radius, shadow, space } from '@/ui/theme';
 import { GameTile, ORDER, ResumeCard } from './GameTiles';
 import { useTabs } from './Hub';
-import { Pips, SectionScroll } from './parts';
-
-/** When the trophies of the last match were last shown filling in. */
-let pipsShownAt = 0;
+import { Bar } from '@/ui/progression';
+import { Missions } from './Missions';
+import { SectionScroll } from './parts';
 
 /** The arena you are in: the place, your table, the trophies to the next one. */
 function ArenaCard({ width, room }: { width: number; room: number }) {
   const { go } = useTabs();
-  const cups = useProfile(s => s.cups);
-  const equipped = useProfile(s => s.equipped);
-  const last = useProfile(s => s.lastMatch);
-  const arena = arenaOf(cups);
-  const { have } = arenaProgress(cups);
-  const legend = arena.index === LAST_ARENA && have >= 8;
-  // Trophies won in the last match fill in once, when you come back from the table.
-  const fresh = useMemo(() => (last && last.delta > 0 && last.at > pipsShownAt ? Math.min(have, last.delta) : 0), [last]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (last) pipsShownAt = last.at;
-  }, [last]);
+  const p = useProfile();
+  const cups = p.cups;
+  const equipped = p.equipped;
+  const arena = ARENAS[p.meta.arena];
+  const { have, need } = arenaProgress(cups, arena.index);
+  const legend = arena.index === LAST_ARENA;
+  const blocked = blockedArena(p);
   const next = ARENAS[arena.index + 1];
   // The card takes the height the screen has to spare: a taller sky on tall phones, never cramped on small ones.
   const tw = Math.round(width * 0.66);
   const th = Math.round(tw * 0.56);
   const sceneH = Math.round(Math.max(width * 0.42, Math.min(width * 0.8, room - th * 0.72 - 92)));
   return (
-    <Squish accessibilityRole="button" accessibilityLabel={`${arena.name}, arena ${arena.index + 1}. Apri il cammino dei trofei`} onPress={() => go('trofei')} scaleTo={0.98}>
+    <Squish accessibilityRole="button" accessibilityLabel={`${arena.name}, arena ${arena.n}. Apri la strada delle arene`} onPress={() => go('trofei')} scaleTo={0.98}>
       <View style={[styles.arena, { width }]}>
         <View style={{ height: sceneH }}>
           <ArenaScene id={arena.id} width={width} height={sceneH} />
@@ -52,7 +50,7 @@ function ArenaCard({ width, room }: { width: number; room: number }) {
           <LinearGradient colors={['rgba(28,8,52,0)', 'rgba(28,8,52,0.75)']} style={[StyleSheet.absoluteFill, { top: sceneH * 0.45 }]} />
           <View style={styles.arenaHead}>
             <View style={styles.arenaChip}>
-              <Text style={styles.arenaChipText}>Arena {arena.index + 1}</Text>
+              <Text style={styles.arenaChipText}>Arena {arena.n} · Capitolo {roman(arena.chapter.n)}</Text>
             </View>
             <Text style={styles.arenaName} numberOfLines={1}>
               {arena.name}
@@ -60,16 +58,20 @@ function ArenaCard({ width, room }: { width: number; room: number }) {
           </View>
         </View>
         <View style={[styles.tableWrap, { marginTop: -th * 0.28 }]} pointerEvents="none">
-          <TablePreview felt={equipped.felt} pattern={equipped.pattern} back={equipped.back} width={tw} height={th} cards />
+          <TablePreview table={equipped.table} felt={equipped.felt} back={equipped.back} width={tw} height={th} cards />
         </View>
         <View style={styles.road}>
-          <Pips have={Math.min(have, 8)} fresh={fresh} size={Math.min(28, (width - 80) / 8 - 6)} />
-          <Text style={styles.roadText}>
-            {legend
-              ? `Sei una leggenda: ${cups} trofei.`
-              : next
-                ? `Ancora ${8 - have} ${8 - have === 1 ? 'trofeo' : 'trofei'} per ${next.name}`
-                : `Ancora ${8 - have} ${8 - have === 1 ? 'trofeo' : 'trofei'} per diventare leggenda`}
+          <View style={styles.roadBar}>
+            <TrophyIcon size={20} />
+            <Bar have={have} need={need} height={10} style={{ flex: 1 }} />
+            <Text style={styles.roadNum}>{cups.toLocaleString('it-IT')}</Text>
+          </View>
+          <Text style={styles.roadText} numberOfLines={1}>
+            {blocked
+              ? `${blocked.name}: ti manca un requisito`
+              : legend
+                ? `Leggenda ${legendOf(p.bestCups) ? roman(legendOf(p.bestCups)) : ''} · ${need - have} trofei al prossimo grado`.replace('  ', ' ')
+                : `Ancora ${need - have} trofei per ${next!.name}`}
           </Text>
         </View>
       </View>
@@ -79,11 +81,12 @@ function ArenaCard({ width, room }: { width: number; room: number }) {
 
 /** How many trophies each opponent is worth: shown when you choose the game. */
 function TrophyKey() {
+  const t = BALANCE.trophies;
   const rows: [string, string, string][] = [
-    ['Facile', '+1', '0'],
-    ['Medio', '+2', '−1'],
-    ['Esperto', '+3', '−1'],
-    ['Online', '+3', '−1'],
+    ['Facile', `+${t.win.facile}`, `${t.loss.facile}`],
+    ['Medio', `+${t.win.medio}`, `−${t.loss.medio}`],
+    ['Esperto', `+${t.win.difficile}`, `−${t.loss.difficile}`],
+    ['Online', `+${t.win.online}`, `−${t.loss.online}`],
   ];
   return (
     <View style={styles.key}>
@@ -140,6 +143,10 @@ export function Gioca({ active }: { active: boolean }) {
       };
     }, []),
   );
+  // Un giorno nuovo porta missioni nuove (e, a fine stagione, la stagione dopo).
+  useEffect(() => {
+    if (active) refreshDay();
+  }, [active]);
   useEffect(() => {
     if (!active) return;
     // Wait for the saved profile to load before deciding.
@@ -189,6 +196,7 @@ export function Gioca({ active }: { active: boolean }) {
             </Squish>
           )}
         </View>
+        <Missions width={colW} />
       </SectionScroll>
     </>
   );
@@ -216,8 +224,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   tableWrap: { alignItems: 'center' },
-  road: { alignItems: 'center', paddingTop: space.m, paddingBottom: space.l, gap: space.s },
-  roadText: { fontFamily: fonts.semi, fontSize: 13.5, lineHeight: 18, color: colors.textSoft },
+  road: { paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l, gap: space.s },
+  roadBar: { flexDirection: 'row', alignItems: 'center', gap: space.s },
+  roadNum: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19, color: colors.text, fontVariant: ['tabular-nums'], minWidth: 44, textAlign: 'right' },
+  roadText: { fontFamily: fonts.semi, fontSize: 13.5, lineHeight: 18, color: colors.textSoft, textAlign: 'center' },
   play: {
     height: 76,
     borderRadius: radius.pill,

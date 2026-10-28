@@ -38,16 +38,17 @@ const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '
 const profile = JSON.stringify({
   state: {
     coins: 5400,
-    xp: 820,
-    cups: 21,
-    bestCups: 21,
-    owned: ['smeraldo', 'nessuno', 'classico', 'mercato', 'mergellina', 'rosone', 'limoni'],
-    equipped: { felt: 'mergellina', pattern: 'rosone', back: 'limoni' },
+    xp: 9000,
+    cups: 1260,
+    bestCups: 1290,
+    stats: { played: 140, won: 82, byGame: { tressette: { played: 50, won: 30, expert: 6 }, briscola: { played: 45, won: 26, expert: 4 }, scopa: { played: 45, won: 26, expert: 5 } }, scope: 61, settebelli: 30, bestStreak: 7, expertWins: 15, hands: 520, days: 21 },
+    owned: ['table:legno-di-casa', 'table:tavolo-del-circolo', 'table:marmo-di-carrara', 'felt:rosso-da-circolo', 'felt:maiolica-mediterranea', 'felt:venezia-al-tramonto', 'back:rosso-tradizionale', 'back:oro-classico', 'back:corona-reale'],
+    equipped: { table: 'tavolo-del-circolo', felt: 'maiolica-mediterranea', back: 'oro-classico' },
     // The daily bonus already taken, so it doesn't cover the photos.
     bonus: { lastDay: day, streak: 3 },
-    trophies: { 'prima-vittoria': 1, 'prima-scopa': 2 },
+    achievements: { 'prima-vittoria': 1, 'prima-scopa': 2 },
   },
-  version: 0,
+  version: 2,
 });
 
 const browser = await chromium.launch();
@@ -78,7 +79,28 @@ for (const sc of SCREENS) {
       await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } });
       await page.waitForTimeout(500);
     }
+    if (tab === 'trofei') {
+      for (const sub of ['Achievement', 'Titoli']) {
+        await page.getByRole('radio', { name: sub }).first().click();
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: join(out, `hub-${sc.id}-trofei-${sub.toLowerCase()}.png`) });
+      }
+      await page.getByRole('radio', { name: 'Arene' }).first().click();
+    }
+    if (tab === 'classifica') {
+      await page.getByRole('radio', { name: 'Stagione' }).first().click();
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: join(out, `hub-${sc.id}-classifica-stagione.png`) });
+      await page.getByRole('radio', { name: 'Trofei' }).first().click();
+    }
     if (tab === 'negozio') {
+      for (const sub of ['Tavolini', 'Dorsi', 'Set']) {
+        await page.getByRole('radio', { name: sub }).first().click();
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: join(out, `hub-${sc.id}-negozio-${sub.toLowerCase()}.png`) });
+      }
+      await page.getByRole('radio', { name: 'Panni' }).first().click();
+      await page.waitForTimeout(600);
       await page.getByRole('button', { name: /Offerta del giorno/ }).click().catch(() => problems.push(`${sc.id}: nessuna offerta del giorno`));
       await page.waitForTimeout(900);
       await page.screenshot({ path: join(out, `hub-${sc.id}-negozio-oggetto.png`) });

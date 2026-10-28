@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Share, StyleSheet, TextInput, View } from 'react-native';
-import { arenaOf } from '@/meta/arenas';
-import { levelOf } from '@/meta/economy';
+import { arenaByTrophies } from '@/meta/arenas';
+import { levelLabel } from '@/meta/levels';
 import { addFriendByCode, loadFriends, type Friend } from '@/meta/friends';
 import { useProfile } from '@/meta/profile';
 import { sfx } from '@/ui/feedback';
@@ -44,7 +44,7 @@ function FriendRow({ f }: { f: Friend }) {
           {f.name}
         </Text>
         <Text v="small" numberOfLines={1}>
-          Livello {levelOf(f.xp)}, {arenaOf(cups).name}
+          {levelLabel(f.xp)}, {arenaByTrophies(cups).name}
           {f.via === 'facebook' ? ', da Facebook' : ''}
         </Text>
       </View>

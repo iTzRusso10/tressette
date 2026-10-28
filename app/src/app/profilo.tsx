@@ -1,14 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
-import { arenaOf } from '@/meta/arenas';
+import { ACHIEVEMENTS } from '@/meta/achievements';
+import { ARENAS } from '@/meta/arenas';
+import { itemsOf, keyOf, SLOT_NAMES, SLOTS } from '@/meta/catalog';
 import { signOut } from '@/meta/auth';
-import { levelOf, levelProgress, xpForLevel } from '@/meta/economy';
-import { useProfile } from '@/meta/profile';
+import { levelInfo, levelProgress } from '@/meta/levels';
+import { titleOf } from '@/meta/ledger';
+import { progressOf, useProfile } from '@/meta/profile';
+import { SETS } from '@/meta/sets';
 import { useSettings } from '@/state/settings';
-import { TrophyIcon } from '@/ui/icons';
-import { BackButton, Button, Glass, Screen, Section } from '@/ui/kit';
-import { CoinPill, LevelAvatar } from '@/ui/meta';
+import { Icon, TrophyIcon } from '@/ui/icons';
+import { BackButton, Button, Glass, Screen, Section, Squish } from '@/ui/kit';
+import { CoinPill, Emblem, LevelAvatar } from '@/ui/meta';
 import { SignInPanel } from '@/ui/SignIn';
 import { Text } from '@/ui/Text';
 import { colors, fonts, gradients, radius, space } from '@/ui/theme';
@@ -20,7 +24,10 @@ export default function Profilo() {
   const localName = useSettings(s => s.name.trim());
 
   const name = p.account?.name || localName || 'Tu';
-  const lvl = levelOf(p.xp);
+  const info = levelInfo(p.xp);
+  const lvl = info.prestige > 0 ? `P${info.prestige}` : String(info.level);
+  const title = titleOf(progressOf(p));
+  const arena = ARENAS[p.meta.arena];
   const winRate = p.stats.played ? Math.round((p.stats.won / p.stats.played) * 100) : 0;
 
   return (
@@ -46,8 +53,21 @@ export default function Profilo() {
             <Text v="h1" numberOfLines={1}>
               {name}
             </Text>
+            <Squish
+              accessibilityRole="button"
+              accessibilityLabel={`Titolo: ${title.name}. Cambialo nella sezione Trofei`}
+              onPress={() => router.dismissTo({ pathname: '/', params: { tab: 'trofei' } })}
+              scaleTo={0.97}
+              style={styles.titleRow}
+            >
+              <Icon name="crown" size={15} color={colors.sun} />
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title.name}
+              </Text>
+            </Squish>
             <Text v="small" style={{ color: colors.textSoft }}>
-              Livello {lvl}: {p.xp - xpForLevel(lvl)} su {xpForLevel(lvl + 1) - xpForLevel(lvl)} punti per il prossimo
+              {info.prestige > 0 ? `Prestigio ${info.prestige}` : `Livello ${info.level}`}: {info.have.toLocaleString('it-IT')} su {info.need.toLocaleString('it-IT')} punti per il{' '}
+              {info.level >= 100 ? 'prossimo grado di Prestigio' : 'prossimo livello'}
             </Text>
             <View style={styles.xpTrack}>
               <View style={[styles.xpFill, { width: `${Math.max(4, levelProgress(p.xp) * 100)}%` }]} />
@@ -100,19 +120,48 @@ export default function Profilo() {
         <View style={styles.road}>
           <View style={styles.roadCell}>
             <TrophyIcon size={26} />
-            <Text style={styles.roadNum}>{p.cups}</Text>
+            <Text style={styles.roadNum}>{p.cups.toLocaleString('it-IT')}</Text>
             <Text v="small">trofei</Text>
           </View>
           <View style={styles.roadCell}>
-            <Text style={styles.roadNum}>{arenaOf(p.bestCups).index + 1}</Text>
-            <Text v="small" numberOfLines={1}>
-              {arenaOf(p.bestCups).name}
+            <Text style={styles.roadNum}>{arena.n}</Text>
+            <Text v="small" numberOfLines={1} style={{ paddingHorizontal: 4 }}>
+              {arena.name}
             </Text>
           </View>
           <View style={styles.roadCell}>
-            <Text style={styles.roadNum}>{Object.keys(p.trophies).length}</Text>
-            <Text v="small">medaglie</Text>
+            <Text style={styles.roadNum}>{Object.keys(p.achievements).length}</Text>
+            <Text v="small">su {ACHIEVEMENTS.length} achievement</Text>
           </View>
+        </View>
+
+        <View style={styles.record}>
+          <Text v="label">Collezione</Text>
+          {SLOTS.map(s => {
+            const all = itemsOf(s).filter(i => i.price > 0);
+            const mine = all.filter(i => p.owned.includes(keyOf(i))).length;
+            return (
+              <View key={s} style={styles.gameRow}>
+                <Text v="label" style={styles.gameName}>
+                  {SLOT_NAMES[s]}
+                </Text>
+                <View style={styles.bar}>
+                  <View style={[styles.barFill, { backgroundColor: colors.sun, width: `${Math.max(mine ? 4 : 0, (mine / all.length) * 100)}%` }]} />
+                </View>
+                <Text v="small" style={styles.gameCount}>
+                  {mine}/{all.length}
+                </Text>
+              </View>
+            );
+          })}
+          <View style={styles.badges} accessibilityLabel={`Stemmi dei set: ${p.meta.sets.length} su ${SETS.length}`}>
+            {SETS.map(st => (
+              <Emblem key={st.id} glyph="gem" colors={st.badge.colors} size={30} locked={!p.meta.sets.includes(st.id)} />
+            ))}
+          </View>
+          <Text v="small">
+            {p.meta.sets.length ? `${p.meta.sets.length} set completati su ${SETS.length}.` : 'Completa un set (tavolino, panno e dorso dello stesso gruppo) per il suo stemma.'}
+          </Text>
         </View>
 
         {p.account ? (
@@ -137,6 +186,9 @@ export default function Profilo() {
 
 const styles = StyleSheet.create({
   road: { flexDirection: 'row', gap: space.s, marginTop: space.m },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', minHeight: 30 },
+  titleText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 18, color: colors.sun },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   roadCell: { flex: 1, alignItems: 'center', paddingVertical: space.m, borderRadius: radius.l, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.panelLine },
   roadNum: { fontFamily: fonts.display, fontSize: 22, lineHeight: 27, color: colors.text, fontVariant: ['tabular-nums'] },
   signedIn: { flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: colors.panel, borderColor: colors.panelLine },

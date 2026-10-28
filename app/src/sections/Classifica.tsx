@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { arenaOf } from '@/meta/arenas';
-import { loadLeaderboard, type RankRow, type RankScope } from '@/meta/leaderboard';
+import { ARENAS, arenaByTrophies } from '@/meta/arenas';
+import { loadLeaderboard, loadSeasonLeaderboard, type RankRow, type RankScope } from '@/meta/leaderboard';
 import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
 import { ArenaScene } from '@/ui/ArenaScene';
@@ -14,6 +14,9 @@ import { SignInPanel } from '@/ui/SignIn';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, space } from '@/ui/theme';
 import { Panel, SectionScroll, SectionTitle } from './parts';
+import { SeasonCard } from './Season';
+
+type Board = 'trofei' | 'stagione';
 
 /** Gold, silver and bronze for the first three. */
 const PODIUM = ['#FFC93D', '#D5DCE8', '#E39A5B'];
@@ -29,7 +32,7 @@ function Rank({ n }: { n: number }) {
   );
 }
 
-function Row({ r }: { r: RankRow }) {
+function Row({ r, board }: { r: RankRow; board: Board }) {
   return (
     <View style={[styles.row, r.isMe && styles.rowMe]}>
       <Rank n={r.rank} />
@@ -39,12 +42,12 @@ function Row({ r }: { r: RankRow }) {
           {r.isMe ? `${r.name} (tu)` : r.name}
         </Text>
         <Text v="small" numberOfLines={1}>
-          {arenaOf(r.cups).name}
+          {board === 'trofei' ? arenaByTrophies(r.cups).name : 'Punti stagione'}
         </Text>
       </View>
       <View style={styles.cups}>
-        <TrophyIcon size={18} />
-        <Text style={styles.cupsText}>{r.cups}</Text>
+        {board === 'trofei' ? <TrophyIcon size={18} /> : <Icon name="podium" size={18} color={colors.sun} />}
+        <Text style={styles.cupsText}>{r.cups.toLocaleString('it-IT')}</Text>
       </View>
     </View>
   );
@@ -55,7 +58,7 @@ function Me({ rank }: { rank: number | null }) {
   const cups = useProfile(s => s.cups);
   const account = useProfile(s => s.account);
   const name = useSettings(s => s.name.trim());
-  const arena = arenaOf(cups);
+  const arena = ARENAS[useProfile(s => s.meta.arena)];
   const { width } = useWindowDimensions();
   return (
     <View style={styles.me}>
@@ -75,7 +78,7 @@ function Me({ rank }: { rank: number | null }) {
         </View>
         <View style={styles.meCups}>
           <TrophyIcon size={30} />
-          <Text style={styles.meCupsText}>{cups}</Text>
+          <Text style={styles.meCupsText}>{cups.toLocaleString('it-IT')}</Text>
         </View>
       </View>
     </View>
@@ -85,28 +88,41 @@ function Me({ rank }: { rank: number | null }) {
 export function Classifica({ active }: { active: boolean }) {
   const account = useProfile(s => s.account);
   const [scope, setScope] = useState<RankScope>('mondo');
-  const [loaded, setLoaded] = useState<{ scope: RankScope; rows: RankRow[]; me: RankRow | null } | { scope: RankScope; error: true } | null>(null);
+  const [board, setBoard] = useState<Board>('trofei');
+  const key = `${board}:${scope}`;
+  const [loaded, setLoaded] = useState<{ key: string; rows: RankRow[]; me: RankRow | null } | { key: string; error: true } | null>(null);
   const [version, setVersion] = useState(0);
   const load = () => setVersion(v => v + 1);
   useEffect(() => {
     if (!active || !account) return;
     let live = true;
-    loadLeaderboard(scope)
-      .then(d => live && setLoaded({ scope, ...d }))
-      .catch(() => live && setLoaded({ scope, error: true }));
+    (board === 'trofei' ? loadLeaderboard(scope) : loadSeasonLeaderboard(scope))
+      .then(d => live && setLoaded({ key, ...d }))
+      .catch(() => live && setLoaded({ key, error: true }));
     return () => {
       live = false;
     };
-  }, [active, account, scope, version]);
+  }, [active, account, scope, board, key, version]);
   // While another list loads, the old one doesn't stay on screen.
-  const current = loaded && loaded.scope === scope ? loaded : null;
+  const current = loaded && loaded.key === key ? loaded : null;
   const error = !!current && 'error' in current;
   const data = current && !('error' in current) ? current : null;
 
   return (
     <SectionScroll>
-      <SectionTitle title="Classifica" sub="Chi ha più trofei sale. Chi perde, scende." />
-      <Me rank={data?.me?.rank ?? null} />
+      <SectionTitle title="Classifica" sub={board === 'trofei' ? 'Chi ha più trofei sale. Chi perde, scende.' : 'Ogni stagione si riparte da zero: conta come giochi adesso.'} />
+      <View style={{ marginBottom: space.l }}>
+        <Choice<Board>
+          label="Quale classifica"
+          value={board}
+          onChange={setBoard}
+          options={[
+            { value: 'trofei', label: 'Trofei' },
+            { value: 'stagione', label: 'Stagione' },
+          ]}
+        />
+      </View>
+      {board === 'trofei' ? <Me rank={data?.me?.rank ?? null} /> : <SeasonCard />}
       {account ? (
         <>
           <View style={{ marginTop: space.l }}>
@@ -140,12 +156,12 @@ export function Classifica({ active }: { active: boolean }) {
             ) : (
               <Animated.View entering={FadeIn.duration(dur.enter)} style={{ gap: space.s }}>
                 {data.rows.map(r => (
-                  <Row key={r.id} r={r} />
+                  <Row key={r.id} r={r} board={board} />
                 ))}
                 {data.me && !data.rows.some(r => r.isMe) ? (
                   <>
                     <Text style={styles.dots}>···</Text>
-                    <Row r={data.me} />
+                    <Row r={data.me} board={board} />
                   </>
                 ) : null}
               </Animated.View>
@@ -156,7 +172,7 @@ export function Classifica({ active }: { active: boolean }) {
         <View style={{ marginTop: space.l }}>
           <SignInPanel
             title="Entra in classifica"
-            body="Con un account i tuoi trofei finiscono nella classifica di tutti i giocatori e in quella dei tuoi amici."
+            body="Con un account i tuoi trofei e i tuoi punti stagione finiscono nella classifica di tutti i giocatori e in quella dei tuoi amici."
           />
         </View>
       )}
