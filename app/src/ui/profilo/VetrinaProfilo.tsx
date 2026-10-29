@@ -36,7 +36,7 @@ import type { PublicProfile } from '@/meta/ledger';
 import { DEFAULT_TITLE, titleById } from '@/meta/titles';
 import { ACHIEVEMENTS } from '@/meta/achievements';
 import { ArenaScene } from '../ArenaScene';
-import { PlayerAvatar } from '../avatar';
+import { AvatarCornice } from '../avatar';
 import { TrophyIcon } from '../icons';
 import { Squish } from '../kit';
 import type { Tier } from '../meta';
@@ -56,7 +56,6 @@ import {
   Pulsante,
   puoAnimare,
   Respiro,
-  Riflesso,
   Sala,
   sporgenzaPiano,
   Superficie,
@@ -104,21 +103,6 @@ export function misureProfilo(larghezza: number, altezza: number) {
   // La scena: 3:1 su desktop (tutta la tela), sul telefono arriva fin sotto la targa.
   const scena = desktop ? Math.round(larghezza / 3) : barra + aria + avatar + 150;
   return { desktop, piccolo, colonna, avatar, aria, barra, scena };
-}
-
-/** L'anello della cornice (corona circolare) dove passa il riflesso: stessa geometria di PlayerAvatar. */
-function anello(frame: string, S: number): string {
-  const st = itemOf('frame', frame);
-  const stile = st && st.slot === 'frame' ? st.look.style : 'ring';
-  const largo = ['rays', 'flame', 'laurel', 'crown', 'stars', 'tiles'].includes(stile);
-  const medio = ['double', 'gems'].includes(stile);
-  const r = S * (largo ? 0.35 : medio ? 0.39 : 0.42);
-  const w = Math.max(2, S * 0.07);
-  const R = Math.min(S / 2, r + w * (largo ? 2.4 : 1.4));
-  const ri = r - 1;
-  const c = S / 2;
-  // esterno in senso orario, interno al contrario: il buco resta fuori dal ritaglio
-  return `M${c - R} ${c}A${R} ${R} 0 1 0 ${c + R} ${c}A${R} ${R} 0 1 0 ${c - R} ${c}Z M${c - ri} ${c}A${ri} ${ri} 0 1 1 ${c + ri} ${c}A${ri} ${ri} 0 1 1 ${c - ri} ${c}Z`;
 }
 
 /** Il livello come medaglia d'ottone sul bordo dell'avatar. */
@@ -192,8 +176,9 @@ export function VetrinaProfilo({
 
   const avatarCorpo = (
     <View style={{ width: m.avatar, height: m.avatar }}>
-      <PlayerAvatar avatar={pub.avatar} photo={foto} name={nome} frame={pub.frame} size={m.avatar} />
-      {corniceViva ? <Riflesso forma="path" d={anello(pub.frame, m.avatar)} larghezza={m.avatar} altezza={m.avatar} pausa={pausaComune} ritardo={ritardoCornice} intensita={0.6} attivo={vivo} /> : null}
+      {/* la cornice disegna da sé il suo riflesso, sulla sua geometria (foro e spessore di arte/cornici.ts); solo il
+          riflesso, senza gemme e granelli, per restare nel budget di 4 movimenti della schermata */}
+      <AvatarCornice avatar={pub.avatar} photo={foto} name={nome} frame={pub.frame} size={m.avatar} vivo={corniceViva && vivo} soloRiflesso riflesso={{ pausa: pausaComune, ritardo: ritardoCornice }} />
       <View style={[styles.medagliaPosto, { right: m.avatar * 0.02, bottom: m.avatar * 0.02 }]} pointerEvents="none">
         <MedagliaLivello testo={livello} misura={medaglia} />
       </View>

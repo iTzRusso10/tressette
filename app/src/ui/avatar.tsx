@@ -7,8 +7,8 @@
 //                  comprende la cornice. Sempre ferma: nelle liste, nelle classifiche, nei banner e nel profilo (dove
 //                  il pacchetto B2 decide la vita della vetrina) niente si muove da solo.
 // - `AvatarCornice` gli stessi props più `vivo?: boolean` (default false) e `seme?`: la versione da vetrina, che si
-//                  anima secondo la rarità. La usano il palco della personalizzazione e /dev/cornici; il profilo può
-//                  passarle `vivo` al posto del suo riflesso.
+//                  anima secondo la rarità. La usano il palco della personalizzazione, /dev/cornici e il profilo
+//                  (con `soloRiflesso` e `riflesso: {pausa, ritardo}`, per stare nel suo budget di 4 movimenti).
 // - `PlayerAvatarProps`
 //
 // Livelli di dettaglio (la scala delle rarità resta leggibile anche in piccolo, §5.7):
@@ -855,7 +855,7 @@ const RIFL = { 6000: rifl(6000), 8000: rifl(8000) } as const;
 const RESPIRO = css.keyframes({ from: { opacity: 1 }, to: { opacity: 0.6 } });
 const DISSOLVE = css.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } });
 
-function RiflessoAnello({ size, Rm, T, pausa, intensita }: { size: number; Rm: number; T: number; pausa: number; intensita: number }) {
+function RiflessoAnello({ size, Rm, T, pausa, intensita, ritardo = 900 }: { size: number; Rm: number; T: number; pausa: number; intensita: number; ritardo?: number }) {
   const uid = 'ra' + useId().replace(/[^a-zA-Z0-9]/g, '');
   // il tratto: un arco di 46° centrato in alto, sfumato ai capi
   const a0 = -113;
@@ -865,7 +865,7 @@ function RiflessoAnello({ size, Rm, T, pausa, intensita }: { size: number; Rm: n
   return (
     <Animated.View
       pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { opacity: 0, animationName: pausa <= 6000 ? RIFL[6000] : RIFL[8000], animationDuration: mov.riflesso + pausa, animationDelay: 900, animationIterationCount: 'infinite', animationTimingFunction: INOUT }]}
+      style={[StyleSheet.absoluteFill, { opacity: 0, animationName: pausa <= 6000 ? RIFL[6000] : RIFL[8000], animationDuration: mov.riflesso + pausa, animationDelay: ritardo, animationIterationCount: 'infinite', animationTimingFunction: INOUT }]}
     >
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Defs>
@@ -1174,10 +1174,16 @@ export interface AvatarCorniceProps extends PlayerAvatarProps {
   vivo?: boolean;
   /** Seme delle particelle e delle stelle del fondo. */
   seme?: number;
+  /** Con `vivo`: solo il riflesso, senza gemme che brillano, madreperla e granelli. Per le schermate che hanno già
+   *  il loro budget di movimento (il profilo: ≤ 4). Default false. */
+  soloRiflesso?: boolean;
+  /** Il riflesso: pausa tra due passaggi (6000 o 8000; default quella della rarità) e ritardo del primo (default
+   *  900 ms). Per sfasarlo da un altro riflesso sulla stessa schermata. */
+  riflesso?: { pausa?: number; ritardo?: number };
 }
 
 /** L'avatar dentro la sua cornice, con le animazioni della rarità se `vivo`. La misura comprende la cornice. */
-export const AvatarCornice = memo(function AvatarCornice({ avatar, photo, name, frame, size, badge, vivo, seme = 5 }: AvatarCorniceProps) {
+export const AvatarCornice = memo(function AvatarCornice({ avatar, photo, name, frame, size, badge, vivo, seme = 5, soloRiflesso, riflesso }: AvatarCorniceProps) {
   const a = avatarById(avatar);
   const st = stileCornice(frame);
   const R = rarita(st.rarita);
@@ -1211,10 +1217,10 @@ export const AvatarCornice = memo(function AvatarCornice({ avatar, photo, name, 
       ) : null}
       {vetrina ? (
         <>
-          {st.fascia?.tipo === 'madreperla' || st.fascia?.tipo === 'madreperlaNera' ? <Iridescenza size={size} Rm={Rf + (st.spessore * 100) / 2} T={st.spessore * 100} /> : null}
-          <RiflessoAnello size={size} Rm={Rf + (st.spessore * 100) / 2} T={st.spessore * 100} pausa={R.pausaRiflesso ?? mov.pausaRiflesso.epico} intensita={Math.min(0.95, R.riflesso.opacita + 0.3)} />
-          {punti.length ? <Bagliore size={size} punti={punti} /> : null}
-          {R.particelle ? <Granelli size={size} n={R.particelle} seme={seme} tipo={st.rarita === 'mitico' ? 'granello' : 'scintilla'} /> : null}
+          {!soloRiflesso && (st.fascia?.tipo === 'madreperla' || st.fascia?.tipo === 'madreperlaNera') ? <Iridescenza size={size} Rm={Rf + (st.spessore * 100) / 2} T={st.spessore * 100} /> : null}
+          <RiflessoAnello size={size} Rm={Rf + (st.spessore * 100) / 2} T={st.spessore * 100} pausa={riflesso?.pausa ?? R.pausaRiflesso ?? mov.pausaRiflesso.epico} ritardo={riflesso?.ritardo} intensita={Math.min(0.95, R.riflesso.opacita + 0.3)} />
+          {!soloRiflesso && punti.length ? <Bagliore size={size} punti={punti} /> : null}
+          {!soloRiflesso && R.particelle ? <Granelli size={size} n={R.particelle} seme={seme} tipo={st.rarita === 'mitico' ? 'granello' : 'scintilla'} /> : null}
         </>
       ) : null}
       {badge ? <Medaglia badge={badge} size={size} /> : null}
