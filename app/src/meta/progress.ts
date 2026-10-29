@@ -10,6 +10,9 @@ export interface GameStats {
   won: number;
   /** Vittorie contro il computer Esperto. */
   expert: number;
+  /** Vittorie di fila in questo gioco, adesso e il massimo. */
+  streak: number;
+  best: number;
 }
 
 export interface Stats {
@@ -65,9 +68,26 @@ export interface Stats {
   missionsDone: number;
   weeklyDone: number;
   seasonsPlayed: number;
+
+  /** Mani vinte (la tua squadra ha fatto più punti, o meno a perdere). */
+  handsWon: number;
+  /** Partite vinte dopo essere stati molto sotto, e vinte senza che l'avversario facesse un punto. */
+  comebacks: number;
+  shutouts: number;
+  /** Giorni in cui hai finito una partita in tutti e tre i giochi. */
+  allGamesDays: number;
+  /** La serie più lunga di vittorie in un gioco solo. */
+  bestGameStreak: number;
+  /** Livelli del computer battuti in ogni gioco: un bit per coppia gioco-livello (9 in tutto). */
+  levelsMask: number;
+  /** Vittorie con tavolino, panno e dorso di partenza dopo l'arena 10. */
+  humbleWins: number;
+  /** Il massimo di vittorie online contro una stessa persona. */
+  maxRivalWins: number;
+  eventsDone: number;
 }
 
-const game = (): GameStats => ({ played: 0, won: 0, expert: 0 });
+const game = (): GameStats => ({ played: 0, won: 0, expert: 0, streak: 0, best: 0 });
 
 export const emptyStats = (): Stats => ({
   played: 0,
@@ -108,6 +128,15 @@ export const emptyStats = (): Stats => ({
   missionsDone: 0,
   weeklyDone: 0,
   seasonsPlayed: 0,
+  handsWon: 0,
+  comebacks: 0,
+  shutouts: 0,
+  allGamesDays: 0,
+  bestGameStreak: 0,
+  levelsMask: 0,
+  humbleWins: 0,
+  maxRivalWins: 0,
+  eventsDone: 0,
 });
 
 /** Statistiche salvate prima di questo file (o mandate dal server): i campi che mancano valgono 0. */
@@ -126,7 +155,13 @@ export function normalizeStats(s: unknown): Stats {
   out.byGame = Object.fromEntries(
     (['tressette', 'briscola', 'scopa'] as GameId[]).map(g => [
       g,
-      { played: Math.max(0, Math.floor(Number(bg[g]?.played) || 0)), won: Math.max(0, Math.floor(Number(bg[g]?.won) || 0)), expert: Math.max(0, Math.floor(Number(bg[g]?.expert) || 0)) },
+      {
+        played: Math.max(0, Math.floor(Number(bg[g]?.played) || 0)),
+        won: Math.max(0, Math.floor(Number(bg[g]?.won) || 0)),
+        expert: Math.max(0, Math.floor(Number(bg[g]?.expert) || 0)),
+        streak: Math.max(0, Math.floor(Number(bg[g]?.streak) || 0)),
+        best: Math.max(0, Math.floor(Number(bg[g]?.best) || 0)),
+      },
     ]),
   );
   return out as unknown as Stats;
@@ -150,6 +185,8 @@ export interface HandRecord {
   denari: number;
   /** Scopa: carte, denari, settebello e primiera tutti alla tua squadra. */
   perfect: boolean;
+  /** La tua squadra ha vinto la mano. */
+  handWon?: boolean;
 }
 
 /** I dati di una mano ripuliti: valori impossibili tornano nei limiti (il server non si fida). */
@@ -167,6 +204,7 @@ export function cleanHand(h: Partial<HandRecord> | undefined): HandRecord {
     briscolaPts: g === 'briscola' ? clamp(h?.briscolaPts, 0, 120) : -1,
     denari: g === 'scopa' ? clamp(h?.denari, 0, 10) : 0,
     perfect: g === 'scopa' && !!h?.perfect && !!h?.settebello && clamp(h?.denari, 0, 10) >= 6,
+    handWon: !!h?.handWon,
   };
 }
 
@@ -178,6 +216,11 @@ export interface MatchRecord {
   level: Level;
   online: boolean;
   won: boolean;
+  /** Vinta dopo essere stati molto sotto nel punteggio; vinta senza che l'avversario segnasse. */
+  comeback?: boolean;
+  shutout?: boolean;
+  /** Online: gli id delle persone avversarie (non i compagni, non il computer). */
+  opp?: string[];
 }
 
 export function addHand(s: Stats, h: HandRecord): Stats {
@@ -197,6 +240,7 @@ export function addHand(s: Stats, h: HandRecord): Stats {
     accusi: s.accusi + h.accusi,
     ultime: s.ultime + (h.ultima ? 1 : 0),
     cappotti: s.cappotti + (h.cappotto ? 1 : 0),
+    handsWon: s.handsWon + (h.handWon ? 1 : 0),
   };
 }
 
@@ -205,12 +249,21 @@ export function addMatch(s: Stats, r: MatchRecord, day: string): Stats {
   const expert = !r.online && r.level === 'difficile';
   const expertStreak = expert ? (r.won ? s.expertStreak + 1 : 0) : s.expertStreak;
   const g = s.byGame[r.game];
+  const gStreak = r.won ? g.streak + 1 : 0;
   const four = r.mode === '4';
+  const levelBit = r.won && !r.online ? 1 << (GAME_IDS.indexOf(r.game) * 3 + ['facile', 'medio', 'difficile'].indexOf(r.level)) : 0;
   return {
     ...s,
     played: s.played + 1,
     won: s.won + (r.won ? 1 : 0),
-    byGame: { ...s.byGame, [r.game]: { played: g.played + 1, won: g.won + (r.won ? 1 : 0), expert: g.expert + (r.won && expert ? 1 : 0) } },
+    byGame: {
+      ...s.byGame,
+      [r.game]: { played: g.played + 1, won: g.won + (r.won ? 1 : 0), expert: g.expert + (r.won && expert ? 1 : 0), streak: gStreak, best: Math.max(g.best, gStreak) },
+    },
+    bestGameStreak: Math.max(s.bestGameStreak, gStreak),
+    levelsMask: s.levelsMask | levelBit,
+    comebacks: s.comebacks + (r.won && r.comeback ? 1 : 0),
+    shutouts: s.shutouts + (r.won && r.shutout ? 1 : 0),
     played4: s.played4 + (four ? 1 : 0),
     won4: s.won4 + (four && r.won ? 1 : 0),
     perderePlayed: s.perderePlayed + (r.mode === 'perdere' ? 1 : 0),

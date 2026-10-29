@@ -16,7 +16,7 @@ describe('bonus giornaliero', () => {
     expect(canClaim(st, day('2026-10-28', 0))).toBe(true);
   });
 
-  it('la serie cresce di giorno in giorno e si azzera se salti', () => {
+  it('la serie cresce di giorno in giorno; saltare fa scendere di un gradino per giorno', () => {
     let st = { lastDay: null as string | null, streak: 0 };
     const got: number[] = [];
     for (const d of ['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01']) {
@@ -26,7 +26,8 @@ describe('bonus giornaliero', () => {
     }
     expect(got).toEqual([...BONUS_LADDER, 500]);
     expect(st.streak).toBe(8);
-    expect(nextStreak(st, day('2026-11-03'))).toBe(1);
+    expect(nextStreak(st, day('2026-11-03'))).toBe(7);
+    expect(nextStreak(st, day('2026-11-20'))).toBe(1);
     expect(bonusFor(1)).toBe(100);
   });
 

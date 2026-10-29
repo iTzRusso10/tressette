@@ -123,6 +123,7 @@ export const CATEGORY_GLYPH: Record<AchievementCategory, Glyph> = {
   missioni: 'list',
   stagioni: 'calendar',
   sfide: 'bolt',
+  segreti: 'star',
 };
 
 const styles = StyleSheet.create({

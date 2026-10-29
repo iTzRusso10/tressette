@@ -4,6 +4,8 @@
 import type { GameId } from '../engine/types.ts';
 import { BALANCE } from './balance.ts';
 import { itemByKey, type Slot } from './catalog.ts';
+import type { Rarity } from './rarity.ts';
+import { RARITY_NAMES } from './rarity.ts';
 import { levelInfo } from './levels.ts';
 import type { Stats } from './progress.ts';
 
@@ -30,7 +32,13 @@ export type Req =
   | { k: 'seasonRank'; n: number }
   | { k: 'seasonItems'; n: number }
   /** Arriva con gli eventi (tornei): oggi non si può ancora ottenere. */
-  | { k: 'event'; id: string; what: string };
+  | { k: 'event'; id: string; what: string }
+  /** Bit accesi in una statistica a maschera (livelli battuti). */
+  | { k: 'mask'; key: StatKey; n: number }
+  /** Oggetti posseduti di una rarità. */
+  | { k: 'rarity'; rarity: Rarity; n: number }
+  /** Un set completato. */
+  | { k: 'set'; id: string };
 
 /** Quello che serve per verificare un requisito: lo stato del giocatore (vedi ledger.ts). */
 export interface ReqView {
@@ -94,6 +102,19 @@ export function reqProgress(r: Req, v: ReqView): [number, number] {
       return cap(v.meta.seasonItems.length, r.n);
     case 'event':
       return [0, 1];
+    case 'mask': {
+      let x = v.stats[r.key] as number;
+      let bits = 0;
+      while (x) {
+        bits += x & 1;
+        x >>>= 1;
+      }
+      return cap(bits, r.n);
+    }
+    case 'rarity':
+      return cap(v.owned.filter(k => itemByKey(k)?.rarity === r.rarity).length, r.n);
+    case 'set':
+      return [v.meta.sets.includes(r.id) ? 1 : 0, 1];
   }
 }
 
@@ -141,6 +162,14 @@ const STAT_TEXT: Partial<Record<StatKey, (x: number) => string>> = {
   missionsDone: x => (x === 1 ? 'Completa una missione.' : `Completa ${n(x)} missioni.`),
   weeklyDone: x => (x === 1 ? 'Completa una missione settimanale.' : `Completa ${n(x)} missioni settimanali.`),
   seasonsPlayed: x => (x === 1 ? 'Partecipa a una stagione.' : `Partecipa a ${n(x)} stagioni.`),
+  handsWon: x => `Vinci ${n(x)} mani.`,
+  comebacks: x => (x === 1 ? 'Vinci una partita dopo essere stato molto sotto nel punteggio.' : `Vinci ${n(x)} partite in rimonta.`),
+  shutouts: x => (x === 1 ? 'Vinci una partita senza che l’avversario faccia un punto.' : `Vinci ${n(x)} partite senza che l’avversario segni.`),
+  allGamesDays: x => (x === 1 ? 'Gioca a Tressette, Briscola e Scopa nello stesso giorno.' : `Gioca a tutti e tre i giochi in ${n(x)} giorni diversi.`),
+  bestGameStreak: x => `Vinci ${n(x)} partite di fila nello stesso gioco.`,
+  humbleWins: () => 'Vinci con tavolino, panno e dorso di partenza dopo aver raggiunto l’arena 10.',
+  maxRivalWins: x => `Batti online ${n(x)} volte la stessa persona.`,
+  eventsDone: x => (x === 1 ? 'Completa un evento.' : `Completa ${n(x)} eventi.`),
 };
 
 const WHAT = { played: 'Gioca', won: 'Vinci', expert: 'Vinci contro l’Esperto' } as const;
@@ -183,6 +212,12 @@ export function reqText(r: Req, arenaName?: (n: number) => string): string {
     case 'seasonItems':
       return `Ottieni il cosmetico speciale di ${n(r.n)} stagioni.`;
     case 'event':
-      return `${r.what} (arriverà con gli eventi).`;
+      return `${r.what} (arriverà con i tornei).`;
+    case 'mask':
+      return `Batti ogni livello del computer in ogni gioco (${r.n} combinazioni).`;
+    case 'rarity':
+      return `Possiedi ${n(r.n)} oggetti di rarità ${RARITY_NAMES[r.rarity].toLowerCase()}.`;
+    case 'set':
+      return 'Completa un set particolare.';
   }
 }

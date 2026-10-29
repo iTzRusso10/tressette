@@ -1,6 +1,9 @@
 // Missioni giornaliere e settimanali. Ogni giorno (e ogni settimana, da lunedì) ne escono alcune dal
 // mazzo delle missioni, scelte con un seme del giocatore: le stesse sul telefono e sul server. Si
-// completano giocando e la ricompensa arriva da sola, una volta sola per periodo (chiave `periodo:id`).
+// completano giocando; la ricompensa va tra quelle da riscuotere, una volta sola per periodo (chiave
+// `periodo:id`), e resta lì anche se l'app si chiude. Una missione del giorno si può cambiare, una volta.
+
+import type { HandRecord } from './progress.ts';
 
 import type { GameId } from '../engine/types.ts';
 import { BALANCE } from './balance.ts';
@@ -15,6 +18,8 @@ export interface MissionEvent {
   dailyDone?: boolean;
   /** Un oggetto estetico nuovo ottenuto. */
   newItem?: boolean;
+  /** Una mano finita. */
+  hand?: HandRecord;
 }
 
 export interface MissionDef {
@@ -77,6 +82,11 @@ export const MISSIONS: MissionDef[] = [
   ),
   D('vinci-medio-2', 'Vinci 2 partite contro il Medio o l’Esperto.', 2, 80, 80, e => (e.match && e.match.won && !e.match.online && e.match.level !== 'facile' ? 1 : 0)),
   D('vinci-quattro', 'Vinci una partita in quattro.', 1, 60, 60, e => (e.match && e.match.won && e.match.mode === '4' ? 1 : 0)),
+  D('gioca-3', 'Gioca 3 partite fino in fondo.', 3, 40, 50, played()),
+  D('due-giochi', 'Gioca almeno una partita in due giochi diversi.', 2, 50, 60, () => 0, { distinct: e => e.match?.game ?? null }),
+  D('mani-4', 'Vinci 4 mani, a qualunque gioco.', 4, 50, 50, e => (e.hand?.handWon ? 1 : 0)),
+  D('scope-3', 'Fai 3 scope.', 3, 60, 60, e => e.hand?.scope ?? 0),
+  D('briscola-80', 'Fai almeno 80 punti in una mano di Briscola.', 1, 70, 70, e => ((e.hand?.briscolaPts ?? -1) >= 80 ? 1 : 0)),
   // Settimanali: 200–500 monete.
   W('vinci-25', 'Vinci 25 partite.', 25, 500, 400, won()),
   W('cinque-per-gioco', 'Vinci almeno 5 partite in ciascuno dei tre giochi.', 15, 450, 400, () => 0, {
@@ -89,14 +99,18 @@ export const MISSIONS: MissionDef[] = [
   W('nuovo-oggetto', 'Ottieni un nuovo oggetto estetico.', 1, 200, 200, e => (e.newItem ? 1 : 0)),
   W('esperto-5', 'Vinci 5 partite contro l’Esperto.', 5, 400, 400, e => (e.match && e.match.won && !e.match.online && e.match.level === 'difficile' ? 1 : 0)),
   W('gioca-40', 'Gioca 40 partite fino in fondo.', 40, 300, 300, played()),
+  W('vinci-15', 'Vinci 15 partite.', 15, 350, 300, won()),
+  W('cinque-ogni-gioco', 'Completa 5 partite in ciascuno dei tre giochi.', 15, 450, 400, () => 0, { distinct: e => e.match?.game ?? null }),
+  W('dieci-un-gioco', 'Vinci 10 partite in un gioco a tua scelta.', 10, 400, 350, () => 0, { distinct: e => (e.match?.won ? e.match.game : null) }),
 ];
 
 /** Per «5 vittorie in ciascun gioco»: il progresso è la somma dei minimi (al massimo 5 per gioco). */
 export function distinctProgress(def: MissionDef, seen: string[]): number {
-  if (def.id === 'cinque-per-gioco') {
+  if (def.id === 'cinque-per-gioco' || def.id === 'cinque-ogni-gioco') {
     const per = (g: string) => Math.min(5, seen.filter(x => x === g).length);
     return per('tressette') + per('briscola') + per('scopa');
   }
+  if (def.id === 'dieci-un-gioco') return Math.max(0, ...['tressette', 'briscola', 'scopa'].map(g => seen.filter(x => x === g).length));
   return new Set(seen).size;
 }
 
@@ -135,9 +149,12 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-/** Le missioni di un periodo: `count` diverse, scelte dal seme del giocatore e dal periodo. */
-export function missionsFor(period: Period, key: string, seed: string, canOnline: boolean): MissionDef[] {
-  const pool = MISSIONS.filter(m => m.period === period && (!m.online || canOnline));
+/**
+ * Le missioni di un periodo: `count` diverse, scelte dal seme del giocatore e dal periodo. Quelle in
+ * `skip` (cambiate dal giocatore) non escono: al loro posto ne esce un'altra.
+ */
+export function missionsFor(period: Period, key: string, seed: string, canOnline: boolean, skip: readonly string[] = []): MissionDef[] {
+  const pool = MISSIONS.filter(m => m.period === period && (!m.online || canOnline) && !skip.includes(m.id));
   const count = period === 'daily' ? BALANCE.missions.daily : BALANCE.missions.weekly;
   const picked: MissionDef[] = [];
   let h = hash(`${seed}|${key}`);

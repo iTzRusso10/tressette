@@ -34,12 +34,15 @@ export function daysBetween(a: string, b: string): number {
 export const canClaimOn = (s: BonusState, day: string) => s.lastDay !== day;
 export const canClaim = (s: BonusState, now: Date) => canClaimOn(s, dayOf(now));
 
-/** La serie che raggiungerebbe il prossimo ritiro: uno in più se ieri hai ritirato, altrimenti 1. */
+/**
+ * La serie che raggiungerebbe il prossimo ritiro: uno in più se ieri hai ritirato. Saltare non azzera
+ * tutto: ogni giorno saltato fa scendere di un gradino (minimo 1), così una giornata persa costa poco.
+ */
 export function nextStreakOn(s: BonusState, day: string): number {
   if (!s.lastDay) return 1;
   const gap = daysBetween(s.lastDay, day);
   if (gap <= 0) return s.streak;
-  return gap === 1 ? s.streak + 1 : 1;
+  return gap === 1 ? s.streak + 1 : Math.max(1, s.streak - (gap - 1));
 }
 export const nextStreak = (s: BonusState, now: Date) => nextStreakOn(s, dayOf(now));
 

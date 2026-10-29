@@ -11,6 +11,10 @@ import {
   newProgress,
   normalize,
   refill as refillInLedger,
+  claimReward as claimRewardInLedger,
+  selectAvatar,
+  selectShowcase,
+  swapMission,
   selectTitle,
   touch,
   type Gain,
@@ -33,6 +37,10 @@ export interface LastMatch {
   delta: number;
   cups: number;
   at: number;
+  game?: MatchRecord['game'];
+  /** Punteggio di bravura del gioco dopo la partita, e quanto è cambiato. */
+  rating?: number;
+  ratingDelta?: number;
 }
 
 export interface Account {
@@ -120,6 +128,8 @@ function worthShowing(gains: Gain[]): Gain[] {
     if (g.k === 'achievement') return !many;
     if (g.k === 'level') return levels.length <= 2 || g === levels[levels.length - 1];
     if (g.k === 'mission') return !many;
+    // Il punteggio si vede nel riepilogo della partita; le ricompense da riscuotere nella home.
+    if (g.k === 'rating' || g.k === 'claimable') return false;
     return true;
   });
   if (many) {
@@ -150,7 +160,7 @@ export function recordMatch(m: Omit<MatchRecord, 'id'>) {
   const rec: MatchRecord = { ...m, id: randomSeed() };
   const r = applyMatch(progressOf(), rec, day, Date.now());
   adopt(r.p, r.gains);
-  set({ lastMatch: { delta: r.delta, cups: r.p.cups, at: Date.now() } });
+  set({ lastMatch: { delta: r.delta, cups: r.p.cups, at: Date.now(), game: m.game, rating: r.p.meta.ratings[m.game].r, ratingDelta: r.ratingDelta } });
   remote('match', { match: rec, day });
 }
 
@@ -170,6 +180,40 @@ export function equip(slot: Slot, id: string) {
   if (!p) return;
   set({ equipped: p.equipped });
   remote('equip', { slot, item: id });
+}
+
+/** Riscuote una ricompensa (o tutte con «*»). */
+export function claim(id: string): number {
+  const day = today();
+  const before = get().coins;
+  const r = claimRewardInLedger(progressOf(), id, day);
+  if (!r.claimed.length) return 0;
+  adopt(r.p, r.gains.filter(g => g.k !== 'coins'));
+  remote('claim', { id, day });
+  return r.p.coins - before;
+}
+
+/** Cambia una missione del giorno (una volta al giorno). */
+export function swapDailyMission(key: string): boolean {
+  const p = swapMission(progressOf(), key, today());
+  if (!p) return false;
+  set({ meta: p.meta });
+  remote('swap', { key, day: today() });
+  return true;
+}
+
+export function chooseAvatar(id: string) {
+  const p = selectAvatar(progressOf(), id);
+  if (!p) return;
+  set({ meta: p.meta });
+  remote('avatar', { avatar: id });
+}
+
+export function chooseShowcase(keys: string[]) {
+  const p = selectShowcase(progressOf(), keys);
+  if (!p) return;
+  set({ meta: p.meta });
+  remote('showcase', { showcase: keys });
 }
 
 export function chooseTitle(id: string) {

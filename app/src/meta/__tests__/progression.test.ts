@@ -285,7 +285,7 @@ describe('dal vecchio negozio', () => {
   it('panni con sponda e decori diventano tavolini e grafiche, nessuno si perde', () => {
     const r = migrateCosmetics(['smeraldo', 'nessuno', 'classico', 'reggia', 'maiolica', 'corona', 'lava'], { felt: 'reggia', pattern: 'maiolica', back: 'corona' });
     expect(r.owned).toEqual(expect.arrayContaining(['felt:oro-e-nero', 'table:corona-del-re', 'felt:maiolica-mediterranea', 'back:corona-reale', 'felt:lava', 'table:fiamma-dorata']));
-    expect(r.equipped).toEqual({ table: 'corona-del-re', felt: 'maiolica-mediterranea', back: 'corona-reale' });
+    expect(r.equipped).toEqual({ table: 'corona-del-re', felt: 'maiolica-mediterranea', back: 'corona-reale', frame: 'semplice' });
   });
   it('un profilo di prima: medaglie, statistiche e monete restano', () => {
     const p = normalize({ coins: 4321, xp: 900, trophies: { 'prima-vittoria': 5, 'cento-vittorie': 6, sparito: 7 }, cups: 37, bestCups: 40, owned: ['smeraldo', 'notte'], equipped: { felt: 'notte', pattern: 'nessuno', back: 'classico' }, stats: { won: 3, played: 5 } } as never, 'x');

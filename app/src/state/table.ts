@@ -116,6 +116,19 @@ let resumeWaiters: (() => void)[] = [];
 
 type Net = { role: 'host'; room: HostRoom } | { role: 'guest'; room: GuestRoom } | null;
 let net: Net = null;
+
+/** Il distacco più grande subito nella partita in corso (per le rimonte). */
+let maxDeficit = 0;
+
+/** Online: gli id delle persone nella squadra avversaria (non il computer, non i compagni). */
+function opponentPeers(m: Match, myTeam: number): string[] {
+  const lobby = net?.room.lobby;
+  if (!lobby) return [];
+  return lobby.seats
+    .map((s, i) => ({ s, i }))
+    .filter(({ s, i }) => s.type !== 'cpu' && !!s.peer && teamOf(m, i) !== myTeam)
+    .map(({ s }) => s.peer!);
+}
 export const netRole = () => net?.role ?? null;
 export const hostName = () => (net?.role === 'guest' ? (net.room.lobby?.host.name ?? '') : '');
 
@@ -435,6 +448,17 @@ async function present(st: Step, g: number) {
       // Your progress: statistics, trophies, coins and experience.
       // La riga della tua squadra nel risultato della mano (punti di Briscola, denari e primiera di Scopa…).
       const row = h.result?.rows.find(r => r.t === myTeam) as Record<string, unknown> | undefined;
+      const lower = m.game === 'tressette' && m.mode === 'perdere';
+      const totals = (h.result?.rows ?? []).map(r => ({ t: r.t, total: r.total }));
+      const mineTotal = totals.find(r => r.t === myTeam)?.total ?? 0;
+      const others = totals.filter(r => r.t !== myTeam).map(r => r.total);
+      const handWon = others.length > 0 && (lower ? mineTotal < Math.min(...others) : mineTotal > Math.max(...others));
+      // Quanto sei stato sotto nel punteggio della partita (dopo ogni mano tranne l'ultima): serve per le rimonte.
+      if (m.handNo <= 1) maxDeficit = 0;
+      const sc = m.match;
+      const meScore = sc[myTeam] ?? 0;
+      const rest = sc.filter((_, i) => i !== myTeam);
+      if (!out && rest.length) maxDeficit = Math.max(maxDeficit, lower ? meScore - Math.min(...rest) : Math.max(...rest) - meScore);
       recordHand({
         game: m.game,
         scope: m.game === 'scopa' ? h.scope[me] : 0,
@@ -446,8 +470,22 @@ async function present(st: Step, g: number) {
         briscolaPts: m.game === 'briscola' ? Number(row?.pts ?? 0) : -1,
         denari: m.game === 'scopa' ? Number(row?.den ?? 0) : 0,
         perfect: m.game === 'scopa' && !!row && row.pCards === 1 && row.pDen === 1 && row.pSb === 1 && row.pPrim === 1,
+        handWon,
       });
-      if (out) recordMatch({ game: m.game, mode: m.mode, level: m.level, online: !!net, won: out.winners.includes(myTeam) });
+      if (out) {
+        const won = out.winners.includes(myTeam);
+        const comebackAt = m.game === 'briscola' ? (m.target >= 2 ? 1 : Infinity) : Math.ceil(m.target * 0.4);
+        recordMatch({
+          game: m.game,
+          mode: m.mode,
+          level: m.level,
+          online: !!net,
+          won,
+          comeback: won && maxDeficit >= comebackAt,
+          shutout: won && !lower && (m.game !== 'briscola' || m.target >= 2) && rest.every(x => x === 0),
+          opp: opponentPeers(m, myTeam),
+        });
+      }
       if (out && out.winners.includes(myTeam)) sfx('win');
       await save();
       set({ summary: true });

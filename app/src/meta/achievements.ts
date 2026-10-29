@@ -23,7 +23,8 @@ export type AchievementCategory =
   | 'set'
   | 'missioni'
   | 'stagioni'
-  | 'sfide';
+  | 'sfide'
+  | 'segreti';
 
 export const ACHIEVEMENT_CATEGORIES: { id: AchievementCategory; name: string }[] = [
   { id: 'prime', name: 'Prime partite' },
@@ -42,6 +43,7 @@ export const ACHIEVEMENT_CATEGORIES: { id: AchievementCategory; name: string }[]
   { id: 'missioni', name: 'Missioni' },
   { id: 'stagioni', name: 'Stagioni' },
   { id: 'sfide', name: 'Sfide' },
+  { id: 'segreti', name: 'Segreti' },
 ];
 
 /** Difficoltà: decide la ricompensa e il colore della medaglia. */
@@ -64,6 +66,8 @@ export interface Achievement {
   xp: number;
   /** Oggetti esclusivi (chiavi del catalogo). */
   items?: string[];
+  /** Achievement segreto: prima di sbloccarlo si vede solo l'indizio. */
+  hint?: string;
 }
 
 const list: Achievement[] = [];
@@ -300,7 +304,28 @@ A('livello-50', 'Livello 50', 'sfide', 'oro', { k: 'level', n: 50 });
 A('livello-100', 'Livello 100', 'sfide', 'platino', { k: 'level', n: 100 });
 A('prestigio-1', 'Primo Prestigio', 'sfide', 'platino', { k: 'prestige', n: 1 });
 
+/* ---------------------------------------------------------------- segreti */
+// Si vede solo l'indizio finché non si sbloccano. Tutti verificabili dalle statistiche; nessuno chiede di
+// perdere apposta o di accordarsi con qualcuno (le vittorie contro la stessa persona contano solo online,
+// e il punteggio di bravura non sale facendosi battere: vedi rating.ts).
+const S = (id: string, name: string, tier: Tier, req: Req, hint: string, items?: string[]) => {
+  list.push({ id, name, category: 'segreti', tier, req, ...PAY[tier], hint, ...(items ? { items } : {}) });
+};
+S('s-rimonta', 'La rimonta', 'oro', { k: 'stat', key: 'comebacks', n: 1 }, 'Non arrenderti quando sembra finita.', ['frame:segreto-rimonta']);
+S('s-rimonte', 'Mai domo', 'platino', { k: 'stat', key: 'comebacks', n: 10 }, 'Quella cosa di prima… rifalla ancora, e ancora.');
+S('s-cappotto-secco', 'A mani vuote', 'oro', { k: 'stat', key: 'shutouts', n: 1 }, 'Lascia l’avversario senza nemmeno un punto.');
+S('s-tre-tavoli', 'Tre tavoli in un giorno', 'argento', { k: 'stat', key: 'allGamesDays', n: 1 }, 'In una sola giornata, passa da un tavolo all’altro.', ['frame:segreto-tre-semi']);
+S('s-tre-tavoli-30', 'Giocatore completo', 'platino', { k: 'stat', key: 'allGamesDays', n: 30 }, 'Un mese da tre tavoli al giorno.');
+S('s-specialista', 'Lo specialista', 'oro', { k: 'stat', key: 'bestGameStreak', n: 10 }, 'Un gioco solo, e non sbagliare mai.');
+S('s-ogni-avversario', 'Nessuno escluso', 'oro', { k: 'mask', key: 'levelsMask', n: 9 }, 'Ogni livello del computer, in ogni gioco.');
+S('s-umile', 'Il tavolo non fa il giocatore', 'argento', { k: 'stat', key: 'humbleWins', n: 1 }, 'Dopo tanta strada, torna alle origini e vinci.');
+S('s-rivale', 'La bestia nera', 'oro', { k: 'stat', key: 'maxRivalWins', n: 10 }, 'Un avversario in carne e ossa, sempre lo stesso.');
+S('s-mitico', 'Tesoro da leggenda', 'platino', { k: 'rarity', rarity: 'mitico', n: 5 }, 'Cinque tesori che pochi hanno visto.');
+S('s-leggenda-set', 'Leggenda completa', 'platino', { k: 'set', id: 'leggenda-vivente' }, 'Il set più raro di tutti, al completo.', ['frame:segreto-ombra']);
+S('s-mani', 'Mille mani vinte', 'oro', { k: 'stat', key: 'handsWon', n: 1000 }, 'Non le partite: le mani.');
+
 export const ACHIEVEMENTS: Achievement[] = list;
+export const isSecret = (a: Achievement) => !!a.hint;
 
 const byId = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
 export const achievementById = (id: string) => byId.get(id);

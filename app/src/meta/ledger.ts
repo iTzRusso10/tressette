@@ -1,19 +1,25 @@
 // Il registro della progressione: lo stato completo del giocatore e tutto ciò che lo cambia (una mano,
-// una partita, un acquisto, il bonus…). Funzioni pure, eseguite identiche sul telefono (subito, per lo
-// schermo) e sul server (che decide davvero, per chi ha fatto l'accesso).
+// una partita, un acquisto, il bonus, una ricompensa riscossa…). Funzioni pure, eseguite identiche sul
+// telefono (subito, per lo schermo) e sul server (che decide davvero, per chi ha fatto l'accesso).
 //
-// Le quattro strade sono indipendenti ma si premiano a vicenda: trofei e arene, livello giocatore,
-// achievement, stagioni. Missioni e set aggiungono ricompense. Niente si perde: i trofei non si
-// azzerano, gli oggetti restano, la stagione azzera solo i suoi punti.
+// Strade indipendenti che si premiano a vicenda: trofei e arene (permanenti), livello, achievement,
+// punteggio di bravura per gioco con le leghe (per stagione), stagioni, eventi. Missioni, eventi e
+// premi di fine stagione vanno tra le ricompense da riscuotere: restano lì finché non le prendi, anche
+// se l'app si chiude, e si possono riscuotere una volta sola. Niente si perde: i trofei non si
+// azzerano, gli oggetti restano, la stagione azzera solo i suoi punti e avvicina il punteggio a 1000.
 
-import { ACHIEVEMENTS, newlyUnlocked } from './achievements.ts';
+import type { GameId } from '../engine/types.ts';
+import { ACHIEVEMENTS, achievementById, newlyUnlocked } from './achievements.ts';
 import { applyTrophies, ARENAS, floorOf, legendOf, reachedArena, type Reward } from './arenas.ts';
+import { avatarById, DEFAULT_AVATAR } from './avatars.ts';
 import { BALANCE } from './balance.ts';
-import { DEFAULT_EQUIPPED, ITEMS, itemByKey, itemOf, migrateCosmetics, SLOTS, STARTER_KEYS, type Slot } from './catalog.ts';
+import { DEFAULT_EQUIPPED, ITEMS, itemByKey, itemOf, migrateCosmetics, STARTER_KEYS, TABLE_SLOTS, type Slot } from './catalog.ts';
 import { claimBonusOn, type BonusState } from './economy.ts';
+import { eventAt, templateById } from './events.ts';
 import { levelInfo } from './levels.ts';
 import { distinctProgress, missionsFor, weekOf, type MissionEvent } from './missions.ts';
-import { addHand, addMatch, emptyStats, normalizeStats, type HandRecord, type MatchRecord, type Stats } from './progress.ts';
+import { addHand, addMatch, emptyStats, GAME_IDS, normalizeStats, type HandRecord, type MatchRecord, type Stats } from './progress.ts';
+import { carryOver, LEAGUES, leagueIndex, leagueOf, newRatings, rate, RATING, type GameRating, type WeeklyPerf } from './rating.ts';
 import { reqProgress, type ReqView } from './reqs.ts';
 import { levelReward, legendReward, prestigeReward } from './rewards.ts';
 import { seasonAt, seasonById, type SeasonMission } from './seasons.ts';
@@ -31,9 +37,36 @@ export interface SeasonState {
   base: Stats | null;
   streak: number;
   bestStreak: number;
-  /** Traguardi di punti già pagati (indici) e missioni stagionali completate. */
+  /** Traguardi di punti già raggiunti (indici) e missioni stagionali completate. */
   tiers: number[];
   missions: string[];
+}
+
+/** Una ricompensa da riscuotere. `id` la identifica: la stessa non si riscuote due volte. */
+export interface Claim {
+  id: string;
+  why: string;
+  coins?: number;
+  xp?: number;
+  items?: string[];
+}
+
+export interface EventState {
+  id: string | null;
+  /** Il valore della statistica dell'evento quando è cominciato. */
+  base: number;
+  /** Traguardi già raggiunti (indici). */
+  tiers: number[];
+}
+
+export interface LeagueRecord {
+  season: string;
+  game: GameId;
+  r: number;
+  peak: number;
+  league: string;
+  n: number;
+  rank?: number;
 }
 
 export interface Meta {
@@ -52,6 +85,8 @@ export interface Meta {
     p: Record<string, number>;
     seen: Record<string, string[]>;
     done: string[];
+    /** Missioni del giorno cambiate (giorno → id tolti). */
+    swaps: Record<string, string[]>;
   };
   season: SeasonState;
   seasonHistory: { id: string; points: number; matches: number; rank?: number }[];
@@ -67,6 +102,30 @@ export interface Meta {
   /** Tavolino, panno e dorso della partita prima (per la missione «cambia cosmetico»). */
   lastEquip: string | null;
   title: string;
+
+  /** Punteggio di bravura per gioco nella stagione `ratingSeason` (rating.ts). */
+  ratings: Record<GameId, GameRating>;
+  ratingSeason: string | null;
+  /** Prestazione della settimana per gioco (classifica settimanale). */
+  weekly: Record<GameId, WeeklyPerf>;
+  /** Partite online contro ciascuna persona oggi (oltre un limite non contano per il punteggio). */
+  pairs: { day: string | null; n: Record<string, number> };
+  /** Vittorie online contro ciascuna persona (le più frequenti). */
+  rivals: Record<string, number>;
+  /** I giochi finiti oggi (per «tre tavoli in un giorno»). */
+  dayGames: { day: string | null; games: string[] };
+  /** Leghe di fine stagione per gioco. */
+  leagueHistory: LeagueRecord[];
+  avatar: string;
+  /** Fino a tre cose in vetrina nel profilo: «item:<chiave>» o «ach:<id>». */
+  showcase: string[];
+  /** Ricompense da riscuotere, e le ultime riscosse (contro i doppioni). */
+  claims: Claim[];
+  claimed: string[];
+  event: EventState;
+  eventLog: { id: string; progress: number; tiers: number }[];
+  /** Premi assegnati dal server (podio settimanale, posizione di stagione) già messi tra le ricompense. */
+  grantsSeen: string[];
 }
 
 export interface Progress {
@@ -97,9 +156,18 @@ export type Gain =
   | { k: 'item'; key: string }
   | { k: 'set'; id: string }
   | { k: 'mission'; key: string; text: string }
-  | { k: 'seasonTier'; season: string; index: number };
+  | { k: 'seasonTier'; season: string; index: number }
+  | { k: 'rating'; game: GameId; delta: number; r: number }
+  | { k: 'league'; game: GameId; league: string }
+  | { k: 'eventTier'; event: string; index: number }
+  | { k: 'claimable'; id: string; why: string };
 
 export const emptySeason = (): SeasonState => ({ id: null, points: 0, matches: 0, base: null, streak: 0, bestStreak: 0, tiers: [], missions: [] });
+const emptyWeekly = (): Record<GameId, WeeklyPerf> => ({
+  tressette: { week: '', n: 0, opp: 0, w: 0, l: 0 },
+  briscola: { week: '', n: 0, opp: 0, w: 0, l: 0 },
+  scopa: { week: '', n: 0, opp: 0, w: 0, l: 0 },
+});
 
 export function emptyMeta(seed: string): Meta {
   return {
@@ -107,7 +175,7 @@ export function emptyMeta(seed: string): Meta {
     arena: 0,
     paid: { level: 1, prestige: 0, legend: 0, arena: 0 },
     firstWin: null,
-    missions: { day: null, week: null, p: {}, seen: {}, done: [] },
+    missions: { day: null, week: null, p: {}, seen: {}, done: [], swaps: {} },
     season: emptySeason(),
     seasonHistory: [],
     seasonItems: [],
@@ -117,6 +185,20 @@ export function emptyMeta(seed: string): Meta {
     handsSince: 0,
     lastEquip: null,
     title: DEFAULT_TITLE,
+    ratings: newRatings(),
+    ratingSeason: null,
+    weekly: emptyWeekly(),
+    pairs: { day: null, n: {} },
+    rivals: {},
+    dayGames: { day: null, games: [] },
+    leagueHistory: [],
+    avatar: DEFAULT_AVATAR,
+    showcase: [],
+    claims: [],
+    claimed: [],
+    event: { id: null, base: 0, tiers: [] },
+    eventLog: [],
+    grantsSeen: [],
   };
 }
 
@@ -139,6 +221,41 @@ export const viewOf = (p: Progress): ReqView => p;
 
 const int = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
 const strArr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+const obj = <T>(v: unknown, d: T): T => (v && typeof v === 'object' && !Array.isArray(v) ? (v as T) : d);
+
+function cleanRatings(v: unknown): Record<GameId, GameRating> {
+  const o = obj<Record<string, Partial<GameRating>>>(v, {});
+  const out = newRatings();
+  for (const g of GAME_IDS) {
+    const x = o[g];
+    if (!x) continue;
+    const r = Math.max(RATING.floor, Math.min(4000, Math.floor(Number(x.r) || RATING.start)));
+    out[g] = { r, n: int(x.n), peak: Math.max(r, Math.min(4000, int(x.peak))) };
+  }
+  return out;
+}
+
+function cleanWeekly(v: unknown): Record<GameId, WeeklyPerf> {
+  const o = obj<Record<string, Partial<WeeklyPerf>>>(v, {});
+  const out = emptyWeekly();
+  for (const g of GAME_IDS) {
+    const x = o[g];
+    if (x && typeof x.week === 'string') out[g] = { week: x.week, n: int(x.n), opp: int(x.opp), w: int(x.w), l: int(x.l) };
+  }
+  return out;
+}
+
+const cleanClaim = (c: unknown): Claim | null => {
+  const o = obj<Partial<Claim>>(c, {});
+  if (typeof o.id !== 'string' || typeof o.why !== 'string') return null;
+  return {
+    id: o.id,
+    why: o.why,
+    ...(o.coins ? { coins: int(o.coins) } : {}),
+    ...(o.xp ? { xp: int(o.xp) } : {}),
+    ...(o.items ? { items: strArr(o.items).filter(k => !!itemByKey(k)) } : {}),
+  };
+};
 
 /**
  * Ripulisce uno stato che arriva da fuori (salvato da una versione vecchia, mandato dal telefono al
@@ -151,6 +268,8 @@ export function normalize(raw: Partial<Progress> & { trophies?: Record<string, n
   const ach: Record<string, number> = {};
   for (const [id, t] of Object.entries(raw.achievements ?? raw.trophies ?? {})) if (ACHIEVEMENTS.some(a => a.id === id)) ach[id] = int(t) || 1;
   const season = { ...emptySeason(), ...(m.season ?? {}) } as SeasonState;
+  const mm = obj<Partial<Meta['missions']>>(m.missions, {});
+  const ev = obj<Partial<EventState>>(m.event, {});
   const out: Progress = {
     coins: raw.coins === undefined ? base.coins : int(raw.coins),
     xp: int(raw.xp),
@@ -167,7 +286,14 @@ export function normalize(raw: Partial<Progress> & { trophies?: Record<string, n
       arena: Math.min(ARENAS.length - 1, int(m.arena)),
       paid: { ...base.meta.paid, ...(m.paid ?? {}) },
       firstWin: typeof m.firstWin === 'string' ? m.firstWin : null,
-      missions: { ...base.meta.missions, ...(m.missions ?? {}) },
+      missions: {
+        day: typeof mm.day === 'string' ? mm.day : null,
+        week: typeof mm.week === 'string' ? mm.week : null,
+        p: obj(mm.p, {}),
+        seen: obj(mm.seen, {}),
+        done: strArr(mm.done),
+        swaps: obj(mm.swaps, {}),
+      },
       season: { ...season, base: season.base ? normalizeStats(season.base) : null },
       seasonHistory: Array.isArray(m.seasonHistory) ? m.seasonHistory : [],
       seasonItems: strArr(m.seasonItems),
@@ -177,6 +303,20 @@ export function normalize(raw: Partial<Progress> & { trophies?: Record<string, n
       handsSince: int(m.handsSince),
       lastEquip: typeof m.lastEquip === 'string' ? m.lastEquip : null,
       title: typeof m.title === 'string' && titleById(m.title) ? m.title : DEFAULT_TITLE,
+      ratings: cleanRatings(m.ratings),
+      ratingSeason: typeof m.ratingSeason === 'string' ? m.ratingSeason : null,
+      weekly: cleanWeekly(m.weekly),
+      pairs: { day: typeof m.pairs?.day === 'string' ? m.pairs.day : null, n: obj(m.pairs?.n, {}) },
+      rivals: obj(m.rivals, {}),
+      dayGames: { day: typeof m.dayGames?.day === 'string' ? m.dayGames.day : null, games: strArr(m.dayGames?.games) },
+      leagueHistory: Array.isArray(m.leagueHistory) ? m.leagueHistory.slice(-60) : [],
+      avatar: avatarById(m.avatar).id,
+      showcase: strArr(m.showcase).slice(0, 3),
+      claims: (Array.isArray(m.claims) ? m.claims : []).map(cleanClaim).filter((c): c is Claim => !!c),
+      claimed: strArr(m.claimed).slice(-300),
+      event: { id: typeof ev.id === 'string' ? ev.id : null, base: int(ev.base), tiers: Array.isArray(ev.tiers) ? ev.tiers.map(int) : [] },
+      eventLog: Array.isArray(m.eventLog) ? m.eventLog.slice(-30) : [],
+      grantsSeen: strArr(m.grantsSeen).slice(-300),
     },
   };
   // Un profilo di prima di questo registro: le arene sono già sue, le ricompense dei livelli già pagate.
@@ -212,11 +352,25 @@ function grant(tx: Tx, key: string) {
   tx.gains.push({ k: 'item', key });
 }
 
-/* ================================================================== missioni e stagioni */
+/** Una ricompensa da riscuotere: una volta sola per id, anche se arriva di nuovo. */
+function addClaim(tx: Tx, c: Claim) {
+  const m = tx.p.meta;
+  if (m.claims.some(x => x.id === c.id) || m.claimed.includes(c.id)) return;
+  m.claims.push(c);
+  tx.gains.push({ k: 'claimable', id: c.id, why: c.why });
+}
 
-/** Porta missioni e stagione al giorno `day`: nuovi periodi, chiusura della stagione finita. */
+/** Monete date al posto di un oggetto che si ha già (eventi che si ripetono, cornici delle leghe). */
+const DUPLICATE_COINS = 300;
+
+/* ================================================================== missioni, stagioni, eventi */
+
+const GAME_NAMES: Record<GameId, string> = { tressette: 'Tressette', briscola: 'Briscola', scopa: 'Scopa' };
+
+/** Porta missioni, stagione, settimana ed evento al giorno `day`. */
 function roll(tx: Tx, day: string) {
-  const m = tx.p.meta.missions;
+  const q = tx.p;
+  const m = q.meta.missions;
   const week = weekOf(day);
   if (m.day !== day || m.week !== week) {
     // Si tengono solo le chiavi del giorno e della settimana correnti.
@@ -224,14 +378,52 @@ function roll(tx: Tx, day: string) {
     m.p = Object.fromEntries(Object.entries(m.p).filter(([k]) => keep(k)));
     m.seen = Object.fromEntries(Object.entries(m.seen).filter(([k]) => keep(k)));
     m.done = m.done.filter(keep);
+    m.swaps = Object.fromEntries(Object.entries(m.swaps).filter(([k]) => k === day));
     m.day = day;
     m.week = week;
   }
+  for (const g of GAME_IDS) if (q.meta.weekly[g].week !== week) q.meta.weekly[g] = { week, n: 0, opp: 0, w: 0, l: 0 };
+
+  // Stagione: i punti della stagione e, per le classifiche, il punteggio per gioco.
   const now = seasonAt(day);
-  const s = tx.p.meta.season;
+  const s = q.meta.season;
   if ((now?.season.id ?? null) !== s.id) {
-    if (s.id && s.matches > 0) tx.p.meta.seasonHistory.push({ id: s.id, points: s.points, matches: s.matches });
-    tx.p.meta.season = { ...emptySeason(), id: now?.season.id ?? null, base: now ? JSON.parse(JSON.stringify(tx.p.stats)) : null };
+    if (s.id && s.matches > 0) q.meta.seasonHistory.push({ id: s.id, points: s.points, matches: s.matches });
+    q.meta.season = { ...emptySeason(), id: now?.season.id ?? null, base: now ? JSON.parse(JSON.stringify(q.stats)) : null };
+  }
+  const nextRatingSeason = now?.season.id ?? q.meta.ratingSeason;
+  if (nextRatingSeason !== q.meta.ratingSeason) {
+    const old = q.meta.ratingSeason;
+    if (old) closeRatingSeason(tx, old);
+    q.meta.ratingSeason = nextRatingSeason;
+  }
+
+  // Evento: uno nuovo comincia a contare da qui.
+  const ev = eventAt(day);
+  if ((ev?.id ?? null) !== q.meta.event.id) {
+    const o = q.meta.event;
+    if (o.id) q.meta.eventLog = [...q.meta.eventLog, { id: o.id, progress: eventProgressOf(q, o), tiers: o.tiers.length }].slice(-30);
+    q.meta.event = { id: ev?.id ?? null, base: ev ? ev.template.metric(q.stats) : 0, tiers: [] };
+  }
+}
+
+/** Fine di una stagione per il punteggio: premio della lega più alta raggiunta in ogni gioco, poi si riparte. */
+function closeRatingSeason(tx: Tx, season: string) {
+  const q = tx.p;
+  for (const g of GAME_IDS) {
+    const r = q.meta.ratings[g];
+    if (r.n >= RATING.placement) {
+      const top = leagueIndex(r.peak);
+      const league = LEAGUES[top];
+      q.meta.leagueHistory = [...q.meta.leagueHistory, { season, game: g, r: r.r, peak: r.peak, league: league.id, n: r.n }].slice(-60);
+      addClaim(tx, {
+        id: `lega:${season}:${g}`,
+        why: `${league.name} a ${GAME_NAMES[g]}`,
+        coins: league.coins,
+        items: LEAGUES.slice(0, top + 1).map(l => `frame:${l.frame}`),
+      });
+    }
+    q.meta.ratings[g] = carryOver(r);
   }
 }
 
@@ -239,8 +431,9 @@ function roll(tx: Tx, day: string) {
 export function activeMissions(p: Progress, day: string) {
   const canOnline = p.stats.onlinePlayed > 0;
   const week = weekOf(day);
+  const skip = p.meta.missions.swaps[day] ?? [];
   return [
-    ...missionsFor('daily', day, p.meta.seed, canOnline).map(def => ({ def, key: `${day}:${def.id}` })),
+    ...missionsFor('daily', day, p.meta.seed, canOnline, skip).map(def => ({ def, key: `${day}:${def.id}` })),
     ...missionsFor('weekly', week, p.meta.seed, canOnline).map(def => ({ def, key: `${week}:${def.id}` })),
   ];
 }
@@ -256,8 +449,9 @@ function advanceMissions(tx: Tx, day: string, e: MissionEvent) {
     if (m.done.includes(key)) continue;
     if (def.distinct) {
       const v = def.distinct(e);
-      if (v) m.seen[key] = [...(m.seen[key] ?? []), v];
-      m.p[key] = distinctProgress(def, m.seen[key] ?? []);
+      if (!v) continue;
+      m.seen[key] = [...(m.seen[key] ?? []), v];
+      m.p[key] = distinctProgress(def, m.seen[key]);
     } else {
       const s = def.step(e, m.seen[key] ?? []);
       if (!s) continue;
@@ -269,7 +463,7 @@ function advanceMissions(tx: Tx, day: string, e: MissionEvent) {
       if (def.period === 'weekly') tx.p.stats.weeklyDone++;
       else dailyDone++;
       tx.gains.push({ k: 'mission', key, text: def.text });
-      credit(tx, { coins: def.coins, xp: def.xp }, 'Missione');
+      addClaim(tx, { id: `m:${key}`, why: def.text, coins: def.coins, xp: def.xp });
     }
   }
   for (let i = 0; i < dailyDone; i++) advanceMissions(tx, day, { dailyDone: true });
@@ -285,9 +479,15 @@ function seasonStats(p: Progress): Stats {
     if (typeof v === 'number') out[k] = Math.max(0, v - ((b[k] as number) ?? 0));
   }
   out.byGame = Object.fromEntries(
-    (['tressette', 'briscola', 'scopa'] as const).map(g => [
+    GAME_IDS.map(g => [
       g,
-      { played: s.byGame[g].played - b.byGame[g].played, won: s.byGame[g].won - b.byGame[g].won, expert: s.byGame[g].expert - b.byGame[g].expert },
+      {
+        played: s.byGame[g].played - b.byGame[g].played,
+        won: s.byGame[g].won - b.byGame[g].won,
+        expert: s.byGame[g].expert - b.byGame[g].expert,
+        streak: s.byGame[g].streak,
+        best: s.byGame[g].best,
+      },
     ]),
   );
   // Le serie non si sommano: conta la migliore fatta in stagione.
@@ -307,7 +507,7 @@ function settleSeason(tx: Tx) {
     if (s.points >= t.points && !s.tiers.includes(i)) {
       s.tiers.push(i);
       tx.gains.push({ k: 'seasonTier', season: season.id, index: i });
-      credit(tx, t.reward, `Stagione: ${t.points} punti`);
+      addClaim(tx, { id: `stagione:${season.id}:${i}`, why: `${season.name}: ${t.points} punti`, ...t.reward });
       for (const k of t.reward.items ?? []) if (!tx.p.meta.seasonItems.includes(k)) tx.p.meta.seasonItems.push(k);
     }
   });
@@ -318,17 +518,38 @@ function settleSeason(tx: Tx) {
       s.missions.push(m.id);
       tx.p.stats.missionsDone++;
       tx.gains.push({ k: 'mission', key: `${season.id}:${m.id}`, text: m.text });
-      credit(tx, { coins: m.coins, xp: m.xp }, 'Missione di stagione');
+      addClaim(tx, { id: `stagione:${season.id}:${m.id}`, why: m.text, coins: m.coins, xp: m.xp });
     }
   }
+}
+
+/** A che punto è l'evento in corso. */
+export const eventProgressOf = (p: Progress, e: EventState = p.meta.event) => {
+  const t = e.id ? templateById(e.id) : undefined;
+  return t ? Math.max(0, t.metric(p.stats) - e.base) : 0;
+};
+
+function settleEvent(tx: Tx) {
+  const e = tx.p.meta.event;
+  const t = e.id ? templateById(e.id) : undefined;
+  if (!t || !e.id) return;
+  const have = eventProgressOf(tx.p);
+  t.tiers.forEach((goal, i) => {
+    if (have >= goal && !e.tiers.includes(i)) {
+      e.tiers.push(i);
+      tx.gains.push({ k: 'eventTier', event: e.id!, index: i });
+      addClaim(tx, { id: `evento:${e.id}:${i}`, why: `${t.name}: ${goal} ${t.unit}`, ...t.rewards[i] });
+      if (i === t.tiers.length - 1) tx.p.stats.eventsDone++;
+    }
+  });
 }
 
 /* ================================================================== assestamento */
 
 /**
- * Dopo ogni cambiamento: achievement, livelli, prestigio, arene, leggenda, set. Si ripete finché
- * niente cambia più (un achievement può portare un oggetto che completa un set che sblocca un altro
- * achievement…).
+ * Dopo ogni cambiamento: achievement, livelli, prestigio, arene, leggenda, set, stagione, evento. Si
+ * ripete finché niente cambia più (un achievement può portare un oggetto che completa un set che
+ * sblocca un altro achievement…).
  */
 function settle(tx: Tx, day: string) {
   for (let guard = 0; guard < 20; guard++) {
@@ -387,6 +608,7 @@ function settle(tx: Tx, day: string) {
     }
 
     settleSeason(tx);
+    settleEvent(tx);
     if (tx.newItems) {
       const n = tx.newItems;
       tx.newItems = 0;
@@ -413,6 +635,7 @@ export function applyHand(p: Progress, hand: HandRecord, day: string) {
     tx.p.meta.handsSince++;
     tx.p.stats = addHand(tx.p.stats, hand);
     tx.p.xp += BALANCE.xp.hand + hand.scope * BALANCE.xp.scopa;
+    advanceMissions(tx, day, { hand });
   });
 }
 
@@ -423,18 +646,24 @@ export interface MatchOutcome {
   gains: Gain[];
   /** Trofei vinti o persi (0 se rifiutata). */
   delta: number;
+  /** Punteggio di bravura vinto o perso nel gioco della partita. */
+  ratingDelta: number;
   refused?: MatchRefusal;
 }
+
+/** La forza degli avversari di una partita: il computer per livello, o una persona online. */
+export const opponentStrength = (r: MatchRecord) => (r.online && r.opp && r.opp.length ? RATING.opponent.online : RATING.opponent[r.level]);
 
 /**
  * Una partita finita. Non conta se lo stesso id è già arrivato, e (sul server) se arriva troppo presto
  * dopo la precedente contro il computer. Le partite abbandonate non arrivano mai qui.
  */
 export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number, opts: { server?: boolean } = {}): MatchOutcome {
-  if (r.id && p.meta.recent.includes(r.id)) return { p, gains: [], delta: 0, refused: 'duplicate' };
+  if (r.id && p.meta.recent.includes(r.id)) return { p, gains: [], delta: 0, ratingDelta: 0, refused: 'duplicate' };
   if (opts.server && !r.online && now - p.meta.lastMatchAt < BALANCE.antiAbuse.minSecondsBetweenMatches * 1000)
-    return { p, gains: [], delta: 0, refused: 'tooSoon' };
+    return { p, gains: [], delta: 0, ratingDelta: 0, refused: 'tooSoon' };
   let delta = 0;
+  let ratingDelta = 0;
   const out = run(p, day, tx => {
     const q = tx.p;
     q.stats = addMatch(q.stats, r, day);
@@ -459,14 +688,50 @@ export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number
       s.streak = r.won ? s.streak + 1 : 0;
       s.bestStreak = Math.max(s.bestStreak, s.streak);
     }
-    const equippedKey = SLOTS.map(k => q.equipped[k]).join('|');
+
+    // Persone online: oltre tre partite al giorno contro la stessa non contano per il punteggio.
+    const opp = r.online ? (r.opp ?? []).filter(x => typeof x === 'string').slice(0, 3) : [];
+    if (q.meta.pairs.day !== day) q.meta.pairs = { day, n: {} };
+    for (const o of opp) q.meta.pairs.n[o] = (q.meta.pairs.n[o] ?? 0) + 1;
+    const rated = opp.every(o => q.meta.pairs.n[o] <= RATING.samePairPerDay);
+    if (rated) {
+      const strength = opponentStrength(r);
+      const before = q.meta.ratings[r.game];
+      const lBefore = leagueIndex(before.r);
+      const after = rate(before, strength, r.won);
+      q.meta.ratings[r.game] = after.g;
+      ratingDelta = after.delta;
+      tx.gains.push({ k: 'rating', game: r.game, delta: after.delta, r: after.g.r });
+      if (leagueIndex(after.g.r) > lBefore) tx.gains.push({ k: 'league', game: r.game, league: leagueOf(after.g.r).id });
+      const w = q.meta.weekly[r.game];
+      q.meta.weekly[r.game] = { ...w, n: w.n + 1, opp: w.opp + strength, w: w.w + (r.won ? 1 : 0), l: w.l + (r.won ? 0 : 1) };
+    }
+    // Rivali: vittorie contro la stessa persona.
+    if (r.won && opp.length) {
+      for (const o of opp) q.meta.rivals[o] = (q.meta.rivals[o] ?? 0) + 1;
+      const top = Object.entries(q.meta.rivals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 100);
+      q.meta.rivals = Object.fromEntries(top);
+      q.stats.maxRivalWins = Math.max(q.stats.maxRivalWins, top[0]?.[1] ?? 0);
+    }
+    // Tre tavoli in un giorno.
+    if (q.meta.dayGames.day !== day) q.meta.dayGames = { day, games: [] };
+    if (!q.meta.dayGames.games.includes(r.game)) {
+      q.meta.dayGames.games.push(r.game);
+      if (q.meta.dayGames.games.length === 3) q.stats.allGamesDays++;
+    }
+    // Vincere con il tavolo di partenza dopo l'arena 10.
+    if (r.won && q.meta.arena >= 9 && TABLE_SLOTS.every(sl => q.equipped[sl] === DEFAULT_EQUIPPED[sl])) q.stats.humbleWins++;
+
+    const equippedKey = TABLE_SLOTS.map(k => q.equipped[k]).join('|');
     advanceMissions(tx, day, { match: { ...r, trophyDelta: delta, streak: q.stats.streak, equippedKey, lastEquippedKey: q.meta.lastEquip } });
     q.meta.lastEquip = equippedKey;
     q.meta.recent = [...q.meta.recent, r.id].slice(-BALANCE.antiAbuse.recentMatches);
     q.meta.lastMatchAt = now;
     q.meta.handsSince = 0;
   });
-  return { ...out, delta };
+  return { ...out, delta, ratingDelta };
 }
 
 export type BuyRefusal = 'unknown' | 'notForSale' | 'owned' | 'coins';
@@ -497,6 +762,77 @@ export function selectTitle(p: Progress, id: string): Progress | null {
   return { ...p, meta: { ...p.meta, title: id } };
 }
 
+export function selectAvatar(p: Progress, id: string): Progress | null {
+  if (avatarById(id).id !== id) return null;
+  return { ...p, meta: { ...p.meta, avatar: id } };
+}
+
+/** La vetrina: fino a tre oggetti posseduti o achievement completati. */
+export function selectShowcase(p: Progress, keys: string[]): Progress | null {
+  const clean = [...new Set(keys)].slice(0, 3);
+  const ok = clean.every(k =>
+    k.startsWith('item:') ? p.owned.includes(k.slice(5)) && !!itemByKey(k.slice(5)) : k.startsWith('ach:') ? !!p.achievements[k.slice(4)] && !!achievementById(k.slice(4)) : false,
+  );
+  if (!ok) return null;
+  return { ...p, meta: { ...p.meta, showcase: clean } };
+}
+
+/** La vetrina che si vede: quella scelta, o le tre cose più rare che hai. */
+export function showcaseOf(p: Progress): string[] {
+  if (p.meta.showcase.length) return p.meta.showcase;
+  const rank = ['comune', 'noncomune', 'raro', 'epico', 'leggendario', 'mitico'];
+  return p.owned
+    .map(k => itemByKey(k))
+    .filter(i => !!i && i.price > 0)
+    .sort((a, b) => rank.indexOf(b!.rarity) - rank.indexOf(a!.rarity) || b!.price - a!.price)
+    .slice(0, 3)
+    .map(i => `item:${i!.slot}:${i!.id}`);
+}
+
+/** Riscuote una ricompensa (o tutte con id «*»). Una seconda richiesta uguale non trova più niente. */
+export function claimReward(p: Progress, id: string, day: string): { p: Progress; gains: Gain[]; claimed: string[] } {
+  const ids = id === '*' ? p.meta.claims.map(c => c.id) : p.meta.claims.some(c => c.id === id) ? [id] : [];
+  if (!ids.length) return { p, gains: [], claimed: [] };
+  const out = run(p, day, tx => {
+    const m = tx.p.meta;
+    for (const cid of ids) {
+      const c = m.claims.find(x => x.id === cid);
+      if (!c) continue;
+      m.claims = m.claims.filter(x => x.id !== cid);
+      m.claimed = [...m.claimed, cid].slice(-300);
+      const items = (c.items ?? []).filter(k => itemByKey(k));
+      const dup = items.filter(k => tx.p.owned.includes(k)).length;
+      credit(tx, { coins: (c.coins ?? 0) + dup * DUPLICATE_COINS, xp: c.xp, items }, c.why);
+    }
+  });
+  return { ...out, claimed: ids };
+}
+
+/** Cambia una missione del giorno non ancora completata (una volta al giorno). */
+export function swapMission(p: Progress, key: string, day: string): Progress | null {
+  const swaps = p.meta.missions.swaps[day] ?? [];
+  if (swaps.length >= 1 || !key.startsWith(`${day}:`) || p.meta.missions.done.includes(key)) return null;
+  const id = key.slice(day.length + 1);
+  if (!activeMissions(p, day).some(m => m.key === key)) return null;
+  const q = clone(p);
+  q.meta.missions.swaps[day] = [...swaps, id];
+  delete q.meta.missions.p[key];
+  delete q.meta.missions.seen[key];
+  return q;
+}
+
+/** Premi assegnati dal server (podio settimanale, posizione di stagione): diventano ricompense da riscuotere. */
+export function addGrants(p: Progress, grants: Claim[], day: string) {
+  return run(p, day, tx => {
+    for (const g of grants) {
+      const c = cleanClaim(g);
+      if (!c || tx.p.meta.grantsSeen.includes(c.id)) continue;
+      tx.p.meta.grantsSeen = [...tx.p.meta.grantsSeen, c.id].slice(-300);
+      addClaim(tx, c);
+    }
+  });
+}
+
 export function claimDaily(p: Progress, day: string, doubled: boolean): { p: Progress; gains: Gain[]; amount: number } | null {
   let r: { state: BonusState; amount: number };
   try {
@@ -520,8 +856,8 @@ export function refill(p: Progress): Progress | null {
   return { ...p, coins: p.coins + BALANCE.coins.refill };
 }
 
-/** Solo per portare il giorno avanti (nuove missioni, stagione chiusa) senza fare altro. */
+/** Solo per portare il giorno avanti (nuove missioni, stagione, evento) senza fare altro. */
 export const touch = (p: Progress, day: string) => run(p, day, () => {});
 
-/** Il giocatore deve togliere i titoli che non ha più? No: i titoli non si perdono (tutti i requisiti crescono). */
+/** I titoli non si perdono (tutti i requisiti crescono). */
 export const titleOf = (p: Progress) => titleById(p.meta.title) ?? titleById(DEFAULT_TITLE)!;

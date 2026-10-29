@@ -11,7 +11,9 @@
 
 import type { Rarity } from './rarity.ts';
 
-export type Slot = 'table' | 'felt' | 'back';
+/** I posti del tavolo (tavolino, panno, dorso) e la cornice dell'avatar nel profilo. */
+export type Slot = 'table' | 'felt' | 'back' | 'frame';
+export type TableSlot = Exclude<Slot, 'frame'>;
 
 /** Le famiglie del catalogo, per il negozio e l'inventario. */
 export type Category =
@@ -27,7 +29,10 @@ export type Category =
   | 'nobili'
   | 'mitici'
   | 'esclusivi'
-  | 'napoli';
+  | 'napoli'
+  | 'cornici'
+  | 'leghe'
+  | 'eventi';
 
 export const CATEGORY_NAMES: Record<Category, string> = {
   legni: 'Legni',
@@ -43,6 +48,9 @@ export const CATEGORY_NAMES: Record<Category, string> = {
   mitici: 'Mitici',
   esclusivi: 'Esclusivi',
   napoli: 'Collezione Napoli',
+  cornici: 'Cornici',
+  leghe: 'Leghe e podi',
+  eventi: 'Eventi e segreti',
 };
 
 /** La sponda: materiale, colori (luce in alto a sinistra → ombra), finiture. */
@@ -102,10 +110,17 @@ interface Base {
   n?: number;
 }
 
+/** La cornice dell'avatar: tre colori (scuro, metallo, luce) e il disegno. */
+export interface FrameLook {
+  colors: [string, string, string];
+  style: 'ring' | 'double' | 'beads' | 'laurel' | 'stars' | 'rays' | 'crown' | 'gems' | 'coin' | 'flame' | 'tiles' | 'waves';
+}
+
 export type TableItem = Base & { slot: 'table'; look: TableLook };
 export type FeltItem = Base & { slot: 'felt'; look: ClothLook };
 export type BackItem = Base & { slot: 'back'; look: BackLook };
-export type Item = TableItem | FeltItem | BackItem;
+export type FrameItem = Base & { slot: 'frame'; look: FrameLook };
+export type Item = TableItem | FeltItem | BackItem | FrameItem;
 
 type Opts = { shop?: boolean; coming?: ArtBrief; desc?: string };
 
@@ -525,9 +540,60 @@ export const NAPOLI_BACKS: BackItem[] = [
   legacyBack('ottone', 'Gran Caffè', 'Velluto verde e ottone, come al Gran Caffè: per chi passa ogni giorno.', 'epico', 4000, ['#174A33', '#0A2A1D', '#C8A15A', '#F3D58C'], 'maiolica', false),
 ];
 
+/* ================================================================== cornici */
+// Intorno all'avatar, nel profilo, nelle classifiche e al tavolo. Alcune si comprano; quelle delle leghe,
+// degli eventi, del podio settimanale e degli achievement segreti si vincono soltanto.
+
+const fr = (id: string, name: string, desc: string, rarity: Rarity, price: number, category: Category, colors: [string, string, string], style: FrameLook['style'], shop = true): FrameItem => ({
+  id,
+  name,
+  desc,
+  rarity,
+  category,
+  price,
+  shop,
+  status: 'ready',
+  slot: 'frame',
+  look: { colors, style },
+});
+
+export const FRAMES: FrameItem[] = [
+  fr('semplice', 'Semplice', 'Un anello bianco: la cornice di partenza.', 'comune', 0, 'cornici', ['#FFFFFF', '#FFFFFF', '#FFFFFF'], 'ring', false),
+  fr('oro-sottile', 'Oro sottile', 'Un filo d’oro intorno al tuo avatar.', 'comune', 400, 'cornici', ['#8A6526', '#E8BE4F', '#FFF0B8'], 'ring'),
+  fr('argento-sottile', 'Argento sottile', 'Un filo d’argento.', 'comune', 400, 'cornici', ['#5E6676', '#C9D0DC', '#FFFFFF'], 'ring'),
+  fr('doppio-anello', 'Doppio anello', 'Due anelli di rame lucido.', 'noncomune', 900, 'cornici', ['#5A2A18', '#D9895A', '#FFD2B0'], 'double'),
+  fr('maiolica', 'Maiolica', 'Piastrelle bianche e blu tutto intorno.', 'noncomune', 1200, 'cornici', ['#1A4E8C', '#F4F1EA', '#F2C230'], 'tiles'),
+  fr('onde', 'Onde del golfo', 'Un’onda che gira intorno.', 'noncomune', 1300, 'cornici', ['#0D2A52', '#2F8FE0', '#BFE4FF'], 'waves'),
+  fr('perle', 'Perle', 'Una collana di perle.', 'raro', 2000, 'cornici', ['#5E6676', '#F4F1EA', '#FFFFFF'], 'beads'),
+  fr('alloro', 'Alloro', 'Una corona d’alloro, come ai vincitori.', 'raro', 2500, 'cornici', ['#1F4A28', '#5FA86A', '#E8BE4F'], 'laurel'),
+  fr('stelle', 'Stelle', 'Stelle d’oro su un anello blu notte.', 'epico', 4000, 'cornici', ['#17224D', '#F3D58C', '#FFF6D6'], 'stars'),
+  fr('raggi', 'Raggi di sole', 'Un sole che si apre dietro il tuo avatar.', 'epico', 4500, 'cornici', ['#A04E15', '#FFB02E', '#FFF0B8'], 'rays'),
+  fr('gemme', 'Gemme', 'Quattro gemme incastonate nell’oro.', 'leggendario', 7000, 'cornici', ['#5A3A08', '#E8BE4F', '#C2283D'], 'gems'),
+  fr('corona', 'Corona', 'Una corona d’oro sopra l’avatar.', 'leggendario', 9000, 'cornici', ['#5A3A08', '#E8BE4F', '#FFF0B8'], 'crown', false),
+  // Leghe: si vincono chiudendo una stagione nella lega (rating.ts).
+  fr('lega-tornese', 'Tornese', 'Per chi ha chiuso una stagione nella Lega del Tornese.', 'comune', 300, 'leghe', ['#5A3A28', '#C07A4A', '#F2B98C'], 'coin', false),
+  fr('lega-grana', 'Grana', 'Per chi ha chiuso una stagione nella Lega della Grana.', 'noncomune', 800, 'leghe', ['#4A3A24', '#B08A4A', '#E8CC8A'], 'coin', false),
+  fr('lega-carlino', 'Carlino', 'Per chi ha chiuso una stagione nella Lega del Carlino.', 'raro', 1600, 'leghe', ['#3A4458', '#AEB8C8', '#F2F4F8'], 'coin', false),
+  fr('lega-piastra', 'Piastra', 'Per chi ha chiuso una stagione nella Lega della Piastra.', 'epico', 3000, 'leghe', ['#2A3A5E', '#8FB8FF', '#E8F2FF'], 'coin', false),
+  fr('lega-ducato', 'Ducato', 'Per chi ha chiuso una stagione nella Lega del Ducato.', 'epico', 5000, 'leghe', ['#5A3A08', '#E8BE4F', '#FFF0B8'], 'coin', false),
+  fr('lega-oncia', 'Oncia d’oro', 'Per chi ha chiuso una stagione nella Lega dell’Oncia.', 'leggendario', 9000, 'leghe', ['#3A0E2A', '#F0457A', '#FFD0E2'], 'coin', false),
+  fr('lega-re', 'Corona dei Re', 'Per chi ha chiuso una stagione nella Lega dei Re.', 'mitico', 15000, 'leghe', ['#1A1030', '#B58CFF', '#FFF0B8'], 'crown', false),
+  fr('podio-settimana', 'Podio della settimana', 'Per chi chiude una settimana sul podio di una classifica.', 'leggendario', 8000, 'leghe', ['#5A3A08', '#FFD24A', '#FFFFFF'], 'laurel', false),
+  // Eventi (events.ts).
+  fr('evento-scopa', 'Weekend della Scopa', 'Dal Weekend della Scopa.', 'epico', 4000, 'eventi', ['#2A0E52', '#9B6BFF', '#E3D6FF'], 'waves', false),
+  fr('evento-briscola', 'Coppa di Briscola', 'Dalla Coppa di Briscola.', 'epico', 4000, 'eventi', ['#52102E', '#FF6B9A', '#FFD0E2'], 'stars', false),
+  fr('evento-tressette', 'Settimana del Tressette', 'Dalla Settimana del Tressette.', 'epico', 4000, 'eventi', ['#5A2A08', '#FFA94D', '#FFE2C4'], 'tiles', false),
+  fr('evento-festa', 'Festa delle Carte', 'Dalla Festa delle Carte.', 'epico', 4000, 'eventi', ['#0E3A2E', '#7CF2D2', '#E8FFF8'], 'beads', false),
+  fr('evento-maestri', 'Evento dei Maestri', 'Dall’Evento dei Maestri.', 'leggendario', 7000, 'eventi', ['#1A1030', '#E8BE4F', '#FFF0B8'], 'gems', false),
+  // Achievement segreti (achievements.ts).
+  fr('segreto-rimonta', 'Fiamma della rimonta', 'Per chi non si arrende mai.', 'leggendario', 7000, 'eventi', ['#3A0408', '#FF7A3D', '#FFD27A'], 'flame', false),
+  fr('segreto-tre-semi', 'Tre tavoli', 'Per chi gioca a tutto, ogni giorno.', 'epico', 4000, 'eventi', ['#17093A', '#FF8A3D', '#7FD0FF'], 'double', false),
+  fr('segreto-ombra', 'Ombra', 'Per pochi: chi l’ha vista sa come si ottiene.', 'mitico', 15000, 'eventi', ['#030204', '#5A4A78', '#D6C8FF'], 'rays', false),
+];
+
 /* ================================================================== indice */
 
-export const ITEMS: Item[] = [STARTER_TABLE, ...TABLES, ...FELTS, ...NAPOLI_FELTS, STARTER_BACK, ...BACKS, ...NAPOLI_BACKS];
+export const ITEMS: Item[] = [STARTER_TABLE, ...TABLES, ...FELTS, ...NAPOLI_FELTS, STARTER_BACK, ...BACKS, ...NAPOLI_BACKS, ...FRAMES];
 
 const byId = new Map<string, Item>();
 for (const i of ITEMS) byId.set(`${i.slot}:${i.id}`, i);
@@ -541,12 +607,14 @@ export const itemByKey = (key: string): Item | undefined => byId.get(key);
 
 export const itemsOf = (slot: Slot) => ITEMS.filter(i => i.slot === slot);
 
-export const DEFAULT_EQUIPPED: Record<Slot, string> = { table: 'vetro', felt: 'verde-smeraldo', back: 'classico' };
+export const DEFAULT_EQUIPPED: Record<Slot, string> = { table: 'vetro', felt: 'verde-smeraldo', back: 'classico', frame: 'semplice' };
 export const STARTER_KEYS = (Object.keys(DEFAULT_EQUIPPED) as Slot[]).map(s => `${s}:${DEFAULT_EQUIPPED[s]}`);
 
-export const SLOTS: Slot[] = ['table', 'felt', 'back'];
-export const SLOT_NAMES: Record<Slot, string> = { table: 'Tavolini', felt: 'Panni', back: 'Dorsi' };
-export const SLOT_NAME: Record<Slot, string> = { table: 'Tavolino', felt: 'Panno', back: 'Dorso delle carte' };
+export const SLOTS: Slot[] = ['table', 'felt', 'back', 'frame'];
+/** I posti che si vedono al tavolo. */
+export const TABLE_SLOTS: TableSlot[] = ['table', 'felt', 'back'];
+export const SLOT_NAMES: Record<Slot, string> = { table: 'Tavolini', felt: 'Panni', back: 'Dorsi', frame: 'Cornici' };
+export const SLOT_NAME: Record<Slot, string> = { table: 'Tavolino', felt: 'Panno', back: 'Dorso delle carte', frame: 'Cornice' };
 
 /* ================================================================== dal vecchio negozio */
 // Prima un «panno» era panno + sponda, e i decori erano un posto a parte. Ogni vecchio id diventa il

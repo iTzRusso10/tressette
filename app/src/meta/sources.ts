@@ -6,6 +6,8 @@ import { ARENAS } from './arenas.ts';
 import { ITEMS, keyOf, STARTER_KEYS } from './catalog.ts';
 import { EVENTS, LEGEND_GIFTS, LEVEL_GIFTS, PRESTIGE_GIFTS } from './rewards.ts';
 import { SEASONS } from './seasons.ts';
+import { EVENT_TEMPLATES } from './events.ts';
+import { LEAGUES } from './rating.ts';
 
 export type Source =
   | { k: 'starter' }
@@ -16,7 +18,9 @@ export type Source =
   | { k: 'prestige'; n: number }
   | { k: 'legend'; n: number }
   | { k: 'season'; id: string; name: string }
-  | { k: 'event'; id: string; name: string };
+  | { k: 'event'; id: string; name: string }
+  | { k: 'league'; name: string }
+  | { k: 'weekly' };
 
 const map = new Map<string, Source[]>();
 const add = (key: string, s: Source) => map.set(key, [...(map.get(key) ?? []), s]);
@@ -30,6 +34,9 @@ for (const [n, k] of Object.entries(PRESTIGE_GIFTS)) add(k, { k: 'prestige', n: 
 for (const [n, k] of Object.entries(LEGEND_GIFTS)) add(k, { k: 'legend', n: Number(n) });
 for (const s of SEASONS) add(s.special, { k: 'season', id: s.id, name: s.name });
 for (const e of EVENTS) for (const k of e.items) add(k, { k: 'event', id: e.id, name: e.name });
+for (const t of EVENT_TEMPLATES) for (const r of t.rewards) for (const k of r.items ?? []) add(k, { k: 'event', id: t.id, name: t.name });
+for (const l of LEAGUES) add(`frame:${l.frame}`, { k: 'league', name: l.name });
+add('frame:podio-settimana', { k: 'weekly' });
 
 export const sourcesOf = (key: string): Source[] => map.get(key) ?? [];
 
@@ -53,6 +60,10 @@ export function sourceText(s: Source): string {
     case 'season':
       return `Stagione «${s.name}»`;
     case 'event':
-      return 'Con un evento (in arrivo)';
+      return EVENT_TEMPLATES.some(t => t.id === s.id) ? `Evento «${s.name}»` : 'Con un evento (in arrivo)';
+    case 'league':
+      return `Chiudendo una stagione nella ${s.name} (o più su)`;
+    case 'weekly':
+      return 'Sul podio di una classifica settimanale';
   }
 }

@@ -26,6 +26,7 @@ export function levelReward(level: number): Reward {
 
 /** Gradi di Prestigio con un oggetto in più (il titolo Gloria Eterna arriva al 10 dal suo requisito). */
 export const PRESTIGE_GIFTS: Record<number, string> = {
+  1: 'frame:corona',
   5: 'table:crono',
 };
 
