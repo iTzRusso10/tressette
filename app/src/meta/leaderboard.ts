@@ -80,3 +80,60 @@ export async function loadSeasonLeaderboard(scope: RankScope): Promise<{ rows: R
   const me = own ? { id: account.id, name: account.name, avatar: account.avatar ?? null, cups: own.points, xp: 0, rank: own.rank, isMe: true } : (rows.find(r => r.isMe) ?? null);
   return { rows, me };
 }
+
+/* ------------------------------------------------------------------ classifiche per gioco */
+
+export type GamePeriod = 'stagione' | 'settimana';
+export type GameScope = 'mondo' | 'amici' | 'vicini';
+
+export interface GameRankRow {
+  id: string;
+  name: string;
+  photo: string | null;
+  pub: Record<string, unknown>;
+  score: number;
+  games: number;
+  rank: number;
+  isMe: boolean;
+}
+
+/**
+ * La classifica di un gioco sul punteggio di bravura: della stagione o della settimana, del mondo, degli
+ * amici o dei vicini di posizione. Con la tua posizione (`me`), anche fuori dai primi 100.
+ */
+export async function loadGameBoard(game: string, period: GamePeriod, scope: GameScope): Promise<{ rows: GameRankRow[]; me: { score: number; games: number; rank: number; total: number } | null }> {
+  const account = useProfile.getState().account;
+  if (!supabaseConfigured || !account) return { rows: [], me: null };
+  const sb = supabase();
+  const [list, mine] = await Promise.all([sb.rpc('leaderboard_game', { p_game: game, p_period: period, p_scope: scope }), sb.rpc('my_game_rank', { p_game: game, p_period: period })]);
+  if (list.error) throw list.error;
+  if (mine.error) throw mine.error;
+  type R = { id: string; name: string | null; avatar: string | null; pub: Record<string, unknown> | null; score: number; games: number; rank: number };
+  const rows = ((list.data ?? []) as R[]).map(r => ({ id: r.id, name: r.name ?? 'Giocatore', photo: r.avatar, pub: r.pub ?? {}, score: r.score, games: r.games, rank: r.rank, isMe: r.id === account.id }));
+  const me = ((mine.data ?? []) as { score: number; games: number; rank: number; total: number }[])[0] ?? null;
+  return { rows, me };
+}
+
+export interface SeasonResult {
+  season: string;
+  name: string;
+  game: string;
+  rank: number;
+  rating: number;
+  players: number;
+}
+
+/** Le tue posizioni finali nelle stagioni passate. */
+export async function mySeasonHistory(): Promise<SeasonResult[]> {
+  if (!supabaseConfigured || !useProfile.getState().account) return [];
+  const { data, error } = await supabase().rpc('my_season_history');
+  if (error) throw error;
+  return ((data ?? []) as { season_id: string; season_name: string; game: string; rank: number; rating: number; players: number }[]).map(r => ({
+    season: r.season_id,
+    name: r.season_name,
+    game: r.game,
+    rank: r.rank,
+    rating: r.rating,
+    players: r.players,
+  }));
+}

@@ -12,15 +12,22 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { ARENAS, reachedArena } from '../../../src/meta/arenas.ts';
 import { itemByKey, STARTER_KEYS, type Slot } from '../../../src/meta/catalog.ts';
 import {
+  addGrants,
   applyHand,
   applyMatch,
   buyItem,
   claimDaily,
+  claimReward,
   equipItem,
   normalize,
+  publicOf,
   refill,
+  selectAvatar,
+  selectShowcase,
   selectTitle,
+  swapMission,
   touch,
+  type Claim,
   type Meta,
   type Progress,
 } from '../../../src/meta/ledger.ts';
@@ -55,7 +62,8 @@ interface Row {
 }
 
 const COLUMNS = 'id, coins, xp, stats, trophies, bonus, friend_code, imported, cups, best_cups, owned, equipped, meta, updated_at';
-const SLOTS: Slot[] = ['table', 'felt', 'back'];
+const SLOTS: Slot[] = ['table', 'felt', 'back', 'frame'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HOUR = 3600 * 1000;
 
 /** Il giorno di Roma adesso, AAAA-MM-GG. */
@@ -90,6 +98,7 @@ function fromRow(r: Row): Progress {
 }
 
 const toRow = (p: Progress) => ({
+  public: publicOf(p),
   coins: p.coins,
   xp: p.xp,
   stats: p.stats,
@@ -123,7 +132,7 @@ function importDevice(server: Progress, raw: unknown): Progress {
     cups: Math.max(server.cups, Math.min(IMPORT_MAX.cups, dev.cups)),
     bestCups: Math.max(server.bestCups, Math.min(IMPORT_MAX.cups, dev.bestCups)),
     bonus: dev.bonus.lastDay ? dev.bonus : server.bonus,
-    meta: { ...server.meta, title: dev.meta.title, missions: dev.meta.missions, lastEquip: dev.meta.lastEquip },
+    meta: { ...server.meta, title: dev.meta.title, avatar: dev.meta.avatar, missions: dev.meta.missions, lastEquip: dev.meta.lastEquip },
   };
   p.bestCups = Math.max(p.bestCups, p.cups);
   // Achievement: solo quelli che le statistiche portate confermano.
@@ -173,6 +182,10 @@ Deno.serve(async req => {
     const { data: row, error } = await admin.from('profiles').select(COLUMNS).eq('id', uid).single<Row>();
     if (error || !row) return json({ error: 'Profilo non trovato' }, 404);
     let p = await withSeasonRanks(admin, uid, fromRow(row));
+    // Premi assegnati dal server (podio della settimana, posizione di stagione) non ancora visti.
+    const { data: grants } = await admin.from('reward_grants').select('id, why, coins, items').eq('user_id', uid).order('created_at', { ascending: false }).limit(50);
+    const fresh = (grants ?? []).filter(g => !p.meta.grantsSeen.includes(g.id as string));
+    if (fresh.length) p = addGrants(p, fresh.map(g => ({ id: g.id, why: g.why, coins: g.coins, items: g.items }) as Claim), day).p;
     let imported = row.imported;
     let refused: string | null = null;
     let delta = 0;
@@ -200,6 +213,10 @@ Deno.serve(async req => {
           level: (['facile', 'medio', 'difficile'] as const).includes(m.level as 'facile') ? (m.level as MatchRecord['level']) : 'facile',
           online: !!m.online,
           won: !!m.won,
+          comeback: !!m.comeback,
+          shutout: !!m.shutout,
+          // Gli avversari online sono id di account (uuid); al massimo tre.
+          opp: m.online && Array.isArray(m.opp) ? m.opp.filter(x => typeof x === 'string' && UUID.test(x) && x !== uid).slice(0, 3) : [],
         };
         const r = applyMatch(p, rec, day, Date.now(), { server: true });
         if (r.refused) refused = r.refused;
@@ -235,6 +252,30 @@ Deno.serve(async req => {
         if (r) p = r;
         break;
       }
+      case 'claim': {
+        const r = claimReward(p, String(body.id ?? ''), day);
+        if (!r.claimed.length) refused = 'claim';
+        p = r.p;
+        break;
+      }
+      case 'swap': {
+        const q = swapMission(touch(p, day).p, String(body.key ?? ''), day);
+        if (q) p = q;
+        else refused = 'swap';
+        break;
+      }
+      case 'avatar': {
+        const q = selectAvatar(p, String(body.avatar ?? ''));
+        if (q) p = q;
+        else refused = 'avatar';
+        break;
+      }
+      case 'showcase': {
+        const q = Array.isArray(body.showcase) ? selectShowcase(p, body.showcase.filter((x: unknown) => typeof x === 'string')) : null;
+        if (q) p = q;
+        else refused = 'showcase';
+        break;
+      }
       case 'get':
         p = touch(p, day).p;
         break;
@@ -253,10 +294,21 @@ Deno.serve(async req => {
     if (e2) return json({ error: e2.message }, 500);
     if (!saved) continue; // cambiata da un'altra richiesta: si riprova da capo
 
-    // Punti della stagione in corso, per la classifica di stagione.
+    // Punti della stagione in corso, e dopo una partita i punteggi per gioco e la settimana, per le classifiche.
     const s = p.meta.season;
+    const now = new Date().toISOString();
     if (s.id && s.matches > 0) {
-      await admin.from('season_scores').upsert({ season_id: s.id, user_id: uid, points: s.points, matches: s.matches, updated_at: new Date().toISOString() });
+      await admin.from('season_scores').upsert({ season_id: s.id, user_id: uid, points: s.points, matches: s.matches, updated_at: now });
+    }
+    if (body.action === 'match' && !refused) {
+      const game = (body.match as MatchRecord).game;
+      const g = p.meta.ratings[game];
+      const w = p.meta.weekly[game];
+      await admin.from('game_ratings').upsert({ user_id: uid, game, season_id: p.meta.ratingSeason ?? 'preseason', rating: g.r, games: g.n, peak: g.peak, updated_at: now });
+      if (w.n > 0) {
+        const perf = Math.round(w.opp / w.n + (400 * (w.w - w.l)) / w.n);
+        await admin.from('weekly_scores').upsert({ user_id: uid, game, week: w.week, perf, games: w.n, wins: w.w, updated_at: now });
+      }
     }
     return json({ profile: saved, level: levelInfo(p.xp), delta, ...(refused ? { refused } : {}) });
   }

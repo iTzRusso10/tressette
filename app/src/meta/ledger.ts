@@ -861,3 +861,49 @@ export const touch = (p: Progress, day: string) => run(p, day, () => {});
 
 /** I titoli non si perdono (tutti i requisiti crescono). */
 export const titleOf = (p: Progress) => titleById(p.meta.title) ?? titleById(DEFAULT_TITLE)!;
+
+/* ================================================================== profilo pubblico */
+
+/** Quello che gli altri vedono di te (profiles.public sul server): niente monete, niente dati privati. */
+export interface PublicProfile {
+  v: 1;
+  avatar: string;
+  frame: string;
+  title: string;
+  showcase: string[];
+  arena: number;
+  level: number;
+  prestige: number;
+  played: number;
+  won: number;
+  bestStreak: number;
+  games: Record<GameId, { played: number; won: number; best: number; r: number; n: number }>;
+  achievements: number;
+  secrets: number;
+  sets: number;
+  leagues: { season: string; game: GameId; league: string }[];
+}
+
+export function publicOf(p: Progress): PublicProfile {
+  const li = levelInfo(p.xp);
+  return {
+    v: 1,
+    avatar: p.meta.avatar,
+    frame: p.equipped.frame,
+    title: p.meta.title,
+    showcase: showcaseOf(p),
+    arena: p.meta.arena,
+    level: li.level,
+    prestige: li.prestige,
+    played: p.stats.played,
+    won: p.stats.won,
+    bestStreak: p.stats.bestStreak,
+    games: Object.fromEntries(
+      GAME_IDS.map(g => [g, { played: p.stats.byGame[g].played, won: p.stats.byGame[g].won, best: p.stats.byGame[g].best, r: p.meta.ratings[g].r, n: p.meta.ratings[g].n }]),
+    ) as PublicProfile['games'],
+    achievements: Object.keys(p.achievements).length,
+    secrets: ACHIEVEMENTS.filter(a => a.hint && p.achievements[a.id]).length,
+    sets: p.meta.sets.length,
+    leagues: p.meta.leagueHistory.slice(-9).map(l => ({ season: l.season, game: l.game, league: l.league })),
+  };
+}

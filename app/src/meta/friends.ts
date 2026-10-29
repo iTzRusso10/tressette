@@ -11,6 +11,9 @@ export interface Friend {
   cups: number;
   /** Where the friendship comes from. */
   via: 'facebook' | 'codice';
+  /** Profilo pubblico e ultima volta visto (dal server nuovo; assenti con quello vecchio). */
+  pub?: Record<string, unknown>;
+  last_seen?: string | null;
 }
 
 /** Asks Facebook which friends also use the app (only those who signed in with Facebook and agreed to share). */
