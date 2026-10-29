@@ -1,23 +1,22 @@
-// Pezzi condivisi dal tuo profilo e da quello degli altri giocatori: moneta della lega, statistiche per
-// gioco con il punteggio di bravura, vetrina, leghe passate. Tutto parte dal profilo pubblico
+// Pezzi condivisi dal tuo profilo, da quello degli altri giocatori e da altre schermate: moneta della lega,
+// statistiche per gioco con il punteggio di bravura, vetrina, leghe passate. Tutto parte dal profilo pubblico
 // (ledger.ts, `publicOf`), così quello che vedi di te è esattamente quello che vedono gli altri.
+//
+// GAME_LABEL, GAMES e LeagueCoin li usano anche Classifica, Overlays, InviteBanner e Summary: le firme non
+// cambiano. GameStats, ShowcaseTile, Showcase e LeagueHistory sono in «Lampara» (docs/direzione-artistica.md
+// §5.15); il profilo vero e proprio sta in ui/profilo/ (VetrinaProfilo, LibroMastro, Vetrina, Medagliere).
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import type { GameId } from '@/engine';
-import { achievementById } from '@/meta/achievements';
-import { itemByKey } from '@/meta/catalog';
 import type { PublicProfile } from '@/meta/ledger';
 import { LEAGUES, leagueOf, leagueProgress, RATING, type League } from '@/meta/rating';
-import { RARITY_NAMES } from '@/meta/rarity';
 import { seasonById } from '@/meta/seasons';
-import { ItemPreview } from './cosmetics';
-import { Icon } from './icons';
+import { accento, conAlfa, fontArte, primitivi, Sigillo, Superficie, testo } from './arte';
 import { Squish } from './kit';
-import { Medal } from './meta';
-import { Bar, CATEGORY_GLYPH, rarityColor } from './progression';
+import { Esposto, infoEsposto, Teca } from './profilo/Vetrina';
 import { Text } from './Text';
-import { colors, fonts, gradients, radius, space } from './theme';
+import { fonts } from './theme';
 
 export const GAME_LABEL: Record<GameId, string> = { tressette: 'Tressette', briscola: 'Briscola', scopa: 'Scopa' };
 export const GAMES: GameId[] = ['tressette', 'briscola', 'scopa'];
@@ -54,10 +53,10 @@ export function LeagueCoin({ league, size = 36, dim }: { league: League; size?: 
 
 type GameLine = PublicProfile['games'][GameId];
 
-/** Una riga per gioco: partite, vittorie, serie migliore, punteggio di bravura con la lega. */
+/** Una riga per gioco su carta avorio: partite, vittorie, serie migliore, punteggio di bravura con la lega. */
 export function GameStats({ games }: { games: Partial<PublicProfile['games']> }) {
   return (
-    <View style={styles.panel}>
+    <Superficie materiale="carta" livello={3} raggio={4} style={styles.carta}>
       {GAMES.map((g, i) => {
         const s: GameLine = games[g] ?? { played: 0, won: 0, best: 0, r: RATING.start, n: 0 };
         const placed = s.n >= RATING.placement;
@@ -65,6 +64,7 @@ export function GameStats({ games }: { games: Partial<PublicProfile['games']> })
         const prog = leagueProgress(s.r);
         const pct = s.played ? Math.round((s.won / s.played) * 100) : 0;
         const next = LEAGUES[LEAGUES.indexOf(league) + 1];
+        const avanti = placed && prog && next ? prog[0] / Math.max(1, prog[1]) : placed ? 1 : s.n / RATING.placement;
         return (
           <View
             key={g}
@@ -74,163 +74,122 @@ export function GameStats({ games }: { games: Partial<PublicProfile['games']> })
               placed ? `${league.name}, punteggio ${s.r}` : `In calibrazione, ${s.n} partite su ${RATING.placement}`
             }`}
           >
-            <LinearGradient colors={gradients.games[g]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.stripe} />
-            <View style={{ flex: 1, gap: 3 }}>
-              <View style={styles.gameHead}>
-                <Text style={[styles.gameName, styles.fixed]}>{GAME_LABEL[g]}</Text>
-                <Text style={styles.gameNums} numberOfLines={1}>
-                  {s.played ? `${n(s.played)} partite · ${pct}% vinte` : 'Nessuna partita'}
-                </Text>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.gameName}>{GAME_LABEL[g]}</Text>
+              <Text style={styles.small} numberOfLines={1}>
+                {s.played ? `${n(s.played)} partite · ${pct}% vinte · serie ${s.best}` : 'Nessuna partita'}
+              </Text>
+              <View style={styles.binario}>
+                <View style={[styles.matita, { width: `${Math.max(2, Math.min(1, avanti) * 100)}%` }]} />
               </View>
-              <View style={styles.gameHead}>
-                <Text style={styles.small} numberOfLines={1}>
-                  {placed ? league.name : `Calibrazione ${s.n}/${RATING.placement}`}
-                </Text>
-                <Text style={[styles.small, styles.fixed]} numberOfLines={1}>
-                  Serie migliore {s.best}
-                </Text>
-              </View>
-              {placed && prog && next ? <Bar have={prog[0]} need={prog[1]} height={4} color={league.colors[2]} style={{ marginTop: 3 }} /> : null}
             </View>
             <View style={styles.rating}>
               <LeagueCoin league={league} size={34} dim={!placed} />
-              <Text style={styles.ratingNum}>{placed ? n(s.r) : '—'}</Text>
+              <Text style={styles.ratingNum}>{placed ? n(s.r) : `${s.n}/${RATING.placement}`}</Text>
             </View>
           </View>
         );
       })}
-    </View>
+    </Superficie>
   );
 }
 
 /* ------------------------------------------------------------------ vetrina */
 
-/** Un pezzo della vetrina: un oggetto con la sua rarità, o la medaglia di un achievement. */
+/**
+ * Un pezzo che si può esporre, come piccola nicchia di velluto sotto la luce: l'oggetto (o la medaglia), il nome e
+ * la rarità scritta. Scelto (`selected` = posto 0, 1, 2): l'anello d'ottone e il sigillo con il numero del posto.
+ */
 export function ShowcaseTile({ k, width, height, selected, onPress, label }: { k: string; width: number; height: number; selected?: number; onPress?: () => void; label?: string }) {
-  const body = (() => {
-    if (k.startsWith('item:')) {
-      const item = itemByKey(k.slice(5));
-      if (!item) return null;
-      return (
-        <>
-          <View style={[styles.tileArt, { height: height - 50 }]}>
-            <ItemPreview item={item} width={width - 12} height={height - 58} />
-          </View>
-          <Text style={styles.tileName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={[styles.tileSub, { color: rarityColor(item.rarity) }]} numberOfLines={1}>
-            {RARITY_NAMES[item.rarity]}
-          </Text>
-        </>
-      );
-    }
-    const a = achievementById(k.slice(4));
-    if (!a) return null;
-    return (
-      <>
-        <View style={[styles.tileArt, { height: height - 50 }]}>
-          <Medal glyph={CATEGORY_GLYPH[a.category]} tier={a.tier} size={Math.min(width - 24, height - 62)} />
-        </View>
-        <Text style={styles.tileName} numberOfLines={1}>
-          {a.name}
-        </Text>
-        <Text style={styles.tileSub} numberOfLines={1}>
-          {a.hint ? 'Achievement segreto' : 'Achievement'}
-        </Text>
-      </>
-    );
-  })();
+  const info = infoEsposto(k);
+  if (!info) return null;
+  const on = selected !== undefined;
+  const artH = height - 40;
   const box = (
-    <View style={[styles.tile, { width, height }, selected !== undefined && { borderColor: colors.sun, borderWidth: 2 }]}>
-      {body}
-      {selected !== undefined ? (
-        <View style={styles.pick}>
-          <Text style={styles.pickText}>{selected + 1}</Text>
+    <View style={{ width, height }}>
+      <View style={[styles.tile, { width, height: artH }, on && styles.tileOn]}>
+        <Superficie materiale="velluto" livello={0} raggio={10} style={StyleSheet.absoluteFill} />
+        <LinearGradient pointerEvents="none" colors={['rgba(255,217,160,0.30)', 'rgba(255,217,160,0)']} locations={[0, 0.7]} style={StyleSheet.absoluteFill} />
+        <View style={{ position: 'absolute', left: 6, right: 6, bottom: 6, top: 8 }}>
+          <Esposto k={k} larghezza={width - 12} altezza={artH - 14} proprio />
+        </View>
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.tileIncasso]} />
+      </View>
+      <Text style={[styles.tileName, on && { color: accento.oro }]} numberOfLines={1}>
+        {info.nome}
+      </Text>
+      <Text style={[styles.tileSub, { color: info.colore }]} numberOfLines={1}>
+        {info.sotto.split(' · ')[0]}
+      </Text>
+      {on ? (
+        <View style={styles.pick} pointerEvents="none">
+          <Sigillo testo={String(selected + 1)} misura={30} seme={selected * 11 + 3} timbro />
         </View>
       ) : null}
     </View>
   );
   if (!onPress) return box;
   return (
-    <Squish accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: selected !== undefined }} onPress={onPress} scaleTo={0.96}>
+    <Squish accessibilityRole="button" accessibilityLabel={label ? `${info.nome}. ${label}` : info.nome} accessibilityState={{ selected: on }} onPress={onPress} scaleTo={0.96}>
       {box}
     </Squish>
   );
 }
 
-/** Le tre cose in vetrina. Sul tuo profilo i posti vuoti invitano a sceglierle. */
+/** Le tre cose in vetrina, nella teca di noce. Sul tuo profilo (`onEdit`) i posti vuoti invitano a sceglierle. */
 export function Showcase({ keys, width, onEdit }: { keys: string[]; width: number; onEdit?: () => void }) {
-  const gap = space.s;
-  const w = Math.floor((width - gap * 2) / 3);
-  const h = Math.round(w * 1.2);
-  const slots = onEdit ? [0, 1, 2] : keys.map((_, i) => i);
-  if (!slots.length) return null;
-  return (
-    <View style={{ flexDirection: 'row', gap }}>
-      {slots.map(i =>
-        keys[i] ? (
-          <ShowcaseTile key={keys[i]} k={keys[i]} width={w} height={h} onPress={onEdit} label={onEdit ? 'Cambia la vetrina' : undefined} />
-        ) : (
-          <Squish key={`vuoto${i}`} accessibilityRole="button" accessibilityLabel="Scegli cosa mettere in vetrina" onPress={onEdit!} scaleTo={0.96}>
-            <View style={[styles.tile, styles.empty, { width: w, height: h }]}>
-              <Icon name="plus" size={24} color={colors.textSoft} />
-              <Text style={[styles.tileSub, { textAlign: 'center' }]}>Aggiungi</Text>
-            </View>
-          </Squish>
-        ),
-      )}
-    </View>
-  );
+  if (!onEdit && !keys.length) return null;
+  return <Teca chiavi={keys} larghezza={width} proprio={!!onEdit} onCambia={onEdit} />;
 }
 
 /* ------------------------------------------------------------------ leghe passate */
 
 const seasonLabel = (id: string) => seasonById(id)?.name ?? (id === 'preseason' ? 'Prestagione' : id);
 
-/** Le leghe in cui hai chiuso le stagioni passate, la più recente prima. */
+/** Le leghe in cui hai chiuso le stagioni passate, la più recente prima: monete su un vassoio di velluto. */
 export function LeagueHistory({ leagues }: { leagues: PublicProfile['leagues'] }) {
   if (!leagues.length) return null;
   const list = [...leagues].reverse();
   return (
-    <View style={styles.panel}>
+    <Superficie materiale="velluto" livello={2} raggio={12} style={styles.vassoio}>
       {list.map((l, i) => {
         const league = LEAGUES.find(x => x.id === l.league) ?? LEAGUES[0];
         return (
-          <View key={`${l.season}${l.game}`} style={[styles.histRow, i > 0 && styles.divider]}>
-            <LeagueCoin league={league} size={30} />
+          <View key={`${l.season}${l.game}`} style={[styles.histRow, i > 0 && styles.dividerScuro]}>
+            <LeagueCoin league={league} size={34} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.gameName}>{league.name}</Text>
-              <Text style={styles.small}>
+              <Text style={styles.histName}>{league.name}</Text>
+              <Text style={styles.histSub}>
                 {GAME_LABEL[l.game]} · {seasonLabel(l.season)}
               </Text>
             </View>
           </View>
         );
       })}
-    </View>
+    </Superficie>
   );
 }
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
-  panel: { borderRadius: radius.l, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.panelLine, paddingHorizontal: space.m },
-  divider: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
-  gameRow: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m },
-  stripe: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
-  gameHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.s },
-  gameName: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 19, color: colors.text },
-  gameNums: { flexShrink: 1, fontFamily: fonts.semi, fontSize: 12.5, lineHeight: 16, color: colors.textSoft, fontVariant: ['tabular-nums'] },
-  fixed: { flexShrink: 0 },
-  small: { flexShrink: 1, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.textFaint, fontVariant: ['tabular-nums'] },
-  rating: { alignItems: 'center', width: 52, gap: 2 },
-  ratingNum: { fontFamily: fonts.display, fontSize: 14, lineHeight: 18, color: colors.text, fontVariant: ['tabular-nums'] },
-  tile: { borderRadius: radius.l, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.panelLine, padding: 6, alignItems: 'center' },
-  tileArt: { alignSelf: 'stretch', borderRadius: radius.m, backgroundColor: 'rgba(20,4,40,0.35)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  tileName: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.text, marginTop: 5, maxWidth: '100%' },
-  tileSub: { fontFamily: fonts.semi, fontSize: 10.5, lineHeight: 13, color: colors.textFaint, maxWidth: '100%' },
-  empty: { justifyContent: 'center', gap: 4, borderStyle: 'dashed', borderColor: colors.glassLine, backgroundColor: 'rgba(255,255,255,0.05)' },
-  pick: { position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  pickText: { fontFamily: fonts.display, fontSize: 12, lineHeight: 15, color: colors.ink },
-  histRow: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s + 2 },
+  carta: { paddingHorizontal: 14 },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: conAlfa(primitivi.inchiostro.rosso, 0.4) },
+  dividerScuro: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,200,210,0.2)' },
+  gameRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
+  gameName: { fontFamily: fontArte.bodoni, fontSize: 20, lineHeight: 24, color: testo.inchiostro },
+  small: { fontFamily: fontArte.sora, fontSize: 12.5, lineHeight: 16, color: testo.inchiostroTenue, fontVariant: ['tabular-nums'] },
+  binario: { height: 3, marginTop: 5, borderRadius: 1.5, backgroundColor: conAlfa(primitivi.inchiostro.tenue, 0.14), overflow: 'hidden' },
+  matita: { height: 3, borderRadius: 1.5, backgroundColor: conAlfa(primitivi.inchiostro.forte, 0.55) },
+  rating: { alignItems: 'center', width: 56, gap: 2 },
+  ratingNum: { fontFamily: fontArte.soraBold, fontSize: 14, lineHeight: 18, color: testo.inchiostro, fontVariant: ['tabular-nums'] },
+  tile: { borderRadius: 10, overflow: 'hidden', borderWidth: 1.5, borderColor: 'transparent' },
+  tileOn: { borderColor: primitivi.fogliaOro, boxShadow: '0px 3px 4px rgba(8,3,4,0.5), 8px 24px 36px rgba(8,3,4,0.5)' },
+  tileIncasso: { borderRadius: 10, boxShadow: 'inset 0px 3px 6px rgba(8,3,4,0.7)' },
+  tileName: { marginTop: 6, fontFamily: fontArte.soraBold, fontSize: 12.5, lineHeight: 16, color: testo.forte, textAlign: 'center' },
+  tileSub: { fontFamily: fontArte.soraSemi, fontSize: 12, lineHeight: 15, textAlign: 'center' },
+  pick: { position: 'absolute', top: -8, right: -6 },
+  vassoio: { paddingHorizontal: 14 },
+  histRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  histName: { fontFamily: fontArte.soraBold, fontSize: 15, lineHeight: 19, color: testo.forte },
+  histSub: { fontFamily: fontArte.sora, fontSize: 13, lineHeight: 17, color: testo.medio },
 });
