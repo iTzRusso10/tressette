@@ -41,7 +41,7 @@ function rulesFingerprint(): string {
  * L'impronta di ogni versione. Se il test fallisce hai cambiato regole o catalogo: aumenta
  * LEDGER_VERSION in ledger.ts, scrivi qui la nuova impronta e ridistribuisci la funzione progress.
  */
-const FINGERPRINTS: Record<number, string> = { 1: '9ad1e9af' };
+const FINGERPRINTS: Record<number, string> = { 1: '9ad1e9af', 2: '3af144bf' };
 
 describe('versione delle regole', () => {
   it('cambia insieme alle regole (così un server vecchio non sovrascrive il telefono)', () => {

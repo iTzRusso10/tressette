@@ -10,7 +10,7 @@ import { RARITIES } from '../rarity';
 import { reqText } from '../reqs';
 import { seasonAt, SEASONS, seasonWindow } from '../seasons';
 import { SETS, setParts } from '../sets';
-import { offerOf } from '../shop';
+import { priceOf, todayOffer } from '../shop';
 import { sourcesOf } from '../sources';
 import { TITLES } from '../titles';
 
@@ -325,12 +325,26 @@ describe('correzioni di fine ottobre', () => {
     expect(normalize({ ...JSON.parse(JSON.stringify(p)), equipped: { ...p.equipped, frame: 'oro-sottile' } }, 's').equipped.frame).toBe('semplice');
   });
 
-  it("l'offerta del giorno non cambia se compri altro", () => {
-    const owned: string[] = [];
-    const first = offerOf(DAY, owned, ITEMS)!;
-    const other = ITEMS.find(i => i.shop && i.status === 'ready' && i.price > 0 && keyOf(i) !== keyOf(first))!;
-    expect(keyOf(offerOf(DAY, [keyOf(other)], ITEMS)!)).toBe(keyOf(first));
-    expect(keyOf(offerOf(DAY, [keyOf(first)], ITEMS)!)).not.toBe(keyOf(first));
+  it("l'offerta del giorno resta la stessa fino a mezzanotte, anche dopo averla comprata", () => {
+    let p = touch(newProgress('s'), DAY).p;
+    p.coins = 100000;
+    const offer = todayOffer(p.meta.offer, DAY, p.owned, ITEMS)!;
+    expect(offer).toBeTruthy();
+    const other = ITEMS.find(i => i.shop && i.status === 'ready' && i.price > 0 && keyOf(i) !== keyOf(offer))!;
+    let r = buyItem(p, other.slot, other.id, DAY);
+    if (!r.ok) throw new Error('acquisto');
+    p = r.p;
+    expect(keyOf(todayOffer(p.meta.offer, DAY, p.owned, ITEMS)!)).toBe(keyOf(offer));
+    r = buyItem(p, offer.slot, offer.id, DAY);
+    if (!r.ok) throw new Error('offerta');
+    expect(r.price).toBe(priceOf(offer, offer));
+    expect(r.price).toBeLessThan(offer.price);
+    p = r.p;
+    expect(keyOf(todayOffer(p.meta.offer, DAY, p.owned, ITEMS)!)).toBe(keyOf(offer));
+    const back = normalize(JSON.parse(JSON.stringify(p)), 'x');
+    expect(keyOf(todayOffer(back.meta.offer, DAY, back.owned, ITEMS)!)).toBe(keyOf(offer));
+    const tomorrow = touch(p, '2026-10-29').p;
+    expect(keyOf(todayOffer(tomorrow.meta.offer, '2026-10-29', tomorrow.owned, ITEMS)!)).not.toBe(keyOf(offer));
   });
 });
 

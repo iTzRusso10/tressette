@@ -24,7 +24,7 @@ import { reqProgress, type ReqView } from './reqs.ts';
 import { levelReward, legendReward, prestigeReward } from './rewards.ts';
 import { seasonAt, seasonById, type SeasonMission } from './seasons.ts';
 import { completedSets, SETS } from './sets.ts';
-import { buyable, canEquip, priceOf } from './shop.ts';
+import { buyable, canEquip, offerOf, priceOf, todayOffer, type OfferState } from './shop.ts';
 import { DEFAULT_TITLE, hasTitle, titleById } from './titles.ts';
 
 /**
@@ -34,7 +34,7 @@ import { DEFAULT_TITLE, hasTitle, titleById } from './titles.ts';
  * stato il telefono li perderebbe (e li festeggerebbe di nuovo alla prossima partita). Va aumentata a
  * ogni cambio di regole o di catalogo: il test in __tests__/progression.test.ts lo ricorda.
  */
-export const LEDGER_VERSION = 1;
+export const LEDGER_VERSION = 2;
 
 /* ================================================================== stato */
 
@@ -137,6 +137,8 @@ export interface Meta {
   eventLog: { id: string; progress: number; tiers: number }[];
   /** Premi assegnati dal server (podio settimanale, posizione di stagione) già messi tra le ricompense. */
   grantsSeen: string[];
+  /** L'offerta del giorno, decisa all'inizio del giorno: non cambia fino a mezzanotte. */
+  offer: OfferState;
 }
 
 export interface Progress {
@@ -210,6 +212,7 @@ export function emptyMeta(seed: string): Meta {
     event: { id: null, base: 0, tiers: [] },
     eventLog: [],
     grantsSeen: [],
+    offer: { day: null, key: null },
   };
 }
 
@@ -329,6 +332,10 @@ export function normalize(raw: Partial<Progress> & { trophies?: Record<string, n
       event: { id: typeof ev.id === 'string' ? ev.id : null, base: int(ev.base), tiers: Array.isArray(ev.tiers) ? ev.tiers.map(int) : [] },
       eventLog: Array.isArray(m.eventLog) ? m.eventLog.slice(-30) : [],
       grantsSeen: strArr(m.grantsSeen).slice(-300),
+      offer: {
+        day: typeof m.offer?.day === 'string' ? m.offer.day : null,
+        key: typeof m.offer?.key === 'string' && itemByKey(m.offer.key) ? m.offer.key : null,
+      },
     },
   };
   // Un profilo di prima di questo registro: le arene sono già sue, le ricompense dei livelli già pagate.
@@ -397,6 +404,11 @@ function roll(tx: Tx, day: string) {
   }
   m.online ??= {};
   for (const k of [day, week]) if (!(k in m.online)) m.online[k] = q.stats.onlinePlayed > 0;
+  // L'offerta del giorno si decide una volta, con gli oggetti che hai a inizio giornata.
+  if (q.meta.offer.day !== day) {
+    const o = offerOf(day, q.owned, ITEMS);
+    q.meta.offer = { day, key: o ? `${o.slot}:${o.id}` : null };
+  }
   for (const g of GAME_IDS) if (q.meta.weekly[g].week !== week) q.meta.weekly[g] = { week, n: 0, opp: 0, w: 0, l: 0 };
 
   // Stagione: i punti della stagione e, per le classifiche, il punteggio per gioco.
@@ -769,7 +781,7 @@ export function buyItem(p: Progress, slot: Slot, id: string, day: string): { ok:
   const key = `${slot}:${id}`;
   if (p.owned.includes(key)) return { ok: false, why: 'owned' };
   if (!buyable(item)) return { ok: false, why: 'notForSale' };
-  const price = priceOf(item, day, p.owned, ITEMS)!;
+  const price = priceOf(item, todayOffer(p.meta.offer, day, p.owned, ITEMS))!;
   if (p.coins < price) return { ok: false, why: 'coins' };
   const out = run(p, day, tx => {
     tx.p.coins -= price;

@@ -1,6 +1,6 @@
 // Il negozio: cosa si compra, a che prezzo, l'offerta del giorno. Il catalogo è in catalog.ts.
 
-import { itemOf, keyOf, STARTER_KEYS, type Item, type Slot } from './catalog.ts';
+import { itemByKey, itemOf, keyOf, STARTER_KEYS, type Item, type Slot } from './catalog.ts';
 
 export * from './catalog.ts';
 export { RARITY_NAMES, RARITIES, type Rarity } from './rarity.ts';
@@ -36,9 +36,28 @@ export function offerOf(day: string, owned: readonly string[], items: readonly I
   return null;
 }
 
-export function priceOf(item: Item, day: string, owned: readonly string[], items: readonly Item[]): number | null {
+/** L'offerta scelta per un giorno e salvata nei progressi (ledger: meta.offer). */
+export interface OfferState {
+  day: string | null;
+  key: string | null;
+}
+
+/**
+ * L'offerta di oggi per un giocatore: quella decisa all'inizio del giorno e salvata, che resta la stessa
+ * fino a mezzanotte anche se la compri (allora risulta comprata). Se il giorno non è ancora cominciato
+ * nei progressi, si calcola come la calcolerà il registro.
+ */
+export function todayOffer(state: OfferState | undefined, day: string, owned: readonly string[], items: readonly Item[]): Item | null {
+  if (state?.day === day) {
+    const it = state.key ? itemByKey(state.key) : undefined;
+    return it && buyable(it) ? it : null;
+  }
+  return offerOf(day, owned, items);
+}
+
+/** Il prezzo di un oggetto oggi: scontato se è l'offerta del giorno. */
+export function priceOf(item: Item, offer: Item | null): number | null {
   if (!buyable(item)) return null;
-  const offer = offerOf(day, owned, items);
   return offer && keyOf(offer) === keyOf(item) ? Math.round((item.price * (1 - OFFER_DISCOUNT)) / 10) * 10 : item.price;
 }
 

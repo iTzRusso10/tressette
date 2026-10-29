@@ -8,7 +8,7 @@ import { dayOf } from '@/meta/economy';
 import { buyItem, equip, useProfile } from '@/meta/profile';
 import { RARITIES, rarityRank, RARITY_NAMES, type Rarity } from '@/meta/rarity';
 import { completedSets, setOf, setParts, setReady, SETS, type CosmeticSet } from '@/meta/sets';
-import { buyable, offerOf, ownsKey, priceOf } from '@/meta/shop';
+import { buyable, ownsKey, priceOf, todayOffer } from '@/meta/shop';
 import { sourcesOf, sourceText } from '@/meta/sources';
 import { ComingPreview, FramePreview, ItemPreview, TablePreview } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
@@ -81,8 +81,9 @@ const CARD_FOOT = 104;
 function ItemCard({ item, width, artH, day, onOpen }: { item: Item; width: number; artH: number; day: string; onOpen: () => void }) {
   const owned = useProfile(s => s.owned);
   const equipped = useProfile(s => s.equipped);
+  const offerState = useProfile(s => s.meta.offer);
   const state = stateOf(item, owned, equipped);
-  const price = priceOf(item, day, owned, ITEMS);
+  const price = priceOf(item, todayOffer(offerState, day, owned, ITEMS));
   const label = `${item.name}, ${RARITY_NAMES[item.rarity]}. ${
     state === 'inUse' ? 'In uso' : state === 'owned' ? 'È tuo' : state === 'coming' ? 'In arrivo' : state === 'buy' ? `${price} monete` : shortSource(item)
   }`;
@@ -128,8 +129,9 @@ function ItemSheet({ item, day, onClose }: { item: Item; day: string; onClose: (
   const coins = useProfile(s => s.coins);
   const owned = useProfile(s => s.owned);
   const equipped = useProfile(s => s.equipped);
+  const offerState = useProfile(s => s.meta.offer);
   const state = stateOf(item, owned, equipped);
-  const price = priceOf(item, day, owned, ITEMS);
+  const price = priceOf(item, todayOffer(offerState, day, owned, ITEMS));
   const [msg, setMsg] = useState<string | null>(null);
   const w = Math.min(width, 560) - space.xl * 2;
   const preview = { ...equipped, [item.slot]: item.id };
@@ -278,7 +280,9 @@ export function Negozio({ active: _active }: { active: boolean }) {
   const [filter, setFilter] = useState<Filter>('tutti');
   const now = new Date();
   const day = dayOf(now);
-  const offer = offerOf(day, owned, ITEMS);
+  const offerState = useProfile(s => s.meta.offer);
+  const offer = todayOffer(offerState, day, owned, ITEMS);
+  const offerMine = !!offer && ownsKey(owned, keyOf(offer));
   const colW = Math.min(width, 560) - 40;
   const gap = space.m;
   const cols = colW > 460 ? 3 : 2;
@@ -323,14 +327,23 @@ export function Negozio({ active: _active }: { active: boolean }) {
               </Text>
               <View style={styles.offerChips}>
                 <RarityChip rarity={offer.rarity} />
-                <View style={styles.sale}>
-                  <Text style={styles.saleText}>−30%</Text>
-                </View>
+                {offerMine ? null : (
+                  <View style={styles.sale}>
+                    <Text style={styles.saleText}>−30%</Text>
+                  </View>
+                )}
               </View>
               <View style={{ marginTop: space.s }}>
-                <Price price={priceOf(offer, day, owned, ITEMS)!} full={offer.price} big />
+                {offerMine ? (
+                  <View style={styles.status}>
+                    <Icon name="check" size={16} color={colors.mint} stroke={2.6} />
+                    <Text style={[styles.statusText, { color: colors.mint, fontSize: 15, lineHeight: 20 }]}>Comprata</Text>
+                  </View>
+                ) : (
+                  <Price price={priceOf(offer, offer)!} full={offer.price} big />
+                )}
               </View>
-              <Text style={styles.offerTime}>Finisce tra {hoursLeft(now)}</Text>
+              <Text style={styles.offerTime}>{offerMine ? `Nuova offerta tra ${hoursLeft(now)}` : `Finisce tra ${hoursLeft(now)}`}</Text>
             </View>
           </Panel>
         </Squish>
