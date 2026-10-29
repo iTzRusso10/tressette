@@ -3,13 +3,14 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { levelLabel } from '@/meta/levels';
+import { levelInfo, levelLabel } from '@/meta/levels';
 import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
 import { sfx } from '@/ui/feedback';
 import { Icon, TrophyIcon, type IconName } from '@/ui/icons';
 import { IconButton, Screen, Squish } from '@/ui/kit';
-import { CoinPill, CountUp, LevelAvatar } from '@/ui/meta';
+import { PlayerAvatar } from '@/ui/avatar';
+import { CoinPill, CountUp } from '@/ui/meta';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, space } from '@/ui/theme';
 import { Amici } from './Amici';
@@ -47,17 +48,31 @@ function HubTop({ onTrophies }: { onTrophies: () => void }) {
   const coins = useProfile(s => s.coins);
   const cups = useProfile(s => s.cups);
   const shown = account?.name || name;
+  const avatar = useProfile(s => s.meta.avatar);
+  // Sul telefono basta l'avatar: il nome toglierebbe spazio a trofei e monete.
+  const wide = useWindowDimensions().width >= 480;
+  const frame = useProfile(s => s.equipped.frame);
+  const info = levelInfo(xp);
+  const lvl = info.prestige > 0 ? `P${info.prestige}` : String(info.level);
   return (
     <View style={styles.top}>
-      <Squish accessibilityRole="button" accessibilityLabel={`Il tuo profilo, ${levelLabel(xp).toLowerCase()}`} onPress={() => router.push('/profilo')} scaleTo={0.94}>
+      {/* Il nome si stringe (fino a sparire) per lasciare sempre spazio a trofei, monete e impostazioni. */}
+      <Squish
+        accessibilityRole="button"
+        accessibilityLabel={`Il tuo profilo, ${levelLabel(xp).toLowerCase()}`}
+        onPress={() => router.push('/profilo')}
+        scaleTo={0.94}
+        outerStyle={{ flex: 1, minWidth: 46 }}
+      >
         <View style={styles.me}>
-          <LevelAvatar name={shown} xp={xp} size={44} />
-          <Text v="label" numberOfLines={1} style={styles.meName}>
-            {shown || 'Profilo'}
-          </Text>
+          <PlayerAvatar avatar={avatar} photo={account?.avatar} name={shown} frame={frame} size={46} badge={lvl} />
+          {wide ? (
+            <Text v="label" numberOfLines={1} style={styles.meName}>
+              {shown || 'Profilo'}
+            </Text>
+          ) : null}
         </View>
       </Squish>
-      <View style={{ flex: 1 }} />
       <Squish accessibilityRole="button" accessibilityLabel={`${cups} trofei`} onPress={onTrophies} scaleTo={0.94}>
         <View style={styles.pill}>
           <TrophyIcon size={22} />
@@ -227,7 +242,7 @@ export function Hub() {
 
 const styles = StyleSheet.create({
   top: { height: 60, flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.l, width: '100%', maxWidth: 720, alignSelf: 'center' },
-  me: { flexDirection: 'row', alignItems: 'center', gap: space.s, maxWidth: 150 },
+  me: { flexDirection: 'row', alignItems: 'center', gap: space.s, maxWidth: 170 },
   meName: { flexShrink: 1 },
   pill: {
     flexDirection: 'row',

@@ -12,8 +12,8 @@ export interface Avatar {
 }
 
 export const AVATARS: Avatar[] = [
-  { id: 'iniziale', name: 'La tua iniziale', glyph: 'iniziale', colors: ['#FFF1A8', '#FFC23D', '#2E1257'] },
-  { id: 'foto', name: 'La foto dell’account', glyph: 'foto', colors: ['#FFF1A8', '#FFC23D', '#2E1257'] },
+  { id: 'iniziale', name: 'Iniziale', glyph: 'iniziale', colors: ['#FFF1A8', '#FFC23D', '#2E1257'] },
+  { id: 'foto', name: 'Foto', glyph: 'foto', colors: ['#FFF1A8', '#FFC23D', '#2E1257'] },
   { id: 'coppa', name: 'Coppe', glyph: 'coppa', colors: ['#FFD2DE', '#F0457A', '#FFFFFF'] },
   { id: 'denaro', name: 'Denari', glyph: 'denaro', colors: ['#FFF1A8', '#F2A21E', '#7A3E08'] },
   { id: 'spada', name: 'Spade', glyph: 'spada', colors: ['#C9E2FF', '#3E7BD6', '#FFFFFF'] },

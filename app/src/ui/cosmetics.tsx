@@ -7,6 +7,8 @@ import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop 
 import { backImage, FRONTS } from '@/game/cardImages';
 import { FeltArt, RAIL } from '@/game/Felt';
 import { useProfile } from '@/meta/profile';
+import { useSettings } from '@/state/settings';
+import { PlayerAvatar } from './avatar';
 import type { Item } from '@/meta/catalog';
 import type { Rarity } from '@/meta/rarity';
 import { CARD_RATIO, cardRadius, fonts, shadow } from './theme';
@@ -227,6 +229,7 @@ function ArtTools({ size, color, accent }: { size: number; color: string; accent
 export function ItemPreview({ item, width, height }: { item: Item; width: number; height: number }) {
   const equipped = useProfile(s => s.equipped);
   if (item.status === 'coming') return <ComingPreview item={item} width={width} height={height} />;
+  if (item.slot === 'frame') return <FramePreview frame={item.id} width={width} height={height} />;
   if (item.slot === 'back') {
     // Alta quanto il riquadro permette, nelle proporzioni di una carta.
     const w = Math.min(width, height / CARD_RATIO);
@@ -239,6 +242,19 @@ export function ItemPreview({ item, width, height }: { item: Item; width: number
   const cards = height >= 64;
   if (item.slot === 'table') return <TablePreview table={item.id} felt={equipped.felt} back={equipped.back} width={width} height={height} cards={cards} />;
   return <TablePreview table={equipped.table} felt={item.id} back={equipped.back} width={width} height={height} cards={cards} />;
+}
+
+/** Una cornice intorno al tuo avatar: come la vedranno gli altri. */
+export function FramePreview({ frame, width, height }: { frame: string; width: number; height: number }) {
+  const avatar = useProfile(s => s.meta.avatar);
+  const photo = useProfile(s => s.account?.avatar ?? null);
+  const account = useProfile(s => s.account?.name);
+  const local = useSettings(s => s.name.trim());
+  return (
+    <View style={[styles.center, { width, height }]}>
+      <PlayerAvatar avatar={avatar} photo={photo} name={account || local || 'Tu'} frame={frame} size={Math.floor(Math.min(width, height))} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

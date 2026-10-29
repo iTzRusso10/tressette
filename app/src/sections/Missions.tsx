@@ -4,7 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { dayOf } from '@/meta/economy';
 import { activeMissions, missionProgress } from '@/meta/ledger';
 import { daysToWeekEnd } from '@/meta/missions';
-import { progressOf, useProfile } from '@/meta/profile';
+import { claim, progressOf, swapDailyMission, useProfile } from '@/meta/profile';
+import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
 import { Squish } from '@/ui/kit';
 import { CoinIcon } from '@/ui/meta';
@@ -56,9 +57,15 @@ export function Missions({ width }: { width: number }) {
       {list.map(({ def, key }) => {
         const done = p.meta.missions.done.includes(key);
         const have = freshDay && period === 'daily' ? 0 : Math.min(def.goal, missionProgress(p, key));
+        const claimId = `m:${key}`;
+        const toClaim = p.meta.claims.some(c => c.id === claimId);
+        // Una missione del giorno si può cambiare una volta al giorno, se non è già fatta.
+        const canSwap = period === 'daily' && !done && !(p.meta.missions.swaps[day]?.length ?? 0);
         return (
-          <View key={key} style={styles.row} accessibilityLabel={`${def.text} ${done ? 'Completata' : `${have} su ${def.goal}`}. Premio ${def.coins} monete`}>
-            <View style={[styles.dot, done && styles.dotDone]}>{done ? <Icon name="check" size={13} color={colors.ink} stroke={3} /> : null}</View>
+          <View key={key} style={styles.row} accessibilityLabel={`${def.text} ${done ? (toClaim ? 'Completata, da riscuotere' : 'Completata') : `${have} su ${def.goal}`}. Premio ${def.coins} monete`}>
+            <View style={[styles.dot, done && styles.dotDone, toClaim && styles.dotClaim]}>
+              {toClaim ? <Icon name="gift" size={13} color={colors.ink} stroke={2.4} /> : done ? <Icon name="check" size={13} color={colors.ink} stroke={3} /> : null}
+            </View>
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={[styles.text, done && { color: colors.textFaint }]} numberOfLines={2}>
                 {def.text}
@@ -72,14 +79,44 @@ export function Missions({ width }: { width: number }) {
                 </View>
               )}
             </View>
-            <View style={styles.prize}>
-              <CoinIcon size={14} />
-              <Text style={styles.prizeText}>{def.coins}</Text>
-            </View>
+            {canSwap ? (
+              <Squish
+                accessibilityRole="button"
+                accessibilityLabel="Cambia questa missione (una volta al giorno)"
+                onPress={() => {
+                  if (swapDailyMission(key)) sfx('tick');
+                }}
+                hitSlop={6}
+                style={styles.swap}
+              >
+                <Icon name="swap" size={16} color={colors.textSoft} />
+              </Squish>
+            ) : null}
+            {toClaim ? (
+              <Squish
+                accessibilityRole="button"
+                accessibilityLabel={`Riscuoti ${def.coins} monete`}
+                onPress={() => {
+                  if (claim(claimId) > 0) sfx('buy', { haptic: true });
+                }}
+                style={styles.claim}
+              >
+                <CoinIcon size={14} />
+                <Text style={styles.claimText}>{def.coins}</Text>
+              </Squish>
+            ) : (
+              <View style={[styles.prize, done && { opacity: 0.5 }]}>
+                <CoinIcon size={14} />
+                <Text style={styles.prizeText}>{def.coins}</Text>
+              </View>
+            )}
           </View>
         );
       })}
-      <Text style={styles.left}>{left}</Text>
+      <Text style={styles.left}>
+        {left}
+        {period === 'daily' && !(p.meta.missions.swaps[day]?.length ?? 0) ? ' · puoi cambiarne una' : ''}
+      </Text>
     </View>
   );
 }
@@ -95,10 +132,14 @@ const styles = StyleSheet.create({
   row: { minHeight: ROW_H, flexDirection: 'row', alignItems: 'center', gap: space.m, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingVertical: 6 },
   dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' },
   dotDone: { backgroundColor: colors.mint, borderColor: colors.mint },
+  dotClaim: { backgroundColor: colors.sun, borderColor: colors.sun },
   text: { fontFamily: fonts.semi, fontSize: 13, lineHeight: 17, color: colors.text },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
   count: { fontFamily: fonts.semi, fontSize: 10.5, lineHeight: 13, color: colors.textFaint, fontVariant: ['tabular-nums'], minWidth: 34, textAlign: 'right' },
   prize: { flexDirection: 'row', alignItems: 'center', gap: 3, minWidth: 44, justifyContent: 'flex-end' },
   prizeText: { fontFamily: fonts.bold, fontSize: 12.5, lineHeight: 16, color: colors.text, fontVariant: ['tabular-nums'] },
+  swap: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  claim: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.sun },
+  claimText: { fontFamily: fonts.display, fontSize: 13, lineHeight: 16, color: colors.ink, fontVariant: ['tabular-nums'] },
   left: { fontFamily: fonts.medium, fontSize: 11.5, lineHeight: 15, color: colors.textFaint, textAlign: 'center', marginTop: 4 },
 });

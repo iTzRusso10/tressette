@@ -11,11 +11,14 @@ import { ARENAS } from '@/meta/arenas';
 import { itemByKey } from '@/meta/catalog';
 import { roman } from '@/meta/levels';
 import { dismissCelebration, useProfile, type Celebration } from '@/meta/profile';
+import { templateById } from '@/meta/events';
+import { LEAGUES } from '@/meta/rating';
 import { seasonById } from '@/meta/seasons';
 import { SETS } from '@/meta/sets';
 import { ItemPreview } from './cosmetics';
 import { Icon } from './icons';
 import { CATEGORY_GLYPH } from './progression';
+import { GAME_LABEL, LeagueCoin } from './competition';
 import { sfx } from './feedback';
 import { ArenaReveal } from './ArenaReveal';
 import { CoinIcon, Emblem, Medal, TIER_NAMES } from './meta';
@@ -35,20 +38,41 @@ function Banner({ c }: { c: BannerC }) {
   const w = Math.min(width - 24, 420);
   useEffect(() => {
     sfx(bannerSound(c) as never, { haptic: true });
-    const t = setTimeout(() => dismissCelebration(c.cid), c.k === 'achievement' || c.k === 'set' ? 3200 : 2400);
+    const t = setTimeout(() => dismissCelebration(c.cid), c.k === 'achievement' || c.k === 'set' || c.k === 'league' ? 3200 : 2400);
     return () => clearTimeout(t);
   }, [c]);
   let art: ReactNode = null;
   let kicker = '';
   let title = '';
   let coins = 0;
+  let secret = false;
   switch (c.k) {
     case 'achievement': {
       const a = achievementById(c.id)!;
       art = <Medal glyph={CATEGORY_GLYPH[a.category]} tier={a.tier} size={54} />;
-      kicker = `Achievement · ${TIER_NAMES[a.tier]}`;
+      // Un segreto scoperto ha la sua festa: lo dice, e il bordo è del colore dei segreti.
+      kicker = a.hint ? 'Segreto scoperto!' : `Achievement · ${TIER_NAMES[a.tier]}`;
       title = a.name;
       coins = a.coins;
+      if (a.hint) secret = true;
+      break;
+    }
+    case 'league': {
+      const l = LEAGUES.find(x => x.id === c.league) ?? LEAGUES[0];
+      art = <LeagueCoin league={l} size={54} />;
+      kicker = `Nuova lega a ${GAME_LABEL[c.game]}`;
+      title = l.name;
+      break;
+    }
+    case 'eventTier': {
+      const t = templateById(c.event);
+      art = (
+        <View style={[styles.levelBig, t && { backgroundColor: t.colors[1] }]}>
+          <Icon name="gift" size={26} color={colors.ink} stroke={2.4} />
+        </View>
+      );
+      kicker = t ? t.name : 'Evento';
+      title = t ? `${t.tiers[c.index]} ${t.unit}: premio da riscuotere` : 'Traguardo raggiunto';
       break;
     }
     case 'level':
@@ -83,7 +107,7 @@ function Banner({ c }: { c: BannerC }) {
           <Icon name="check" size={26} color={colors.ink} stroke={3} />
         </View>
       );
-      kicker = 'Missione completata';
+      kicker = 'Missione completata · premio da riscuotere';
       title = c.text;
       break;
     case 'seasonTier': {
@@ -111,11 +135,11 @@ function Banner({ c }: { c: BannerC }) {
       exiting={SlideOutUp.duration(dur.exit).easing(ease.out)}
       pointerEvents="none"
       accessibilityLiveRegion="polite"
-      style={[styles.banner, { top: ins.top + 8, width: w, left: (width - w) / 2 }]}
+      style={[styles.banner, { top: ins.top + 8, width: w, left: (width - w) / 2 }, secret && styles.secret]}
     >
       <Animated.View entering={FadeIn.delay(160).duration(dur.enter)}>{art}</Animated.View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.kicker} numberOfLines={1}>
+        <Text style={[styles.kicker, secret && { color: colors.sky }]} numberOfLines={1}>
           {kicker}
         </Text>
         <Text style={styles.title} numberOfLines={2}>
@@ -153,7 +177,7 @@ export function Overlays() {
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: 5000 }]}>
       {c && c.k !== 'arena' ? <Banner key={c.cid} c={c} /> : null}
       {c?.k === 'arena' && !atTable ? <ArenaReveal key={c.cid} arena={ARENAS[c.index]} onClose={() => dismissCelebration(c.cid)} /> : null}
-      {c?.k === 'achievement' || c?.k === 'set' ? <Confetti key={'k' + c.cid} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.cid} /> : null}
+      {c?.k === 'achievement' || c?.k === 'set' || c?.k === 'league' ? <Confetti key={'k' + c.cid} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.cid} /> : null}
       <AdSim />
     </View>
   );
@@ -173,6 +197,7 @@ const styles = StyleSheet.create({
     borderColor: colors.glassLine,
     boxShadow: '0px 16px 36px rgba(30,6,56,0.5)',
   },
+  secret: { borderColor: colors.sky, borderWidth: 1.5, boxShadow: '0px 0px 30px rgba(156,203,255,0.45)' },
   kicker: { fontFamily: fonts.semi, fontSize: 12, lineHeight: 15, color: colors.sun },
   title: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, color: colors.text },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },

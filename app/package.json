@@ -67,7 +67,8 @@
     "check:felts": "node scripts/felt-shots.mjs",
     "check": "tsc --noEmit && expo lint && vitest run",
     "ios:telefono": "expo run:ios --device --configuration Release",
-    "android:telefono": "expo run:android --device --variant release"
+    "android:telefono": "expo run:android --device --variant release",
+    "check:db": "node scripts/db-check.mjs"
   },
   "private": true,
   "overrides": {

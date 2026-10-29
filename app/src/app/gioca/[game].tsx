@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { STAKES } from '@/meta/economy';
 import { useProfile } from '@/meta/profile';
 import { createRoom } from '@/online/session';
+import { sendInvite } from '@/meta/social';
 import { CPU_NAMES, GAMES, MODE_INFO, targetsFor, type GameId, type Level, type Mode, type Seat } from '@/engine';
 import { FRONTS } from '@/game/cardImages';
 import { useSettings } from '@/state/settings';
@@ -16,7 +17,7 @@ import { CARD_RATIO, cardRadius, colors, radius, shadow, space } from '@/ui/them
 const FAN: Record<GameId, [number, number, number]> = { tressette: [12, 32, 21], briscola: [20, 3, 29], scopa: [16, 6, 26] };
 
 export default function Setup() {
-  const { game: raw, online } = useLocalSearchParams<{ game: string; online?: string }>();
+  const { game: raw, online, invite } = useLocalSearchParams<{ game: string; online?: string; invite?: string }>();
   const isOnline = online === '1';
   const [busy, setBusy] = useState(false);
   const [stake, setStake] = useState(0);
@@ -52,7 +53,9 @@ export default function Setup() {
         { game, mode: prefs.mode, perdN: prefs.perdN, target: prefs.target, level: s.level, accusi: s.accusi, cappotto: s.cappotto, stake },
         s.name.trim() || 'Tu',
       );
-      router.replace({ pathname: '/stanza/[code]', params: { code } });
+      // Aperta dal profilo di un amico («Sfida»): l'invito parte appena la stanza esiste.
+      if (invite) void sendInvite(invite, code, game, prefs.mode);
+      router.replace({ pathname: '/stanza/[code]', params: invite ? { code, invited: invite } : { code } });
     } catch {
       setBusy(false);
     }

@@ -23,6 +23,7 @@ import { colors, fonts, gradients, radius, shadow, space } from '@/ui/theme';
 import { GameTile, ORDER, ResumeCard } from './GameTiles';
 import { useTabs } from './Hub';
 import { Bar } from '@/ui/progression';
+import { ClaimsCard, EventCard } from './HomeCards';
 import { Missions } from './Missions';
 import { SectionScroll } from './parts';
 
@@ -196,6 +197,8 @@ export function Gioca({ active }: { active: boolean }) {
             </Squish>
           )}
         </View>
+        <ClaimsCard width={colW} />
+        <EventCard width={colW} onPlay={choose} />
         <Missions width={colW} />
       </SectionScroll>
     </>

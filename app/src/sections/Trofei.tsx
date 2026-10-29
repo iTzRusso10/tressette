@@ -217,17 +217,27 @@ function AchievementRow({ a, width }: { a: Achievement; width: number }) {
   const done = !!p.achievements[a.id];
   const [have, need] = reqProgress(a.req, p);
   const item = a.items?.[0] ? itemByKey(a.items[0]) : undefined;
+  // Un segreto non ancora scoperto mostra solo l'indizio: né il nome, né quanto manca.
+  const hidden = !!a.hint && !done;
   return (
-    <View style={[styles.ach, { width, height: ACH_H - space.s }, done && { borderColor: 'rgba(255,224,102,0.45)' }]}>
-      <Medal glyph={CATEGORY_GLYPH[a.category]} tier={a.tier} size={52} locked={!done} />
+    <View style={[styles.ach, { width, height: ACH_H - space.s }, done && { borderColor: 'rgba(255,224,102,0.45)' }, hidden && styles.achSecret]}>
+      {hidden ? (
+        <View style={styles.secretMedal}>
+          <Text style={styles.secretMark}>?</Text>
+        </View>
+      ) : (
+        <Medal glyph={CATEGORY_GLYPH[a.category]} tier={a.tier} size={52} locked={!done} />
+      )}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.achName} numberOfLines={1}>
-          {a.name}
+          {hidden ? 'Achievement segreto' : a.name}
         </Text>
         <Text style={styles.achDesc} numberOfLines={2}>
-          {reqText(a.req, arenaName)}
+          {hidden ? `Indizio: ${a.hint}` : a.hint ? `Segreto scoperto: ${reqText(a.req, arenaName).replace(/^./, c => c.toLowerCase())}` : reqText(a.req, arenaName)}
         </Text>
-        {done ? (
+        {hidden ? (
+          <Text style={styles.achDone}>{TIER_NAMES[a.tier]} · da scoprire</Text>
+        ) : done ? (
           <Text style={styles.achDone}>Completato · {TIER_NAMES[a.tier]}</Text>
         ) : (
           <View style={styles.achBar}>
@@ -239,7 +249,7 @@ function AchievementRow({ a, width }: { a: Achievement; width: number }) {
         )}
       </View>
       <View style={styles.achPrize}>
-        {item ? <ItemPreview item={item} width={40} height={28} /> : null}
+        {item && !hidden ? <ItemPreview item={item} width={40} height={28} /> : null}
         <View style={styles.coins}>
           <CoinIcon size={13} />
           <Text style={styles.coinsText}>{a.coins}</Text>
@@ -261,6 +271,7 @@ function Achievements({ width }: { width: number }) {
     // Prima quelli quasi fatti, poi gli altri, in fondo i completati.
     const score = (a: Achievement) => {
       if (p.achievements[a.id]) return 2;
+      if (a.hint) return 1.5;
       const [h, nn] = reqProgress(a.req, view);
       return 1 - h / nn;
     };
@@ -482,6 +493,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.panelLine,
   },
+  achSecret: { borderStyle: 'dashed', borderColor: 'rgba(156,203,255,0.45)' },
+  secretMedal: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(156,203,255,0.14)', borderWidth: 1.5, borderColor: 'rgba(156,203,255,0.5)' },
+  secretMark: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: colors.sky },
   achName: { fontFamily: fonts.bold, fontSize: 14.5, lineHeight: 18, color: colors.text },
   achDesc: { fontFamily: fonts.medium, fontSize: 11.5, lineHeight: 15, color: colors.textSoft },
   achDone: { fontFamily: fonts.bold, fontSize: 11.5, lineHeight: 15, color: colors.mint },

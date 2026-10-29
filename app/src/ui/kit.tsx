@@ -175,8 +175,10 @@ export function Choice<T extends string | number>({
   onChange: (v: T) => void;
   label?: string;
 }) {
+  // Con tante voci le pillole si stringono, per restare su una riga anche sul telefono piccolo.
+  const compact = options.length >= 5 || options.some(o => o.label.length * options.length > 30);
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.choice}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={[styles.choice, compact && { gap: 5 }]}>
       {options.map(o => {
         const on = o.value === value;
         return (
@@ -190,9 +192,11 @@ export function Choice<T extends string | number>({
               onChange(o.value);
             }}
             outerStyle={{ flex: 1 }}
-            style={[styles.opt, on && styles.optOn]}
+            style={[styles.opt, compact && styles.optCompact, on && styles.optOn]}
           >
-            <Text style={[styles.optLabel, on && styles.optLabelOn]}>{o.label}</Text>
+            <Text style={[styles.optLabel, compact && styles.optLabelCompact, on && styles.optLabelOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              {o.label}
+            </Text>
           </Squish>
         );
       })}
@@ -275,7 +279,7 @@ const styles = StyleSheet.create({
   opt: {
     height: 48,
     borderRadius: radius.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.glass,
@@ -285,6 +289,8 @@ const styles = StyleSheet.create({
   optOn: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', boxShadow: '0px 8px 20px rgba(255,255,255,0.28)' },
   optLabel: { fontFamily: fonts.semi, fontSize: 14.5, lineHeight: 18, color: colors.text },
   optLabelOn: { color: colors.ink },
+  optCompact: { paddingHorizontal: 2 },
+  optLabelCompact: { fontSize: 12.5, lineHeight: 16, letterSpacing: -0.2 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m },
   track: { width: 52, height: 32, borderRadius: 16, backgroundColor: colors.glassStrong, padding: 4 },
   trackOn: { backgroundColor: colors.sun },

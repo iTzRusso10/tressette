@@ -3,11 +3,9 @@
 // completano giocando; la ricompensa va tra quelle da riscuotere, una volta sola per periodo (chiave
 // `periodo:id`), e resta lì anche se l'app si chiude. Una missione del giorno si può cambiare, una volta.
 
-import type { HandRecord } from './progress.ts';
-
 import type { GameId } from '../engine/types.ts';
 import { BALANCE } from './balance.ts';
-import type { MatchRecord } from './progress.ts';
+import type { HandRecord, MatchRecord } from './progress.ts';
 
 export type Period = 'daily' | 'weekly';
 

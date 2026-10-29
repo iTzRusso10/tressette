@@ -10,7 +10,7 @@ import { RARITIES, rarityRank, RARITY_NAMES, type Rarity } from '@/meta/rarity';
 import { completedSets, setOf, setParts, setReady, SETS, type CosmeticSet } from '@/meta/sets';
 import { buyable, offerOf, ownsKey, priceOf } from '@/meta/shop';
 import { sourcesOf, sourceText } from '@/meta/sources';
-import { ComingPreview, ItemPreview, TablePreview } from '@/ui/cosmetics';
+import { ComingPreview, FramePreview, ItemPreview, TablePreview } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
 import { Button, Choice, Squish } from '@/ui/kit';
@@ -56,6 +56,10 @@ function shortSource(item: Item): string {
       return 'Stagione';
     case 'event':
       return 'Evento';
+    case 'league':
+      return 'Fine stagione';
+    case 'weekly':
+      return 'Podio settimanale';
     default:
       return '';
   }
@@ -151,6 +155,8 @@ function ItemSheet({ item, day, onClose }: { item: Item; day: string; onClose: (
       <View style={styles.sheetArt}>
         {item.status === 'coming' ? (
           <ComingPreview item={item} width={w} height={Math.round(w * 0.6)} />
+        ) : item.slot === 'frame' ? (
+          <FramePreview frame={item.id} width={w} height={Math.min(180, Math.round(w * 0.5))} />
         ) : (
           <TablePreview table={preview.table} felt={preview.felt} back={preview.back} width={w} height={Math.round(w * 0.6)} cards />
         )}
@@ -187,7 +193,7 @@ function ItemSheet({ item, day, onClose }: { item: Item; day: string; onClose: (
           </Text>
         </View>
       ) : state === 'inUse' ? (
-        <Button kind="secondary" label="In uso sul tuo tavolo" onPress={onClose} />
+        <Button kind="secondary" label={item.slot === 'frame' ? 'In uso sul tuo profilo' : 'In uso sul tuo tavolo'} onPress={onClose} />
       ) : state === 'owned' ? (
         <Button
           label="Usa"
@@ -303,12 +309,12 @@ export function Negozio({ active: _active }: { active: boolean }) {
 
   const header = (
     <View>
-      <SectionTitle title="Negozio" sub="Tavolini, panni e dorsi: da comprare, da vincere, da collezionare." />
+      <SectionTitle title="Negozio" sub="Tavolini, panni, dorsi e cornici: da comprare, da vincere, da collezionare." />
       {offer ? (
         <Squish accessibilityRole="button" accessibilityLabel={`Offerta del giorno: ${offer.name}`} onPress={() => open(offer)} scaleTo={0.98}>
           <Panel style={[styles.offer, { borderColor: rarityColor(offer.rarity) }]}>
             <View style={styles.offerArt}>
-              <ItemPreview item={offer} width={colW * 0.36} height={colW * 0.36 * (offer.slot === 'back' ? 1.2 : 0.7)} />
+              <ItemPreview item={offer} width={colW * 0.36} height={colW * 0.36 * (offer.slot === 'back' ? 1.2 : offer.slot === 'frame' ? 0.9 : 0.7)} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.offerKicker}>Offerta del giorno</Text>
@@ -337,7 +343,7 @@ export function Negozio({ active: _active }: { active: boolean }) {
             setTab(t);
             setFilter('tutti');
           }}
-          options={[...(['table', 'felt', 'back'] as Slot[]).map(s => ({ value: s, label: SLOT_NAMES[s] })), { value: 'set', label: 'Set' }]}
+          options={[...(['table', 'felt', 'back', 'frame'] as Slot[]).map(s => ({ value: s, label: SLOT_NAMES[s] })), { value: 'set', label: 'Set' }]}
         />
         {tab !== 'set' ? (
           <>

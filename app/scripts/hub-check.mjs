@@ -42,8 +42,35 @@ const profile = JSON.stringify({
     cups: 1260,
     bestCups: 1290,
     stats: { played: 140, won: 82, byGame: { tressette: { played: 50, won: 30, expert: 6 }, briscola: { played: 45, won: 26, expert: 4 }, scopa: { played: 45, won: 26, expert: 5 } }, scope: 61, settebelli: 30, bestStreak: 7, expertWins: 15, hands: 520, days: 21 },
-    owned: ['table:legno-di-casa', 'table:tavolo-del-circolo', 'table:marmo-di-carrara', 'felt:rosso-da-circolo', 'felt:maiolica-mediterranea', 'felt:venezia-al-tramonto', 'back:rosso-tradizionale', 'back:oro-classico', 'back:corona-reale'],
-    equipped: { table: 'tavolo-del-circolo', felt: 'maiolica-mediterranea', back: 'oro-classico' },
+    owned: [
+      'table:legno-di-casa',
+      'table:tavolo-del-circolo',
+      'table:marmo-di-carrara',
+      'felt:rosso-da-circolo',
+      'felt:maiolica-mediterranea',
+      'felt:venezia-al-tramonto',
+      'back:rosso-tradizionale',
+      'back:oro-classico',
+      'back:corona-reale',
+      'frame:semplice',
+      'frame:oro-sottile',
+      'frame:alloro',
+      'frame:lega-grana',
+    ],
+    equipped: { table: 'tavolo-del-circolo', felt: 'maiolica-mediterranea', back: 'oro-classico', frame: 'alloro' },
+    meta: {
+      // Arena e ricompense già pagate, come per un giocatore vero: niente feste all'apertura.
+      arena: 12,
+      paid: { level: 100, prestige: 0, legend: 0, arena: 12 },
+      avatar: 'sole',
+      ratings: { tressette: { r: 1182, n: 24, peak: 1210 }, briscola: { r: 1064, n: 12, peak: 1090 }, scopa: { r: 1010, n: 4, peak: 1020 } },
+      ratingSeason: null,
+      leagueHistory: [{ season: 'preseason', game: 'tressette', r: 980, peak: 1010, league: 'grana', n: 30 }],
+      claims: [
+        { id: 'm:prova-1', why: 'Vinci 3 partite', coins: 60 },
+        { id: 'lega:prova:tressette', why: 'Fine stagione: Lega della Grana a Tressette', coins: 200, items: ['frame:lega-grana'] },
+      ],
+    },
     // The daily bonus already taken, so it doesn't cover the photos.
     bonus: { lastDay: day, streak: 3 },
     achievements: { 'prima-vittoria': 1, 'prima-scopa': 2 },
@@ -81,21 +108,46 @@ for (const sc of SCREENS) {
     }
     if (tab === 'trofei') {
       for (const sub of ['Achievement', 'Titoli']) {
-        await page.getByRole('radio', { name: sub }).first().click();
+        await page.getByRole('radio', { name: sub, exact: true }).first().click();
         await page.waitForTimeout(900);
         await page.screenshot({ path: join(out, `hub-${sc.id}-trofei-${sub.toLowerCase()}.png`) });
+        if (sub === 'Achievement') {
+          await page.getByRole('radio', { name: 'Segreti', exact: true }).first().click();
+          await page.waitForTimeout(700);
+          await page.screenshot({ path: join(out, `hub-${sc.id}-trofei-segreti.png`) });
+        }
       }
       await page.getByRole('radio', { name: 'Arene' }).first().click();
     }
     if (tab === 'classifica') {
-      await page.getByRole('radio', { name: 'Stagione' }).first().click();
-      await page.waitForTimeout(900);
-      await page.screenshot({ path: join(out, `hub-${sc.id}-classifica-stagione.png`) });
-      await page.getByRole('radio', { name: 'Trofei' }).first().click();
+      for (const sub of ['Settimana', 'Trofei']) {
+        await page.getByRole('radio', { name: sub, exact: true }).first().click();
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: join(out, `hub-${sc.id}-classifica-${sub.toLowerCase()}.png`) });
+      }
+      await page.getByRole('radio', { name: 'Stagione', exact: true }).first().click();
+      await page.waitForTimeout(600);
+      await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, 900);
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: join(out, `hub-${sc.id}-classifica-percorso.png`) });
+    }
+    if (tab === 'gioca') {
+      await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: join(out, `hub-${sc.id}-gioca-sotto.png`) });
+      await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, 900);
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: join(out, `hub-${sc.id}-gioca-fondo.png`) });
+      await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, -3000);
+      await page.waitForTimeout(400);
     }
     if (tab === 'negozio') {
-      for (const sub of ['Tavolini', 'Dorsi', 'Set']) {
-        await page.getByRole('radio', { name: sub }).first().click();
+      for (const sub of ['Tavolini', 'Dorsi', 'Cornici', 'Set']) {
+        await page.getByRole('radio', { name: sub, exact: true }).first().click();
         await page.waitForTimeout(900);
         await page.screenshot({ path: join(out, `hub-${sc.id}-negozio-${sub.toLowerCase()}.png`) });
       }
@@ -107,6 +159,25 @@ for (const sc of SCREENS) {
       await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } }).catch(() => {});
       await page.waitForTimeout(500);
     }
+  }
+  // Il profilo e il pannello per personalizzarlo.
+  await page.goto(`${base}/profilo`);
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: join(out, `hub-${sc.id}-profilo.png`) });
+  await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, 800);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: join(out, `hub-${sc.id}-profilo-sotto.png`) });
+  await page.mouse.move(sc.width / 2, sc.height / 2);
+      await page.mouse.wheel(0, -2000);
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Cambia avatar e cornice' }).click();
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: join(out, `hub-${sc.id}-profilo-avatar.png`) });
+  for (const sub of ['Cornice', 'Vetrina']) {
+    await page.getByRole('radio', { name: sub, exact: true }).first().click();
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: join(out, `hub-${sc.id}-profilo-${sub.toLowerCase()}.png`) });
   }
   if (errors.length) problems.push(`${sc.id}: errori\n  ${errors.slice(0, 6).join('\n  ')}`);
   console.log('fatto', sc.id);

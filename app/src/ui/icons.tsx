@@ -2,7 +2,7 @@
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { colors } from './theme';
 
-export type IconName = 'shop' | 'friends' | 'play' | 'podium' | 'trophy' | 'gear' | 'lock' | 'check' | 'plus' | 'share' | 'chevron' | 'user' | 'crown' | 'sparkle';
+export type IconName = 'shop' | 'friends' | 'play' | 'podium' | 'trophy' | 'gear' | 'lock' | 'check' | 'plus' | 'share' | 'chevron' | 'user' | 'crown' | 'sparkle' | 'search' | 'close' | 'gift' | 'swap' | 'calendar' | 'send' | 'flag' | 'chart' | 'eye' | 'eyeOff' | 'smile';
 
 const PATHS: Record<IconName, string> = {
   shop: 'M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8zM9 10.5V7a3 3 0 0 1 6 0v3.5',
@@ -19,6 +19,17 @@ const PATHS: Record<IconName, string> = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2',
   crown: 'M4 8l3.5 3L12 5l4.5 6L20 8l-1.5 9h-13zM5.5 20h13',
   sparkle: 'M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.3 15.3L20 20',
+  close: 'M6 6l12 12M18 6L6 18',
+  gift: 'M4 9.5h16v3.5H4zM5.5 13h13v7.5h-13zM12 9.5v11M12 9.5C10.5 6 7 5.2 7 7.3c0 1.5 2.4 2.2 5 2.2zM12 9.5c1.5-3.5 5-4.3 5-2.2 0 1.5-2.4 2.2-5 2.2z',
+  swap: 'M5 9h13l-3.5-3.5M19 15H6l3.5 3.5',
+  calendar: 'M4.5 6.5h15v13.5h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4',
+  send: 'M4 12l16-7.5-5.5 15.5-3-6.5zM11.5 13.5L20 4.5',
+  flag: 'M5.5 21V4M5.5 4.5h11.5l-2.5 4 2.5 4H5.5',
+  chart: 'M4.5 20h15M7 16.5V11M12 16.5V6.5M17 16.5v-4',
+  eye: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeOff: 'M2.5 12s3.5-6.5 9.5-6.5c2 0 3.7.7 5.1 1.7M21.5 12s-3.5 6.5-9.5 6.5c-2 0-3.7-.7-5.1-1.7M4 4l16 16',
+  smile: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 14.5c1.8 2 5.2 2 7 0M9 9.5v.5M15 9.5v.5',
 };
 
 export function Icon({ name, size = 22, color = colors.text, stroke = 2 }: { name: IconName; size?: number; color?: string; stroke?: number }) {

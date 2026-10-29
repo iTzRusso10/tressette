@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ARENAS, arenaProgress } from '@/meta/arenas';
 import { useProfile } from '@/meta/profile';
+import { leagueOf, RATING } from '@/meta/rating';
+import { LeagueCoin } from '@/ui/competition';
 import { Bar } from '@/ui/progression';
 import { TrophyIcon } from '@/ui/icons';
 import { dur } from '@/ui/motion';
@@ -54,8 +56,28 @@ function TrophyLine() {
           {arena.name}, {Math.min(have, need)} su {need}
         </Text>
         <Bar have={have} need={need} height={6} style={{ marginTop: 4 }} />
+        <RatingLine />
       </View>
     </Animated.View>
+  );
+}
+
+/** Il punteggio di bravura del gioco: quanto si è mosso e in che lega sei. */
+function RatingLine() {
+  const last = useProfile(s => s.lastMatch);
+  const g = useProfile(s => (last?.game ? s.meta.ratings[last.game] : null));
+  if (!last?.game || last.rating === undefined || !g) return null;
+  const d = last.ratingDelta ?? 0;
+  const placedNow = g.n >= RATING.placement;
+  const league = leagueOf(last.rating);
+  return (
+    <View style={styles.rating}>
+      <LeagueCoin league={league} size={22} dim={!placedNow} />
+      <Text v="small" numberOfLines={1} style={{ flex: 1 }}>
+        {placedNow ? `${league.name}: ${last.rating.toLocaleString('it-IT')} punti` : `Calibrazione: ${g.n} su ${RATING.placement} partite`}
+      </Text>
+      <Text style={[styles.ratingDelta, d < 0 && { color: colors.coral }]}>{d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0'}</Text>
+    </View>
   );
 }
 
@@ -160,6 +182,8 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
 }
 
 const styles = StyleSheet.create({
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  ratingDelta: { fontFamily: fonts.display, fontSize: 13, lineHeight: 16, color: colors.mint, fontVariant: ['tabular-nums'] },
   row: {
     padding: space.m,
     paddingHorizontal: space.l,
