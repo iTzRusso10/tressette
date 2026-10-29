@@ -5,6 +5,7 @@
 //   node scripts/foto-arena.mjs prima   foto di riferimento di ogni arena di /dev/arene (in .visual/arena/prima/)
 //   node scripts/foto-arena.mjs scene   solo Esplora, svelamento e trofei (senza il confronto)
 //   node scripts/foto-arena.mjs         tutte le foto in .visual/arena/, i controlli e il confronto con «prima»
+//                                       (se «prima» manca, il confronto si salta con un avviso)
 //
 // Controlli (escono con 1 se qualcosa non va):
 // - le 29 arene diverse dal Club sono identiche alle foto «prima» (tolleranza per l'antialiasing: un canale può
@@ -60,6 +61,12 @@ function diversi(a, b) {
 }
 
 function confronta(s) {
+  // In un checkout pulito .visual/ non c'è (non è nel repo): senza le foto «prima» il confronto si salta con un
+  // avviso, il resto dei controlli va avanti. Per averle: su un ramo di riferimento `node scripts/foto-arena.mjs prima`.
+  if (!existsSync(prima) || !readdirSync(prima).some(f => f.endsWith('.png'))) {
+    console.log(`AVVISO: manca ${prima}: salto il confronto delle arene. Per farlo, dal ramo di riferimento (es. funzioni-social) esporta il sito e lancia «node scripts/foto-arena.mjs prima».`);
+    return;
+  }
   const file = readdirSync(prima).filter(f => f.endsWith('.png'));
   const righe = [];
   let uguali = 0;

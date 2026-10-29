@@ -232,12 +232,17 @@ function TramaRect({ nome, opacita, id }: { nome: NomeTrama; opacita: number; id
   );
 }
 
+const BORDI_MINIMO = 12;
+
 /**
  * Strato 4: bordo e rilievo. Serve la misura (tratti netti al mezzo pixel), quindi si disegna dopo il primo
  * layout: è solo decorazione, il contenuto non si sposta.
  */
 function Bordi({ w, h, r, chiaro, scuro, inverti, impuntura, filetto }: { w: number; h: number; r: number; chiaro: string; scuro: string; inverti?: boolean; impuntura?: boolean; filetto?: boolean }) {
   const id = 'bd' + uid(useId());
+  // Sotto questa misura i fili rientrati (fino a 10,5 pt) diventerebbero rettangoli negativi: succede quando la
+  // superficie sta in una schermata nascosta (l'hub sotto una vetrina rimisura 0×0). Non c'è niente da vedere.
+  if (w < BORDI_MINIMO || h < BORDI_MINIMO) return null;
   const a = inverti ? scuro : chiaro;
   const b = inverti ? chiaro : scuro;
   return (
