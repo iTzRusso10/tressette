@@ -32,7 +32,7 @@ export default function DevArene() {
         {list.map(a => {
           const [sky, accent] = ARENA_SKY[a.id] ?? ['#000000', '#FFFFFF'];
           return (
-            <View key={a.id} style={[styles.cell, { width: cell }]}>
+            <View key={a.id} testID={`arena-${a.id}`} style={[styles.cell, { width: cell }]}>
               {a.index % 6 === 0 ? <Text style={styles.chapter}>{`Capitolo ${a.chapter.n} · ${a.chapter.name} · ${a.chapter.world}`}</Text> : null}
               <View style={[styles.frame, { borderColor: accent }]}>
                 <ArenaScene id={a.id} width={wide} height={wide / 3} />
