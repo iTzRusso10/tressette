@@ -170,8 +170,27 @@ Deno.serve(async req => {
   const day = deviceDay(body.day);
 
   for (let attempt = 0; attempt < 4; attempt++) {
-    const { data: row, error } = await admin.from('profiles').select(COLUMNS).eq('id', uid).single<Row>();
-    if (error || !row) return json({ error: 'Profilo non trovato' }, 404);
+    const { data: row, error } = await admin.from('profiles').select(COLUMNS).eq('id', uid).maybeSingle<Row>();
+    // Un errore qui di solito è una migrazione non pubblicata (manca una colonna): meglio dirlo.
+    if (error) return json({ error: error.message }, 500);
+    if (!row) {
+      // Un account nato prima del trigger (accesso fatto prima di `db push`) non ha la riga: la si crea
+      // qui come farebbe il trigger, e si riparte. Al massimo una volta per richiesta.
+      if (attempt > 0) return json({ error: 'Profilo non trovato' }, 404);
+      const md = (who.user.user_metadata ?? {}) as Record<string, string | undefined>;
+      const provider = who.user.app_metadata?.provider;
+      const { error: e1 } = await admin.from('profiles').upsert(
+        {
+          id: uid,
+          name: (md.full_name || md.name || (who.user.email ? who.user.email.split('@')[0] : '') || 'Giocatore').slice(0, 24),
+          avatar: md.avatar_url || md.picture || null,
+          facebook_id: provider === 'facebook' ? (md.provider_id ?? null) : null,
+        },
+        { onConflict: 'id', ignoreDuplicates: true },
+      );
+      if (e1) return json({ error: e1.message }, 500);
+      continue;
+    }
     let p = await withSeasonRanks(admin, uid, fromRow(row));
     let imported = row.imported;
     let refused: string | null = null;

@@ -45,9 +45,12 @@ function adopt(sp: ServerProfile) {
 }
 
 async function call(action: string, payload: Record<string, unknown> = {}): Promise<ServerProfile | null> {
-  if (!supabaseConfigured || !useProfile.getState().account) return null;
+  const who = useProfile.getState().account?.id;
+  if (!supabaseConfigured || !who) return null;
   const { data, error } = await supabase().functions.invoke('progress', { body: { action, ...payload } });
   if (error) throw error;
+  // Se nel frattempo sei uscito (o è entrato un altro account), la risposta non è più tua.
+  if (useProfile.getState().account?.id !== who) return null;
   return (data?.profile as ServerProfile) ?? null;
 }
 

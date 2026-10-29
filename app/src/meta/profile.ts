@@ -21,6 +21,7 @@ import type { HandRecord, MatchRecord } from './progress';
 import type { Slot } from './catalog';
 import { BALANCE } from './balance';
 import { achievementById } from './achievements';
+import { switchAccount } from './guest';
 
 export type { Gain, Progress };
 
@@ -46,6 +47,8 @@ interface ProfileState extends Progress {
   account: Account | null;
   /** Il tuo codice per farti aggiungere dagli amici (dal server). */
   friendCode: string | null;
+  /** La progressione dell'ospite, messa da parte mentre c'è un account (vedi guest.ts). */
+  guest: Progress | null;
   /** Non salvati: cosa aspetta di essere mostrato, e i trofei dell'ultima partita. */
   celebrations: Celebration[];
   lastMatch: LastMatch | null;
@@ -69,6 +72,7 @@ export const useProfile = create<ProfileState>()(
       ...newProgress(randomSeed()),
       account: null,
       friendCode: null,
+      guest: null,
       celebrations: [],
       lastMatch: null,
     }),
@@ -221,6 +225,25 @@ export function earn(n: number) {
   if (n > 0) set(s => ({ coins: s.coins + n }));
 }
 
+/** Quando il profilo salvato sul telefono è stato letto: prima l'account non va toccato. */
+export function profileReady(): Promise<void> {
+  if (useProfile.persist.hasHydrated()) return Promise.resolve();
+  return new Promise(resolve => {
+    const off = useProfile.persist.onFinishHydration(() => {
+      off();
+      resolve();
+    });
+  });
+}
+
+/** Accesso, uscita o cambio di account: all'uscita torna l'ospite di prima (guest.ts). */
 export function setAccount(a: Account | null) {
-  set({ account: a });
+  const s = get();
+  const r = switchAccount({ account: s.account, guest: s.guest, progress: progressOf(s) }, a, () => newProgress(randomSeed()));
+  if (!r.progress) {
+    set({ account: r.account, guest: r.guest });
+    return;
+  }
+  const p = normalize(r.progress as Parameters<typeof normalize>[0], r.progress.meta?.seed ?? randomSeed());
+  set({ ...p, account: r.account, guest: r.guest, friendCode: null, celebrations: [], lastMatch: null });
 }

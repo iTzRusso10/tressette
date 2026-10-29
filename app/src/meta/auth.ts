@@ -5,7 +5,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { setAccount, type Account } from './profile';
+import { profileReady, setAccount, type Account } from './profile';
 import { pullProgress } from './sync';
 
 export type Provider = Account['provider'];
@@ -35,13 +35,19 @@ async function onSession(session: Session | null) {
   if (session) await pullProgress().catch(() => {});
 }
 
-/** Keeps the account in step with the saved session. Called once at start. */
+/**
+ * Keeps the account in step with the saved session. Called once at start.
+ * Waits for the profile saved on the phone: otherwise reading it back would overwrite the account
+ * (and the guest set aside at sign-in) with what was saved before.
+ */
 export function initAuth() {
   if (!supabaseConfigured) return;
   const sb = supabase();
-  sb.auth.getSession().then(({ data }) => onSession(data.session));
-  sb.auth.onAuthStateChange((_e, session) => {
-    onSession(session);
+  profileReady().then(() => {
+    sb.auth.getSession().then(({ data }) => onSession(data.session));
+    sb.auth.onAuthStateChange((_e, session) => {
+      onSession(session);
+    });
   });
 }
 
