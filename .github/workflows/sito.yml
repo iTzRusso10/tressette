@@ -36,6 +36,11 @@ jobs:
       - name: Controlli (tipi, lint, regole)
         run: npm run check
       - name: Sito dall'app
+        # Tree shaking di Metro (docs.expo.dev/guides/tree-shaking): toglie gli export mai usati, ≈ 96 KB gzip di JS.
+        # Solo per il sito: le build native restano come sono.
+        env:
+          EXPO_UNSTABLE_TREE_SHAKING: 1
+          EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH: 1
         run: |
           npx expo export -p web
           cp dist/index.html dist/404.html

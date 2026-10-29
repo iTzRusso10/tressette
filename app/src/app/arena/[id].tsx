@@ -8,9 +8,9 @@
 // parallasse, la scena ferma. Un'arena non ancora raggiunta si vede con le «luci spente».
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useMemo } from 'react';
+import { PanResponder, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeIn, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ARENAS } from '@/meta/arenas';
 import { roman } from '@/meta/levels';
@@ -22,6 +22,11 @@ import { ease } from '@/ui/arte/movimento';
 import { fontArte, testo, tipografia } from '@/ui/arte/token';
 import { ArenaScene } from '@/ui/ArenaScene';
 import { Text } from '@/ui/Text';
+
+/** Scrive lo sguardo fuori dal render (il compilatore di React non vuole scritture nei valori dei hook). */
+function imposta(sv: SharedValue<number>, v: number) {
+  sv.value = v;
+}
 
 export default function Esplora() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,20 +49,23 @@ function EsploraArena({ id }: { id: string }) {
   const sguardo = useSharedValue(0);
   // Lo sguardo arriva al massimo dove il cielo (fattore 0,2) ha ancora margine disegnato.
   const limite = Math.max(24, width * 0.07) / 0.8 - 2;
-  const trascina = Gesture.Pan()
-    .enabled(!riduci)
-    .activeOffsetX([-8, 8])
-    .onUpdate(e => {
-      sguardo.value = Math.max(-limite, Math.min(limite, e.translationX * 0.35));
-    })
-    .onEnd(() => {
-      sguardo.value = withTiming(0, { duration: 900, easing: ease.move });
+  // Il trascinamento con il PanResponder di React Native (c'è già nel bundle): react-native-gesture-handler intero
+  // per un solo gesto orizzontale pesava ≈ 57 KB gzip sul sito. Si prende solo un trascinamento più orizzontale che
+  // verticale, oltre 8 punti; lasciato, lo sguardo torna al centro.
+  const trascina = useMemo(() => {
+    const torna = () => imposta(sguardo, withTiming(0, { duration: 900, easing: ease.move }));
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => !riduci && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => imposta(sguardo, Math.max(-limite, Math.min(limite, g.dx * 0.35))),
+      onPanResponderRelease: torna,
+      onPanResponderTerminate: torna,
     });
+  }, [riduci, limite, sguardo]);
   const colonna = Math.min(width - 32, 520);
   return (
     <View style={styles.pagina}>
       <Stack.Screen options={{ animation: 'fade' }} />
-      <GestureDetector gesture={trascina}>
+      <View {...trascina.panHandlers} style={StyleSheet.absoluteFill}>
         <View style={StyleSheet.absoluteFill} testID="fisso-scena" accessibilityRole="image" accessibilityLabel={`${arena.name}: ${arena.desc}`}>
           <ArenaScene
             id={arena.id}
@@ -70,7 +78,7 @@ function EsploraArena({ id }: { id: string }) {
             tavolo={raggiunta ? { table: eq.table, felt: eq.felt, back: eq.back } : undefined}
           />
         </View>
-      </GestureDetector>
+      </View>
       {/* la testata comune (arte/Testata): «indietro» e monete nello stesso posto in tutte le schermate di vetrina */}
       <Testata assoluta destra={<ContatoreMonete monete={monete} testID="fisso-monete" />} />
       <View pointerEvents="none" style={[styles.giu, { paddingBottom: ins.bottom + 22 }]}>

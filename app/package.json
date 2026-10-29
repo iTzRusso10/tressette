@@ -60,7 +60,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "art": "node scripts/make-art.mjs",
-    "export:web": "expo export -p web",
+    "export:web": "EXPO_UNSTABLE_TREE_SHAKING=1 EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH=1 expo export -p web",
     "lint": "expo lint",
     "check:visual": "node scripts/visual-check.mjs",
     "check:online": "node scripts/online-check.mjs",

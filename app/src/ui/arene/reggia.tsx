@@ -46,22 +46,6 @@ export const R = {
   felt: '#2A4E9A',
 };
 
-/** Una finestra alta sulla notte di luna: [x, y, w, h]. */
-function MoonWindow({ k, x, y, w, h, name, moon = false }: { k: Ctx; x: number; y: number; w: number; h: number; name: string; moon?: boolean }) {
-  const { c } = k;
-  return (
-    <>
-      <Defs>{lin(k, name, [[0, '#0E1240'], [1, '#3A5AA0']])}</Defs>
-      <Path d={arches([[x - 4, y - 4, w + 8, h + 6]])} fill={c(R.gold)} />
-      <Path d={arches([[x, y, w, h]])} fill={k.url(name)} />
-      <Path d={dots(starField(x * 7 + y, 6, [x + 3, y + 6, x + w - 3, y + h * 0.6], 0.4, 1))} fill={c('#FFFFFF')} />
-      {moon ? <Path d={dots([[x + w * 0.62, y + w * 0.7, w * 0.14]])} fill={c('#F4F2E0')} /> : null}
-      <Path d={rects([[x + w / 2 - 1, y + w / 2, 2, h - w / 2], [x, y + h * 0.4, w, 1.6], [x, y + h * 0.72, w, 1.6]])} fill={c(R.goldD)} />
-    </>
-  );
-}
-
-/** Un trono visto di fronte: il centro della seduta in (x, y), scala s. */
 function Throne({ k, x, y, s, velvet = R.royal, gold = R.gold }: { k: Ctx; x: number; y: number; s: number; velvet?: string; gold?: string }) {
   const { c } = k;
   const back = `M${r1(x - 16 * s)} ${r1(y)}V${r1(y - 40 * s)}Q${r1(x - 16 * s)} ${r1(y - 62 * s)} ${r1(x)} ${r1(y - 70 * s)}Q${r1(x + 16 * s)} ${r1(y - 62 * s)} ${r1(x + 16 * s)} ${r1(y - 40 * s)}V${r1(y)}Z`;
@@ -94,81 +78,7 @@ function busts(list: number[][]) {
     .join('');
 }
 
-/* ------------------------------------------------------------------ 13. Il Club dei Signori */
-
-export function ClubDeiSignori({ k }: { k: Ctx }) {
-  const { c } = k;
-  // Le librerie: file di dorsi di libri su più ripiani.
-  const books: Record<string, number[][]> = {};
-  const cols = ['#2E4A6E', '#6A1E2E', '#1E4A3A', '#8A6A3A', '#3A2A4E'];
-  let seed = 3;
-  const next = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-  const shelves: number[][] = [];
-  for (const [x0, x1] of [[16, 196], [404, 584]]) {
-    for (const sy of [52, 86, 120, 154]) {
-      shelves.push([x0 - 2, sy, x1 - x0 + 4, 3]);
-      for (let x = x0; x < x1 - 4; ) {
-        const w = 4 + Math.floor(next() * 4);
-        const h = 20 + next() * 10;
-        (books[cols[Math.floor(next() * cols.length)]] ??= []).push([x, sy - h, w, h]);
-        x += w + 0.8;
-      }
-    }
-  }
-  const allBooks = Object.values(books).flat();
-  return (
-    <G>
-      <Defs>
-        {lin(k, 'wall', [[0, '#1E2E3E'], [1, '#14202C']])}
-        {lin(k, 'shelf', [[0, '#3A2014'], [1, '#22120A']])}
-        {lin(k, 'floor', [[0, '#3A2418'], [1, '#100806']])}
-        {lin(k, 'moon', [[0, '#CFE2FF', 0.35], [1, '#CFE2FF', 0]])}
-        {lin(k, 'leather', [[0, '#7A3A22'], [1, '#4A1E12']])}
-      </Defs>
-      <Fill k={k} name="wall" />
-      {/* Le librerie a tutta altezza. */}
-      <Path d={rects([[8, 10, 196, 168], [396, 10, 196, 168]])} fill={k.url('shelf')} />
-      {Object.entries(books).map(([col, list]) => (
-        <Path key={col} d={rects(list)} fill={c(col)} />
-      ))}
-      <Path d={rects(allBooks.filter((_, i) => i % 3 === 0).map(([x, y, w, h]) => [x, y + h * 0.2, w, 1.4]))} fill={c(R.gold)} opacity={0.8} />
-      <Path d={rects(shelves)} fill={c('#5A341E')} />
-      <Path d={rects([[4, 6, 204, 6], [392, 6, 204, 6]])} fill={c(R.gold)} />
-      {/* La finestra alta sulla luna, al centro, con le tende. */}
-      <MoonWindow k={k} name="win" x={250} y={22} w={100} h={110} moon />
-      <Path d="M236 14H266Q256 70 262 140H232ZM364 14H334Q344 70 338 140H368Z" fill={c('#1E3A5A')} />
-      <Path d={rects([[228, 10, 144, 6]])} fill={c(R.gold)} />
-      <Path d={rects([[240, 132, 120, 6]])} fill={c('#5A341E')} />
-      {/* Il busto sul davanzale e il globo. */}
-      <Path d={busts([[226, 176, 44]])} fill={c(R.marble)} />
-      <Path d={dots([[374, 154, 12]])} fill={c('#3A6A8A')} />
-      <Path d="M362 154H386M374 142V166" stroke={c(R.gold)} strokeWidth={1} />
-      <Path d={rects([[372, 166, 4, 10], [366, 174, 16, 3]])} fill={c(R.gold)} />
-      <Path d={rects([[0, 176, 600, 24]])} fill={k.url('floor')} />
-      {k.dim ? null : <Path d={poly([[250, 132], [350, 132], [420, 200], [180, 200]])} fill={k.url('moon')} />}
-      <Path d={ovals([[300, 188, 140, 10]])} fill={c('#2A3A5A')} />
-      <Ground k={k} from={130} color="#05040A" op={0.5} />
-      {/* Le poltrone di cuoio e la lampada da tavolo verde. */}
-      {[1, -1].map(dir => {
-        const x = 300 - dir * 70;
-        return (
-          <G key={dir}>
-            <Path d={`M${x - 22} 196V160Q${x - 22} 150 ${x - 12} 150H${x + 12}Q${x + 22} 150 ${x + 22} 160V196Z`} fill={k.url('leather')} />
-            <Path d={rects([[x - 26, 172, 10, 24], [x + 16, 172, 10, 24]])} fill={c('#5A2616')} />
-            <Path d={dots([[x - 21, 172, 5], [x + 21, 172, 5]])} fill={c('#5A2616')} />
-            <Path d={rects([[x - 16, 178, 32, 8]])} fill={c('#8A4428')} />
-            <Path d={dots([[x - 12, 158, 0.9], [x, 158, 0.9], [x + 12, 158, 0.9], [x - 6, 164, 0.9], [x + 6, 164, 0.9]])} fill={c('#2A0E06')} />
-          </G>
-        );
-      })}
-      <CardTable k={k} x={300} y={172} w={78} felt={R.felt} wood="#2A160C" rim={R.gold} back="#8A1E2E" />
-      <Glow k={k} name="lamp" x={300} y={150} r={30} color="#B8FFD8" op={0.4} />
-      <Path d={rects([[299, 152, 2, 14], [294, 165, 12, 2]])} fill={c(R.gold)} />
-      <Path d={poly([[289, 154], [311, 154], [306, 146], [294, 146]])} fill={c('#1E7A4A')} />
-      <Vignette k={k} color="#02040A" op={0.5} />
-    </G>
-  );
-}
+// 13. Il Club dei Signori: disegnato a piani in arene/club/ (ClubFermo, ClubVivo), non più qui.
 
 /* ------------------------------------------------------------------ 14. La Sala di Cristallo */
 

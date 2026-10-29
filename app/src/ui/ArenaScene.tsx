@@ -21,7 +21,7 @@ import Svg, { Rect } from 'react-native-svg';
 import { ClubFermo, ClubVivo, type TavoloEquipaggiato } from './arene/club/ClubDeiSignori';
 import { BarDelPaese, CaffeDelleCarte, CircoloDegliAmici, LocandaDelRe, PiazzaDelBorgo, TavernaDelMoro } from './arene/borgo';
 import { CasinoDiVenezia, CircoloDOro, LoggiaDeiNobili, PalazzoDelleCarte, SalaDeiMaestri, SaloneDeiCampioni } from './arene/circolo';
-import { ClubDeiSignori, CorteDeiRe, PalazzoReale, SalaDegliImperatori, SalaDiCristallo, TronoDelleCarte } from './arene/reggia';
+import { CorteDeiRe, PalazzoReale, SalaDegliImperatori, SalaDiCristallo, TronoDelleCarte } from './arene/reggia';
 import { CriptaDeiMaestri, FortezzaDegliAssi, OlimpoDelleCarte, SalaDegliImmortali, SantuarioDelGioco, TorreDeiCampioni } from './arene/santuario';
 import { CoronaDeiTreGiochi, LeggendaVivente, PalazzoDellEternita, RegnoDegliAssi, TronoDegliImmortali, UltimoTavolo } from './arene/olimpo';
 import { type Ctx, H, night, type SceneFn, W } from './arene/kit';
@@ -80,7 +80,6 @@ const SCENES: Record<string, SceneFn> = {
   'casino-di-venezia': CasinoDiVenezia,
   'loggia-dei-nobili': LoggiaDeiNobili,
   'salone-dei-campioni': SaloneDeiCampioni,
-  'club-dei-signori': ClubDeiSignori,
   'sala-di-cristallo': SalaDiCristallo,
   'palazzo-reale': PalazzoReale,
   'corte-dei-re': CorteDeiRe,
