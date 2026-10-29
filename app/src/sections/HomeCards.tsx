@@ -3,6 +3,7 @@
 // collegato): nessuna scadenza, nessuna fretta.
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { itemByKey } from '@/meta/catalog';
@@ -20,6 +21,12 @@ import { Squish } from '@/ui/kit';
 import { CoinIcon } from '@/ui/meta';
 import { dur } from '@/ui/motion';
 import { Bar } from '@/ui/progression';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Filetto, Moneta, Pulsante, raggi, Superficie, accento, fontArte, testo as testoArte, useRiduciMovimento } from '@/ui/arte';
+import { scaglioneTutto } from '@/ui/missioni/dati';
+import { Busta } from '@/ui/missioni/pezzi';
+import { assicuraStratoHub, misuraOra, vola, type Vista } from '@/ui/missioni/voli';
+import { useTabs } from './Hub';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, space } from '@/ui/theme';
 
@@ -33,52 +40,93 @@ const dateText = (d: string) => {
 
 /* ------------------------------------------------------------------ da riscuotere */
 
+/**
+ * Le ricompense pronte: un vassoio di noce con le buste in fila e «Riscuoti tutto» d'ottone. Al tocco si
+ * riscuote tutto in una volta (claim('*'), come prima) e da ogni riga partono le sue monete verso la pillola
+ * delle monete in alto, scaglionate (§5.10: ≤ 120 ms l'una, l'ultima entro 1,2 s); il suono una volta sola.
+ * Con riduci movimento niente volo.
+ */
 export function ClaimsCard({ width }: { width: number }) {
   const claims = useProfile(s => s.meta.claims);
+  const ins = useSafeAreaInsets();
+  const riduci = useRiduciMovimento();
+  const { sheet } = useTabs();
+  const righe = useRef<(Vista | null)[]>([]);
+  const piede = useRef<Vista | null>(null);
   if (!claims.length) return null;
   const coins = claims.reduce((t, c) => t + (c.coins ?? 0), 0);
   const items = claims.flatMap(c => c.items ?? []).map(k => itemByKey(k)).filter(i => !!i);
   const shown = claims.slice(0, 3);
+  const altre = claims.slice(shown.length);
+  const riscuotiTutto = () => {
+    // Le partenze si misurano prima di riscuotere: dopo, il vassoio sparisce.
+    const partenze = [
+      ...shown.map((c, i) => ({ da: misuraOra(righe.current[i]), coins: c.coins ?? 0 })),
+      ...(altre.length ? [{ da: misuraOra(piede.current), coins: altre.reduce((t, c) => t + (c.coins ?? 0), 0) }] : []),
+    ].filter(x => x.coins > 0);
+    if (riduci || !partenze.length) {
+      const preso = claim('*');
+      sfx(preso > 0 ? 'coin' : 'buy', { haptic: true });
+      return;
+    }
+    assicuraStratoHub(sheet);
+    const passo = scaglioneTutto(partenze.length);
+    // Prima partono le monete, poi si riscuote tutto in una volta (claim('*'), come prima).
+    partenze.forEach((x, i) => {
+      const via = () => vola({ sorgente: x.da, strato: 'hub', coins: x.coins, insets: ins, suono: i === 0 });
+      if (i === 0) via();
+      else setTimeout(via, i * passo);
+    });
+    setTimeout(() => claim('*'), 0);
+  };
   return (
-    <Animated.View entering={FadeIn.duration(dur.enter)} exiting={FadeOut.duration(dur.exit)} style={[styles.claims, { width }]}>
-      <View style={styles.claimsHead}>
-        <View style={styles.gift}>
-          <Icon name="gift" size={20} color={colors.ink} stroke={2.2} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.claimsTitle}>Da riscuotere</Text>
-          <Text v="small" numberOfLines={1}>
-            {claims.length === 1 ? 'Una ricompensa' : `${claims.length} ricompense`}
-            {coins ? ` · ${n(coins)} monete` : ''}
-            {items.length ? ` · ${items.length === 1 ? 'un oggetto' : `${items.length} oggetti`}` : ''}
-          </Text>
-        </View>
-      </View>
-      {shown.map(c => {
-        const item = c.items?.[0] ? itemByKey(c.items[0]) : undefined;
-        return (
-          <View key={c.id} style={styles.claimRow}>
-            {item ? <ItemPreview item={item} width={34} height={28} /> : <CoinIcon size={18} />}
-            <Text style={styles.claimWhy} numberOfLines={1}>
-              {c.why}
+    <Animated.View entering={FadeIn.duration(dur.enter)} exiting={FadeOut.duration(dur.exit)} style={[styles.claimsBox, { width }]}>
+      <Superficie materiale="noce" filetto livello={3} raggio={raggi.superficie} style={styles.claims}>
+        <View style={styles.claimsHead}>
+          <Busta coins={0} xp={0} stato="riscuotere" larghezza={42} altezza={30} muta />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.claimsTitle}>Da riscuotere</Text>
+            <Text style={styles.claimsSub} numberOfLines={1}>
+              {claims.length === 1 ? 'Una ricompensa' : `${claims.length} ricompense`}
+              {coins ? ` · ${n(coins)} monete` : ''}
+              {items.length ? ` · ${items.length === 1 ? 'un oggetto' : `${items.length} oggetti`}` : ''}
             </Text>
-            {c.coins ? <Text style={styles.claimCoins}>+{n(c.coins)}</Text> : null}
           </View>
-        );
-      })}
-      {claims.length > shown.length ? <Text style={styles.more}>e altre {claims.length - shown.length}</Text> : null}
-      <Squish
-        accessibilityRole="button"
-        accessibilityLabel={`Riscuoti tutto: ${n(coins)} monete${items.length ? ` e ${items.length} oggetti` : ''}`}
-        onPress={() => {
-          claim('*');
-          sfx('buy', { haptic: true });
-        }}
-        scaleTo={0.97}
-        style={styles.claimAll}
-      >
-        <Text style={styles.claimAllText}>Riscuoti tutto</Text>
-      </Squish>
+        </View>
+        <Filetto tipo="ottone" style={{ marginVertical: 2 }} />
+        {shown.map((c, i) => {
+          const item = c.items?.[0] ? itemByKey(c.items[0]) : undefined;
+          return (
+            <View
+              key={c.id}
+              ref={v => {
+                righe.current[i] = v;
+              }}
+              collapsable={false}
+              style={styles.claimRow}
+            >
+              {item ? <ItemPreview item={item} width={34} height={28} /> : <Moneta misura={20} />}
+              <Text style={styles.claimWhy} numberOfLines={1}>
+                {c.why}
+              </Text>
+              {c.coins ? <Text style={styles.claimCoins}>+{n(c.coins)}</Text> : null}
+            </View>
+          );
+        })}
+        {altre.length ? (
+          <View ref={piede} collapsable={false}>
+            <Text style={styles.more}>e altre {altre.length}</Text>
+          </View>
+        ) : null}
+        <Pulsante
+          testID="riscuoti-tutto-home"
+          etichetta="Riscuoti tutto"
+          sotto={coins ? `${n(coins)} monete` : undefined}
+          suono={null}
+          onPress={riscuotiTutto}
+          style={{ marginTop: 6 }}
+        />
+      </Superficie>
     </Animated.View>
   );
 }
@@ -233,25 +281,15 @@ export function EventCard({ width, onPlay }: { width: number; onPlay: () => void
 }
 
 const styles = StyleSheet.create({
-  claims: {
-    alignSelf: 'center',
-    marginTop: space.l,
-    padding: space.m,
-    gap: space.s,
-    borderRadius: radius.l,
-    backgroundColor: colors.panel,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,224,102,0.6)',
-  },
+  claimsBox: { alignSelf: 'center', marginTop: space.l },
+  claims: { padding: space.m, paddingHorizontal: space.l, gap: space.s },
   claimsHead: { flexDirection: 'row', alignItems: 'center', gap: space.m },
-  gift: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  claimsTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 20, color: colors.text },
-  claimRow: { flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 30, paddingLeft: 4 },
-  claimWhy: { flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 17, color: colors.text },
-  claimCoins: { fontFamily: fonts.display, fontSize: 13, lineHeight: 17, color: colors.sun, fontVariant: ['tabular-nums'] },
-  more: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 15, color: colors.textFaint, paddingLeft: 4 },
-  claimAll: { height: 46, borderRadius: radius.pill, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  claimAllText: { fontFamily: fonts.display, fontSize: 16, lineHeight: 20, color: colors.ink },
+  claimsTitle: { fontFamily: fontArte.bodoni, fontSize: 21, lineHeight: 25, color: accento.oro },
+  claimsSub: { fontFamily: fontArte.soraSemi, fontSize: 12.5, lineHeight: 16, color: testoArte.forte, opacity: 0.86 },
+  claimRow: { flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 30, paddingLeft: 2 },
+  claimWhy: { flex: 1, fontFamily: fontArte.sora, fontSize: 13, lineHeight: 17, color: testoArte.forte },
+  claimCoins: { fontFamily: fontArte.soraBold, fontSize: 14, lineHeight: 18, color: accento.oro, fontVariant: ['tabular-nums'] },
+  more: { fontFamily: fontArte.sora, fontSize: 12, lineHeight: 15, color: testoArte.medio, paddingLeft: 2 },
   event: { alignSelf: 'center', marginTop: space.l, borderRadius: radius.l, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.panelLine },
   eventIn: { padding: space.l, gap: 4 },
   eventTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
