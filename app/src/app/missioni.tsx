@@ -10,17 +10,16 @@
 // - Al cambio del giorno (mezzanotte) la bacheca si rinnova da sola: missioni nuove, scadenze aggiornate.
 // Si apre con una dissolvenza dal bruno e la luce che si accende (§5.9). Nessuna animazione ambientale.
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import { dayOf } from '@/meta/economy';
 import { progressOf, refreshDay, swapDailyMission, useProfile } from '@/meta/profile';
 import { sfx } from '@/ui/feedback';
 import { Text } from '@/ui/Text';
-import { dur, fontArte, primitivi, Pulsante, Sala, Superficie, Targa, testo, useRiduciMovimento } from '@/ui/arte';
+import { dur, fontArte, primitivi, Pulsante, Sala, Superficie, Targa, testo, Testata, TESTATA, useRiduciMovimento } from '@/ui/arte';
 import { altezzaBiglietto, altezzaLocandina, Biglietto, Cartellino, Locandina, Manifesto } from '@/ui/missioni/Biglietti';
 import { bachecaDi, msAMezzanotte, oreAMezzanotte, specialiDi } from '@/ui/missioni/dati';
 import { Entra } from '@/ui/missioni/pezzi';
@@ -46,28 +45,6 @@ function useGiorno() {
     }, []),
   );
   return giorno;
-}
-
-function Indietro() {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Indietro"
-      hitSlop={6}
-      onPress={() => {
-        sfx('tick');
-        if (router.canGoBack()) router.back();
-        else router.replace('/');
-      }}
-      style={({ pressed }) => [pressed && { transform: [{ scale: 0.94 }] }]}
-    >
-      <Superficie materiale="noce" raggio={22} livello={2} style={styles.indietro}>
-        <Svg width={20} height={20} viewBox="0 0 24 24">
-          <Path d="M15 5.5L8.5 12l6.5 6.5" stroke={testo.forte} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        </Svg>
-      </Superficie>
-    </Pressable>
-  );
 }
 
 export default function Bacheca() {
@@ -159,11 +136,9 @@ export default function Bacheca() {
         <Text style={styles.piede}>Le missioni del giorno si rinnovano a mezzanotte, quelle della settimana il lunedì. Le ricompense restano qui finché non le riscuoti.</Text>
       </ScrollView>
 
-      <LinearGradient pointerEvents="none" colors={['rgba(20,12,14,0.94)', 'rgba(20,12,14,0.7)', 'rgba(20,12,14,0)']} locations={[0, 0.55, 1]} style={[styles.velo, { height: ins.top + 76 }]} />
-      <View style={[styles.testata, { paddingTop: ins.top + 10, width: Math.min(width, 640) }]} pointerEvents="box-none">
-        <Indietro />
-        <ContatoreMonete strato="bacheca" testID="fisso-contatore" />
-      </View>
+      <LinearGradient pointerEvents="none" colors={['rgba(20,12,14,0.94)', 'rgba(20,12,14,0.7)', 'rgba(20,12,14,0)']} locations={[0, 0.55, 1]} style={[styles.velo, { height: ins.top + TESTATA.altezza + 20 }]} />
+      {/* la testata comune (arte/Testata): «indietro» e monete nello stesso posto in tutte le schermate di vetrina */}
+      <Testata assoluta destra={<ContatoreMonete strato="bacheca" testID="fisso-contatore" />} />
 
       {barra ? (
         <Animated.View entering={FadeIn.duration(dur.enter)} exiting={FadeOut.duration(dur.exit)} style={[styles.barra, { paddingBottom: ins.bottom + 14 }]} pointerEvents="box-none">
@@ -194,8 +169,6 @@ const styles = StyleSheet.create({
   targa: { position: 'absolute', top: -14, left: 0, right: 0, alignItems: 'center' },
   piede: { fontFamily: fontArte.sora, fontSize: 12.5, lineHeight: 18, color: testo.tenue, textAlign: 'center', marginTop: 18, maxWidth: 420 },
   velo: { position: 'absolute', left: 0, right: 0, top: 0 },
-  testata: { position: 'absolute', top: 0, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  indietro: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   barra: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingTop: 28 },
 });
 

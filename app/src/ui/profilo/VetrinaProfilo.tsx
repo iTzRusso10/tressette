@@ -45,6 +45,7 @@ import {
   ACCENSIONE,
   accento,
   Cartiglio,
+  ContatoreMonete,
   conAlfa,
   fondo,
   fontArte,
@@ -60,13 +61,15 @@ import {
   sporgenzaPiano,
   Superficie,
   testo,
+  Testata,
+  TESTATA,
   tipografia,
   useAmbient,
   useScorrimento,
   dur,
   rarita,
 } from '../arte';
-import { Borsellino, Indietro, numero, TitoloSezione, useEntrata } from './comuni';
+import { numero, TitoloSezione, useEntrata } from './comuni';
 import { LibroMastro, MonetieraLeghe } from './LibroMastro';
 import { Cassetti, Medagliere } from './Medagliere';
 import { misureTeca, Teca, type Chi } from './Vetrina';
@@ -99,7 +102,7 @@ export function misureProfilo(larghezza: number, altezza: number) {
   const avatar = desktop ? 168 : piccolo ? 136 : 152;
   // Sul telefono alto la scena si apre di più sopra l'avatar; sul piccolo resta l'essenziale.
   const aria = desktop ? 56 : piccolo ? 0 : Math.round(Math.min(48, (altezza - 667) * 0.26));
-  const barra = 56;
+  const barra = TESTATA.altezza;
   // La scena: 3:1 su desktop (tutta la tela), sul telefono arriva fin sotto la targa.
   const scena = desktop ? Math.round(larghezza / 3) : barra + aria + avatar + 150;
   return { desktop, piccolo, colonna, avatar, aria, barra, scena };
@@ -165,7 +168,6 @@ export function VetrinaProfilo({
   const sSup = useAnimatedStyle(() => ({ opacity: superfici.value, transform: [{ translateY: (1 - superfici.value) * ACCENSIONE.superfici.da }] }));
   const sResto = useAnimatedStyle(() => ({ opacity: resto.value, transform: [{ translateY: (1 - resto.value) * ACCENSIONE.superfici.da }] }));
 
-  const barraW = Math.min(width, m.desktop ? 600 : width);
   const sVelo = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, (scorrimento.value - m.scena * 0.55) / 80)) }));
   const sp = sporgenzaPiano(0.5, m.scena);
   const scenaW = width;
@@ -316,11 +318,8 @@ export function VetrinaProfilo({
       <Animated.View pointerEvents="none" style={[styles.velo, { height: ins.top + m.barra + 18 }, sVelo]}>
         <LinearGradient colors={[fondo.base, conAlfa(fondo.base, 0.92), conAlfa(fondo.base, 0)]} locations={[0, 0.7, 1]} style={StyleSheet.absoluteFill} />
       </Animated.View>
-      <View style={[styles.barra, { top: ins.top, height: m.barra, left: (width - barraW) / 2, width: barraW }]} pointerEvents="box-none">
-        <Indietro />
-        <View style={{ flex: 1 }} />
-        {tuo ? <Borsellino monete={tuo.monete} /> : null}
-      </View>
+      {/* la testata comune (arte/Testata): «indietro» e monete nello stesso posto in tutte le schermate di vetrina */}
+      <Testata assoluta destra={tuo ? <ContatoreMonete monete={tuo.monete} testID="fisso-monete" /> : null} />
     </View>
   );
 }
@@ -360,7 +359,6 @@ const styles = StyleSheet.create({
   xpRiempito: { height: 4, borderRadius: 2, backgroundColor: accento.oro },
   pulsanti: { flexDirection: 'row', gap: 10, marginTop: 18 },
   velo: { position: 'absolute', left: 0, right: 0, top: 0 },
-  barra: { position: 'absolute', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   stato: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 20 },
   punto: { width: 8, height: 8, borderRadius: 4 },
   statoTesto: { fontFamily: fontArte.soraSemi, fontSize: 13, lineHeight: 17, color: testo.medio },

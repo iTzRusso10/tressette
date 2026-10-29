@@ -3,19 +3,17 @@
 // Export:
 // - `TitoloSezione`  { occhiello, titolo, azione?: { etichetta, onPress } } occhiello in foglia d'oro, titolo in
 //                    Bodoni 22, filetto sotto; a destra un'azione terziaria opzionale. Statico.
-// - `Indietro`       { onPress? } pulsante tondo di noce con la freccia avorio (44 pt), come BackButton.
-// - `Borsellino`     { monete } le tue monete: moneta d'ottone e cifra su una pillola di noce. Statico.
+//   (Indietro e il contatore delle monete stanno in arte/Testata.tsx: sono gli stessi per arena, profilo,
+//   personalizza e bacheca.)
 // - `Schede`         { valori, valore, onCambia, etichetta } schede a placca: la scelta è ottone, le altre noce.
 //                    Ruolo radiogroup/radio come kit.Choice (le foto di check:hub le cercano per nome).
 // - `completa(pub)`  un PublicProfile intero a partire da uno parziale (quello che arriva dal server per gli altri)
 // - `useEntrata(ritardo, durata)`  valore 0 → 1 una volta all'apertura (ease.in); con riduci movimento dissolvenza
 //                    breve (dur.quick) senza ritardo. Non è ambientale: arriva a 1 e si ferma.
 // - `numero(n)`      cifre all'italiana (1.260)
-import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useReducedMotion, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
 import type { PublicProfile } from '@/meta/ledger';
 import { GAME_IDS } from '@/meta/progress';
 import { RATING } from '@/meta/rating';
@@ -23,7 +21,7 @@ import { DEFAULT_TITLE } from '@/meta/titles';
 import { sfx } from '../feedback';
 import { Squish } from '../kit';
 import { Text } from '../Text';
-import { accento, dur, ease, Filetto, fontArte, Moneta, primitivi, Superficie, testo, tipografia } from '../arte';
+import { accento, dur, ease, Filetto, fontArte, primitivi, Superficie, testo, tipografia } from '../arte';
 
 export const numero = (n: number) => n.toLocaleString('it-IT');
 
@@ -79,38 +77,6 @@ export function TitoloSezione({ occhiello, titolo, azione }: { occhiello: string
   );
 }
 
-export function Indietro({ onPress }: { onPress?: () => void }) {
-  return (
-    <Squish
-      accessibilityRole="button"
-      accessibilityLabel="Indietro"
-      hitSlop={6}
-      scaleTo={0.92}
-      onPress={() => {
-        sfx('tick');
-        if (onPress) onPress();
-        else if (router.canGoBack()) router.back();
-        else router.replace('/');
-      }}
-    >
-      <Superficie materiale="noce" raggio={22} livello={3} style={styles.tondo}>
-        <Svg width={18} height={18} viewBox="0 0 18 18">
-          <Path d="M11.5 3.5L6 9l5.5 5.5" stroke={testo.forte} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      </Superficie>
-    </Squish>
-  );
-}
-
-export function Borsellino({ monete }: { monete: number }) {
-  return (
-    <Superficie materiale="noce" raggio={20} livello={3} style={styles.borsellino} accessibilityLabel={`${numero(monete)} monete`}>
-      <Moneta misura={24} />
-      <Text style={styles.monete}>{numero(monete)}</Text>
-    </Superficie>
-  );
-}
-
 export function Schede<T extends string>({ valori, valore, onCambia, etichetta }: { valori: { valore: T; etichetta: string }[]; valore: T; onCambia: (v: T) => void; etichetta: string }) {
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={etichetta} style={styles.schede}>
@@ -154,9 +120,6 @@ const styles = StyleSheet.create({
   riga: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   azione: { minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 4 },
   azioneTesto: { fontFamily: fontArte.soraSemi, fontSize: 14, lineHeight: 18, color: accento.oro, textDecorationLine: 'underline' },
-  tondo: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  borsellino: { height: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 8, paddingRight: 14 },
-  monete: { fontFamily: fontArte.soraBold, fontSize: 16, lineHeight: 20, color: testo.forte, fontVariant: ['tabular-nums'] },
   schede: {
     flexDirection: 'row',
     gap: 4,

@@ -12,7 +12,7 @@
 // Movimento: la luce si accende all'apertura (§5.9), lo scambio dei pezzi è una dissolvenza incrociata da 280 ms,
 // «Usa» posa il pezzo e timbra il sigillo «In uso» (§5.10). Si anima solo il pezzo provato per ultimo, secondo la
 // sua rarità (≤ 4 elementi), fermo con riduci movimento e quando la schermata non è a fuoco.
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -23,7 +23,7 @@ import { dayOf } from '@/meta/economy';
 import { buyItem, chooseAvatar, equip, useProfile } from '@/meta/profile';
 import { priceOf, todayOffer } from '@/meta/shop';
 import { useSettings } from '@/state/settings';
-import { Moneta } from '@/ui/arte/Ricompensa';
+import { ContatoreMonete, Testata, TESTATA } from '@/ui/arte/Testata';
 import { Sala } from '@/ui/arte/materiali';
 import { dur } from '@/ui/arte/movimento';
 import { fontArte, testo, tipografia } from '@/ui/arte/token';
@@ -32,8 +32,7 @@ import { altezzaCasella, GrigliaOggetti } from '@/ui/camerino/GrigliaOggetti';
 import { daComprare, fonteBreve, NOME_POSTO, ordina, POSTI, postoDa, provabile, statoOggetto, type Posto, type Prova } from '@/ui/camerino/logica';
 import { Palco } from '@/ui/camerino/Palco';
 import { sfx } from '@/ui/feedback';
-import { BackButton, Squish } from '@/ui/kit';
-import { CountUp } from '@/ui/meta';
+import { Squish } from '@/ui/kit';
 import { Text } from '@/ui/Text';
 
 const n = (x: number) => x.toLocaleString('it-IT');
@@ -188,7 +187,7 @@ export default function Personalizza() {
   /* ---------------- impaginazione: tutte misure fisse, dallo schermo */
   const largo = width >= 900;
   const pad = 16;
-  const testa = 52;
+  const testa = TESTATA.altezza;
   const colonna = colW;
   const palcoW = largo ? Math.min(width - colonna - pad * 4, 700) : Math.min(width, 620) - pad * 2;
   const disponibile = height - ins.top - ins.bottom - testa;
@@ -224,19 +223,13 @@ export default function Personalizza() {
       <Sala accendi luce={largo ? { cx: 0.3, cy: 0.42, r: 0.6 } : { cx: 0.5, cy: 0.24, r: 0.9 }} />
       <View style={{ paddingTop: ins.top, flex: 1 }}>
         {/* la testata: indietro, il titolo, le monete */}
-        <View style={[styles.testa, { height: testa, paddingHorizontal: pad }]}>
-          <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
-          <View style={styles.titoli}>
-            <Text style={tipografia.occhiello}>PERSONALIZZA</Text>
-            <Text style={styles.titolo} accessibilityRole="header">
-              Il tuo tavolo
-            </Text>
-          </View>
-          <View style={styles.monete} accessibilityLabel={`${coins} monete`} testID="fisso-monete">
-            <Moneta misura={20} />
-            <CountUp value={coins} style={styles.moneteTesto} />
-          </View>
-        </View>
+        {/* la testata comune (arte/Testata): «indietro» e monete nello stesso posto in tutte le schermate di vetrina */}
+        <Testata destra={<ContatoreMonete monete={coins} testID="fisso-monete" />}>
+          <Text style={tipografia.occhiello}>PERSONALIZZA</Text>
+          <Text style={styles.titolo} accessibilityRole="header" numberOfLines={1}>
+            Il tuo tavolo
+          </Text>
+        </Testata>
 
         {largo ? (
           <View style={[styles.due, { paddingHorizontal: pad, gap: pad * 2 }]}>
@@ -270,22 +263,7 @@ export default function Personalizza() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#140C0E' },
-  testa: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  titoli: { flex: 1 },
   titolo: { fontFamily: fontArte.bodoni, fontSize: 22, lineHeight: 27, color: testo.forte },
-  monete: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingLeft: 8,
-    paddingRight: 12,
-    borderRadius: 18,
-    backgroundColor: 'rgba(30,19,22,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(230,195,106,0.3)',
-  },
-  moneteTesto: { fontFamily: fontArte.soraBold, fontSize: 15, color: testo.forte, fontVariant: ['tabular-nums'], minWidth: 44, textAlign: 'right' },
   due: { flex: 1, flexDirection: 'row', paddingTop: 8, width: '100%', maxWidth: 1280, alignSelf: 'center' },
   sinistra: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   piedeLargo: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(230,195,106,0.25)', paddingTop: 4 },

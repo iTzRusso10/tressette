@@ -17,23 +17,20 @@
 // - `riscuotiTutto(ids, strato, { insets?, riduci?, ripiego? })`  le buste una dopo l'altra (scaglioneTutto: 120 ms,
 //                            meno se sono tante, perché l'ultima moneta arrivi entro 1,2 s); il suono una volta.
 //                            Oltre 7 buste le ultime si riscuotono insieme con un solo volo (budget di animazione).
-// - `ContatoreMonete`        { strato, testID?, style? } il contatore della bacheca: mostra le monete meno quelle
-//                            ancora in volo e conta quando arrivano (160 ms). Con riduci movimento non conta: il
-//                            numero nuovo arriva con una dissolvenza.
+// - `ContatoreMonete`        { strato, testID?, style? } il contatore della bacheca: ContatoreMonete di arte/Testata
+//                            con le monete meno quelle ancora in volo; conta quando arrivano (160 ms). Con riduci
+//                            movimento non conta: il numero nuovo arriva con una dissolvenza.
 // - `contatoreHub(monete, insets)`  dove sta la moneta della pillola nell'hub (dalle misure di Hub.tsx)
 //
 // Budget: per busta 5 monete animate per 680 ms, poi lo strato si svuota da solo; al massimo 7 voli insieme.
 // Nessuna animazione ambientale. Niente Math.random: i voli usano seeded() dentro MoneteInVolo.
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentRef, type ReactNode } from 'react';
 import { Dimensions, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import type { EdgeInsets } from 'react-native-safe-area-context';
 import { claim, useProfile } from '@/meta/profile';
 import { sfx } from '../feedback';
-import { Text } from '../Text';
-import { Moneta, MoneteInVolo } from '../arte/Ricompensa';
-import { useRiduciMovimento } from '../arte/useAmbient';
-import { tipografia } from '../arte/token';
+import { MoneteInVolo } from '../arte/Ricompensa';
+import { ContatoreMonete as ContatoreArte } from '../arte/Testata';
 import { fineVolo, misuraMoneta, quanteMonete, scaglioneTutto, VOLO } from './dati';
 
 export type Strato = 'hub' | 'bacheca';
@@ -332,60 +329,11 @@ const UnVolo = memo(function UnVolo({ v, ox, oy }: { v: Volo; ox: number; oy: nu
 
 /* ------------------------------------------------------------------ il contatore della bacheca */
 
-const CONTA = 160;
-
+/** Il contatore della bacheca: ContatoreMonete di arte (lo stesso del profilo, di personalizza e dell'arena) con il
+ *  numero che non conta le monete ancora in volo; i voli lo trovano registrato per strato. */
 export function ContatoreMonete({ strato, testID, style }: { strato: Strato; testID?: string; style?: StyleProp<ViewStyle> }) {
   useSyncExternalStore(iscrivi, leggi, leggi);
   const monete = useProfile(s => s.coins);
-  const riduci = useRiduciMovimento();
-  const meta = monete - inVolo[strato];
-  const [mostrate, setMostrate] = useState(meta);
-  const [da, setDa] = useState(meta);
-  const velo = useSharedValue(1);
-  // Il valore da raggiungere è cambiato: si parte da quello mostrato adesso.
-  if (meta !== da) setDa(meta);
-  useEffect(() => {
-    const inizio = mostrate;
-    if (da === inizio) return;
-    if (riduci) {
-      // Niente conteggio: il numero nuovo arriva con una dissolvenza (non è movimento).
-      velo.value = withSequence(withTiming(0.2, { duration: 0, reduceMotion: ReduceMotion.Never }), withTiming(1, { duration: 280, reduceMotion: ReduceMotion.Never }));
-      const id = setTimeout(() => setMostrate(da), 0);
-      return () => clearTimeout(id);
-    }
-    const passi = 5;
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setMostrate(Math.round(inizio + ((da - inizio) * i) / passi));
-      if (i >= passi) clearInterval(id);
-    }, CONTA / passi);
-    return () => clearInterval(id);
-    // Si riparte solo quando cambia il traguardo (mostrate cambia a ogni passo).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [da, riduci, velo]);
-  const st = useAnimatedStyle(() => ({ opacity: velo.value }));
-  return (
-    <View
-      ref={v => registraContatore(strato, v)}
-      collapsable={false}
-      testID={testID}
-      style={[styles.contatore, style]}
-      accessibilityRole="text"
-      accessibilityLabel={`${monete.toLocaleString('it-IT')} monete`}
-      accessibilityLiveRegion="polite"
-    >
-      <Moneta misura={24} />
-      <Animated.View style={st}>
-        <Text style={[tipografia.numero, styles.numero]} testID="contatore-monete">
-          {mostrate.toLocaleString('it-IT')}
-        </Text>
-      </Animated.View>
-    </View>
-  );
+  return <ContatoreArte monete={monete - inVolo[strato]} etichetta={monete} vistaRef={v => registraContatore(strato, v)} testID={testID} style={style} />;
 }
 
-const styles = StyleSheet.create({
-  contatore: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, paddingLeft: 8, paddingRight: 14, borderRadius: 20, backgroundColor: 'rgba(8,3,4,0.5)', borderWidth: 1, borderColor: 'rgba(230,195,106,0.35)' },
-  numero: { fontSize: 17, lineHeight: 22, minWidth: 54 },
-});

@@ -49,6 +49,8 @@
 // Parallasse.tsx    Parallasse, Piano, sporgenzaPiano, useScorrimento
 // Pulsante.tsx      Pulsante, PulsanteProps, TipoPulsante   principale | secondario | terziario | pericolo
 // Ricompensa.tsx    Moneta, MoneteInVolo, Teca
+// Testata.tsx       Testata, TESTATA, Indietro, ContatoreMonete   la testata comune delle schermate di vetrina:
+//                   un solo «indietro» e un solo contatore di monete, stessa posizione e misura (aggiunto dopo C)
 //
 // Rotte e file riservati agli altri pacchetti: arene.ts (B1), cornici.ts e oggetti.ts (B3) vanno in questa
 // cartella ma non li crea B0. Pagina di controllo: /dev/arte. Foto: node scripts/foto-lib.mjs arte.
@@ -66,3 +68,4 @@ export * from './Scintille';
 export * from './Parallasse';
 export * from './Pulsante';
 export * from './Ricompensa';
+export * from './Testata';

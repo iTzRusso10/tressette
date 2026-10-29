@@ -7,9 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { GameId } from '@/engine';
 import { useProfile } from '@/meta/profile';
 import { duelsWith, publicProfile, removeFriend, sendFriendRequest, type PublicView, type RequestResult } from '@/meta/social';
-import { accento, fondo, fontArte, Pulsante, Sala, testo } from '@/ui/arte';
+import { accento, fondo, fontArte, Indietro, Pulsante, Sala, testo } from '@/ui/arte';
 import { sfx } from '@/ui/feedback';
-import { Indietro } from '@/ui/profilo/comuni';
 import { ProfiloAltro, type Duello } from '@/ui/profilo/ProfiloAltro';
 import { Text } from '@/ui/Text';
 

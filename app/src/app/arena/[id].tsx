@@ -7,23 +7,20 @@
 // frase, i cinque sigilli dei capitoli (pieni quelli raggiunti). Con riduci movimento: niente vita, niente
 // parallasse, la scena ferma. Un'arena non ancora raggiunta si vede con le «luci spente».
 import { LinearGradient } from 'expo-linear-gradient';
-import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
+import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import { ARENAS } from '@/meta/arenas';
 import { roman } from '@/meta/levels';
 import { useProfile } from '@/meta/profile';
-import { Filetto, useRiduciMovimento } from '@/ui/arte';
+import { ContatoreMonete, Filetto, Testata, useRiduciMovimento } from '@/ui/arte';
 import { siEsplora } from '@/ui/arte/arene';
 import { misuraNome, SigilliCapitoli } from '@/ui/arene/club/Sigilli';
 import { ease } from '@/ui/arte/movimento';
 import { fontArte, testo, tipografia } from '@/ui/arte/token';
 import { ArenaScene } from '@/ui/ArenaScene';
-import { sfx } from '@/ui/feedback';
-import { Squish } from '@/ui/kit';
 import { Text } from '@/ui/Text';
 
 export default function Esplora() {
@@ -40,6 +37,7 @@ function EsploraArena({ id }: { id: string }) {
   const arena = ARENAS.find(a => a.id === id) ?? ARENAS[0];
   const mia = useProfile(s => s.meta.arena);
   const eq = useProfile(s => s.equipped);
+  const monete = useProfile(s => s.coins);
   const raggiunta = mia >= arena.index;
   const capRaggiunto = ARENAS[Math.max(0, mia)]?.chapter.n ?? 1;
   const riduci = useRiduciMovimento();
@@ -73,24 +71,8 @@ function EsploraArena({ id }: { id: string }) {
           />
         </View>
       </GestureDetector>
-      <View style={[styles.su, { top: ins.top + 12 }]}>
-        <Squish
-          accessibilityRole="button"
-          accessibilityLabel="Indietro"
-          hitSlop={10}
-          scaleTo={0.9}
-          onPress={() => {
-            sfx('tick');
-            if (router.canGoBack()) router.back();
-            else router.replace('/');
-          }}
-          style={styles.indietro}
-        >
-          <Svg width={18} height={18} viewBox="0 0 18 18">
-            <Path d="M11.5 3.5L6 9l5.5 5.5" stroke={testo.forte} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </Squish>
-      </View>
+      {/* la testata comune (arte/Testata): «indietro» e monete nello stesso posto in tutte le schermate di vetrina */}
+      <Testata assoluta destra={<ContatoreMonete monete={monete} testID="fisso-monete" />} />
       <View pointerEvents="none" style={[styles.giu, { paddingBottom: ins.bottom + 22 }]}>
         <LinearGradient colors={['rgba(8,3,4,0)', 'rgba(8,3,4,0.78)', 'rgba(8,3,4,0.92)']} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
         <Animated.View entering={FadeIn.duration(riduci ? 180 : 420)} style={{ width: colonna, alignItems: 'center', gap: 8 }} testID="fisso-nome">
@@ -110,18 +92,6 @@ function EsploraArena({ id }: { id: string }) {
 
 const styles = StyleSheet.create({
   pagina: { flex: 1, backgroundColor: '#080304' },
-  su: { position: 'absolute', left: 16 },
-  indietro: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(20,12,14,0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(230,195,106,0.45)',
-    boxShadow: '0px 2px 3px rgba(8,3,4,0.5), 5px 14px 22px rgba(8,3,4,0.45)',
-  },
   giu: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingTop: 80 },
   centro: { textAlign: 'center' },
   ombraTesto: { textShadowColor: 'rgba(8,3,4,0.8)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
