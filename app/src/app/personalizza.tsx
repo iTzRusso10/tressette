@@ -117,7 +117,7 @@ export default function Personalizza() {
 
   const conti = daComprare(prova, owned, offerta);
   const riepilogo = !differisce
-    ? 'Il tuo tavolo, come lo vedono gli altri.'
+    ? 'Il tuo tavolo, come lo vedi in partita.'
     : conti.items.length
       ? `${conti.items.length === 1 ? '1 pezzo da comprare' : `${conti.items.length} pezzi da comprare`} · ${n(conti.totale)} monete${conti.daVincere.length ? ` · ${conti.daVincere.length} da vincere` : ''}`
       : conti.daVincere.length
