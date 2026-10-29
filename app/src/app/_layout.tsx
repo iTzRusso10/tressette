@@ -1,3 +1,8 @@
+// Bodoni Moda per i titoli di «Lampara» (src/ui/arte): solo i tre pesi usati, dai sottopercorsi, così nell'app
+// non finiscono gli altri nove file del pacchetto.
+import { BodoniModa_600SemiBold } from '@expo-google-fonts/bodoni-moda/600SemiBold';
+import { BodoniModa_700Bold } from '@expo-google-fonts/bodoni-moda/700Bold';
+import { BodoniModa_800ExtraBold } from '@expo-google-fonts/bodoni-moda/800ExtraBold';
 import { Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -38,6 +43,9 @@ export default function RootLayout() {
     Sora_600SemiBold,
     Sora_700Bold,
     Sora_800ExtraBold,
+    BodoniModa_600SemiBold,
+    BodoniModa_700Bold,
+    BodoniModa_800ExtraBold,
   });
   const ready = loaded || !!error;
 
