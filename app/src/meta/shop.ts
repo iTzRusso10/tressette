@@ -20,11 +20,20 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-/** L'offerta di oggi (`day` AAAA-MM-GG): un oggetto in vendita che non hai ancora. */
+/**
+ * L'offerta di oggi (`day` AAAA-MM-GG): un oggetto in vendita che non hai ancora. Il giorno sceglie un
+ * posto nel catalogo e si prende il primo oggetto da lì in poi che non hai: comprare altro non cambia
+ * l'offerta (prima cambiava a ogni acquisto).
+ */
 export function offerOf(day: string, owned: readonly string[], items: readonly Item[]): Item | null {
-  const pool = items.filter(i => buyable(i) && !owned.includes(keyOf(i)));
+  const pool = items.filter(buyable);
   if (!pool.length) return null;
-  return pool[hash(day) % pool.length];
+  const start = hash(day) % pool.length;
+  for (let k = 0; k < pool.length; k++) {
+    const i = pool[(start + k) % pool.length];
+    if (!owned.includes(keyOf(i))) return i;
+  }
+  return null;
 }
 
 export function priceOf(item: Item, day: string, owned: readonly string[], items: readonly Item[]): number | null {

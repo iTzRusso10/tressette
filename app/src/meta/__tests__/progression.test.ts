@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../achievements';
 import { ARENAS, CHAPTERS, reachedArena, trophyDelta } from '../arenas';
 import { BACKS, FELTS, ITEMS, itemByKey, keyOf, migrateCosmetics, NAPOLI_BACKS, NAPOLI_FELTS, TABLES } from '../catalog';
-import { applyHand, applyMatch, buyItem, claimDaily, equipItem, newProgress, normalize, selectTitle, touch, type Progress } from '../ledger';
+import { activeMissions, applyHand, applyMatch, buyItem, claimDaily, equipItem, newProgress, normalize, selectTitle, touch, type Progress } from '../ledger';
 import { levelInfo, xpForLevel, XP_MAX_LEVEL } from '../levels';
 import { MISSIONS, missionsFor, weekOf } from '../missions';
 import { cleanHand, type MatchRecord } from '../progress';
@@ -10,6 +10,7 @@ import { RARITIES } from '../rarity';
 import { reqText } from '../reqs';
 import { seasonAt, SEASONS, seasonWindow } from '../seasons';
 import { SETS, setParts } from '../sets';
+import { offerOf } from '../shop';
 import { sourcesOf } from '../sources';
 import { TITLES } from '../titles';
 
@@ -303,5 +304,71 @@ describe('server', () => {
     const sql = readFileSync(new URL('../../../supabase/migrations/20261028000000_progressione_lunga.sql', import.meta.url), 'utf8');
     const rows = [...sql.matchAll(/\('([a-z-]+)', (\d+), '[^']+', '(\d{4}-\d\d-\d\d)', '(\d{4}-\d\d-\d\d)'\)/g)].map(m => [m[1], Number(m[2]), m[3], m[4]]);
     expect(rows).toEqual(SEASONS.map(s => [s.id, s.n, seasonWindow(s).start, seasonWindow(s).end]));
+  });
+});
+
+describe('correzioni di fine ottobre', () => {
+  it('la cornice in uso resta dopo un salvataggio (e dopo il server)', () => {
+    let p = newProgress('s');
+    p.coins = 5000;
+    const r = buyItem(p, 'frame', 'oro-sottile', DAY);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    p = equipItem(r.p, 'frame', 'oro-sottile')!;
+    const back = normalize(JSON.parse(JSON.stringify(p)), 'altro');
+    expect(back.equipped.frame).toBe('oro-sottile');
+    expect(migrateCosmetics(p.owned, p.equipped).equipped.frame).toBe('oro-sottile');
+  });
+
+  it('una cornice non posseduta non resta in uso', () => {
+    const p = newProgress('s');
+    expect(normalize({ ...JSON.parse(JSON.stringify(p)), equipped: { ...p.equipped, frame: 'oro-sottile' } }, 's').equipped.frame).toBe('semplice');
+  });
+
+  it("l'offerta del giorno non cambia se compri altro", () => {
+    const owned: string[] = [];
+    const first = offerOf(DAY, owned, ITEMS)!;
+    const other = ITEMS.find(i => i.shop && i.status === 'ready' && i.price > 0 && keyOf(i) !== keyOf(first))!;
+    expect(keyOf(offerOf(DAY, [keyOf(other)], ITEMS)!)).toBe(keyOf(first));
+    expect(keyOf(offerOf(DAY, [keyOf(first)], ITEMS)!)).not.toBe(keyOf(first));
+  });
+});
+
+describe('missioni e giorni', () => {
+  it('cambiare una missione lascia le altre al loro posto', () => {
+    for (let i = 0; i < 50; i++) {
+      const base = missionsFor('daily', DAY, `seme${i}`, false);
+      const swapped = missionsFor('daily', DAY, `seme${i}`, false, [base[1].id]);
+      expect(swapped[0].id).toBe(base[0].id);
+      expect(swapped[2].id).toBe(base[2].id);
+      expect(swapped[1].id).not.toBe(base[1].id);
+      expect(new Set(swapped.map(m => m.id)).size).toBe(swapped.length);
+    }
+  });
+
+  it('la prima partita online non cambia le missioni del giorno e della settimana', () => {
+    let p = touch(newProgress('s'), DAY).p;
+    const before = activeMissions(p, DAY).map(m => m.key);
+    p = applyMatch(p, { id: 'on1', game: 'scopa', mode: '2', level: 'medio', online: true, won: true, opp: ['00000000-0000-4000-8000-000000000002'] }, DAY, Date.now()).p;
+    expect(activeMissions(p, DAY).map(m => m.key)).toEqual(before);
+  });
+
+  it('il bonus e la prima vittoria non si ripagano tornando a un giorno passato', () => {
+    let p = newProgress('s');
+    p = claimDaily(p, '2026-10-30', false)!.p;
+    expect(claimDaily(p, '2026-10-29', false)).toBeNull();
+    const win = (id: string, day: string) => applyMatch(p, { id, game: 'briscola', mode: '2', level: 'facile', online: false, won: true }, day, Date.now());
+    p = win('a', '2026-10-30').p;
+    const back = win('b', '2026-10-29');
+    expect(back.gains.some(g => g.k === 'coins' && g.why === 'Prima vittoria del giorno')).toBe(false);
+  });
+
+  it('la prestagione si chiude quando comincia la prima stagione', () => {
+    let p = newProgress('s');
+    p.meta.ratings.tressette = { r: 1375, n: 15, peak: 1400 };
+    p = touch(p, '2026-11-02').p;
+    expect(p.meta.ratingSeason).not.toBeNull();
+    expect(p.meta.ratings.tressette.n).toBe(0);
+    expect(p.meta.leagueHistory.some(l => l.season === 'preseason' && l.game === 'tressette')).toBe(true);
   });
 });

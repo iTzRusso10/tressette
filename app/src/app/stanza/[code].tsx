@@ -63,7 +63,7 @@ function InviteFriends({ code, game, mode, invited }: { code: string; game: Game
 /** The room before the match: the code to share, who is in, and the start. Also opened from an invite link. */
 export default function Stanza() {
   const { code, invited } = useLocalSearchParams<{ code: string; invited?: string }>();
-  const { role, lobby, online, hostOnline, closed, status, me } = useOnline();
+  const { role, lobby, online, hostOnline, closed, status, me, refused } = useOnline();
   const name = useSettings(s => s.name);
   const coins = useProfile(s => s.coins);
   const setName = useSettings(s => s.set);
@@ -130,9 +130,9 @@ export default function Stanza() {
             accessibilityLabel="Il tuo nome"
           />
           <Button label={joining ? 'Mi collego…' : 'Entra nella stanza'} onPress={join} disabled={joining || !name.trim()} style={{ marginTop: space.l }} />
-          {error ? (
+          {error || refused ? (
             <Text v="small" style={{ color: colors.coral, marginTop: space.s }}>
-              {error}
+              {error ?? refused}
             </Text>
           ) : null}
         </ScrollView>
@@ -209,7 +209,7 @@ export default function Stanza() {
         ) : null}
 
         {role === 'host' ? (
-          <Button label="Inizia la partita" onPress={hostStart} disabled={status !== 'online'} style={{ marginTop: space.xl }} />
+          <Button label="Inizia la partita" onPress={hostStart} disabled={status !== 'online' || !!lobby?.started} style={{ marginTop: space.xl }} />
         ) : cfg?.stake && coins < cfg.stake ? (
           <Text v="lead" style={{ marginTop: space.xl, textAlign: 'center' }}>
             Per questa stanza servono {cfg.stake.toLocaleString('it-IT')} monete e ne hai {coins.toLocaleString('it-IT')}. Puoi giocare, ma senza posta.

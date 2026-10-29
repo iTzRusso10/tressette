@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/domUtils.js b/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/domUtils.js
+index b035eaf..2fb5e4d 100644
+--- a/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/domUtils.js
++++ b/node_modules/react-native-reanimated/lib/module/layoutReanimation/web/domUtils.js
+@@ -104,7 +104,8 @@ function reattachElementToAncestor(child, parent) {
+   setElementPosition(child, childSnapshot);
+   const originalOnAnimationEnd = child.onanimationend;
+   child.onanimationend = function (event) {
+-    parent.removeChild(child);
++    // The end of the animation can fire more than once (nested animations): remove only once.
++    if (child.parentNode === parent) parent.removeChild(child);
+ 
+     // Given that this function overrides onAnimationEnd, it won't be null
+     originalOnAnimationEnd?.call(this, event);
+diff --git a/node_modules/react-native-reanimated/src/layoutReanimation/web/domUtils.ts b/node_modules/react-native-reanimated/src/layoutReanimation/web/domUtils.ts
+index 5c97018..6ad9a19 100644
+--- a/node_modules/react-native-reanimated/src/layoutReanimation/web/domUtils.ts
++++ b/node_modules/react-native-reanimated/src/layoutReanimation/web/domUtils.ts
+@@ -157,7 +157,8 @@ function reattachElementToAncestor(child: ReanimatedHTMLElement, parent: Node) {
+   const originalOnAnimationEnd = child.onanimationend;
+ 
+   child.onanimationend = function (event: AnimationEvent) {
+-    parent.removeChild(child);
++    // The end of the animation can fire more than once (nested animations): remove only once.
++    if (child.parentNode === parent) parent.removeChild(child);
+ 
+     // Given that this function overrides onAnimationEnd, it won't be null
+     originalOnAnimationEnd?.call(this, event);

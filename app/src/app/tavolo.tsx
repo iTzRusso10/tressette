@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GAMES, type Match } from '@/engine';
@@ -40,7 +40,11 @@ export default function Tavolo() {
   const closed = useOnline(s => s.closed);
   const hostOnline = useOnline(s => s.hostOnline);
   const role = netRole();
+  // Solo all'apertura del tavolo: dopo «Esci» la partita è finita e non va ripresa quella salvata prima.
+  const opened = useRef(false);
   useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
     if (m || role === 'guest') return;
     loadSaved().then(saved => {
       if (saved) resumeMatch(saved);

@@ -19,6 +19,7 @@ import {
   claimDaily,
   claimReward,
   equipItem,
+  LEDGER_VERSION,
   normalize,
   publicOf,
   refill,
@@ -122,7 +123,10 @@ function importDevice(server: Progress, raw: unknown): Progress {
   const dev = normalize((raw ?? {}) as never, server.meta.seed);
   const stats = normalizeStats(Object.fromEntries(Object.entries(dev.stats).map(([k, v]) => [k, typeof v === 'number' ? Math.min(IMPORT_MAX.stat, v) : v])));
   stats.byGame = Object.fromEntries(
-    Object.entries(dev.stats.byGame).map(([g, s]) => [g, { played: Math.min(IMPORT_MAX.stat, s.played), won: Math.min(IMPORT_MAX.stat, s.won), expert: Math.min(IMPORT_MAX.stat, s.expert) }]),
+    Object.entries(dev.stats.byGame).map(([g, s]) => [
+      g,
+      { played: Math.min(IMPORT_MAX.stat, s.played), won: Math.min(IMPORT_MAX.stat, s.won), expert: Math.min(IMPORT_MAX.stat, s.expert), streak: Math.min(IMPORT_MAX.stat, s.streak ?? 0), best: Math.min(IMPORT_MAX.stat, s.best ?? 0) },
+    ]),
   ) as Progress['stats']['byGame'];
   const p: Progress = {
     ...server,
@@ -132,20 +136,43 @@ function importDevice(server: Progress, raw: unknown): Progress {
     cups: Math.max(server.cups, Math.min(IMPORT_MAX.cups, dev.cups)),
     bestCups: Math.max(server.bestCups, Math.min(IMPORT_MAX.cups, dev.bestCups)),
     bonus: dev.bonus.lastDay ? dev.bonus : server.bonus,
-    meta: { ...server.meta, title: dev.meta.title, avatar: dev.meta.avatar, missions: dev.meta.missions, lastEquip: dev.meta.lastEquip },
+    // Il seme delle missioni è quello del telefono: le missioni in corso restano le stesse, con i loro progressi.
+    // Le ricompense ancora da riscuotere vengono con te (solo quelle delle missioni: le altre le ridà il server).
+    meta: {
+      ...server.meta,
+      seed: dev.meta.seed,
+      title: dev.meta.title,
+      avatar: dev.meta.avatar,
+      missions: dev.meta.missions,
+      lastEquip: dev.meta.lastEquip,
+      claims: [
+        ...server.meta.claims,
+        ...dev.meta.claims
+          .filter(c => c.id.startsWith('m:') && dev.meta.missions.done.includes(c.id.slice(2)) && !server.meta.claims.some(x => x.id === c.id))
+          .slice(0, 7)
+          .map(c => ({ id: c.id, why: c.why, coins: Math.min(c.coins ?? 0, 500), xp: Math.min(c.xp ?? 0, 500) })),
+      ],
+      claimed: [...new Set([...server.meta.claimed, ...dev.meta.claimed])].slice(-300),
+    },
   };
   p.bestCups = Math.max(p.bestCups, p.cups);
-  // Achievement: solo quelli che le statistiche portate confermano.
-  p.achievements = Object.fromEntries(Object.entries({ ...dev.achievements, ...server.achievements }).filter(([id]) => ACHIEVEMENTS.some(a => a.id === id && reqMet(a.req, p))));
   // Oggetti: quelli che si comprano, più quelli già vinti con ricompense confermate (arene, achievement: li riassegna settle).
   p.owned = [...new Set([...STARTER_KEYS, ...server.owned, ...dev.owned.filter(k => itemByKey(k) && buyable(itemByKey(k)!))])];
   p.meta.arena = reachedArena(p);
   const li = levelInfo(p.xp);
   p.meta.paid = { level: li.level, prestige: li.prestige, legend: legendOf(p.bestCups), arena: p.meta.arena };
-  p.meta.sets = completedSets(p.owned).map(s => s.id);
   // Gli oggetti delle arene e degli achievement già raggiunti si danno senza ripagare le monete.
   for (const a of ARENAS.slice(0, p.meta.arena + 1)) for (const k of a.reward.items ?? []) if (!p.owned.includes(k)) p.owned.push(k);
+  // Achievement: solo quelli che i progressi portati confermano (dopo arene, oggetti e set, che alcuni contano).
+  // Due passate: un achievement può contare gli altri achievement.
+  p.meta.sets = completedSets(p.owned).map(s => s.id);
+  p.achievements = { ...server.achievements };
+  const all = { ...dev.achievements, ...server.achievements };
+  for (let pass = 0; pass < 2; pass++)
+    for (const [id, t] of Object.entries(all)) if (!p.achievements[id] && ACHIEVEMENTS.some(a => a.id === id && reqMet(a.req, p))) p.achievements[id] = t;
   for (const a of ACHIEVEMENTS) if (p.achievements[a.id]) for (const k of a.items ?? []) if (!p.owned.includes(k)) p.owned.push(k);
+  // I set completati con gli oggetti di prima sono già pagati.
+  p.meta.sets = completedSets(p.owned).map(s => s.id);
   for (const s of SLOTS) {
     const id = dev.equipped[s];
     const e = equipItem(p, s, id);
@@ -310,7 +337,7 @@ Deno.serve(async req => {
         await admin.from('weekly_scores').upsert({ user_id: uid, game, week: w.week, perf, games: w.n, wins: w.w, updated_at: now });
       }
     }
-    return json({ profile: saved, level: levelInfo(p.xp), delta, ...(refused ? { refused } : {}) });
+    return json({ profile: saved, ledger: LEDGER_VERSION, level: levelInfo(p.xp), delta, ...(refused ? { refused } : {}) });
   }
   return json({ error: 'Troppe richieste insieme, riprova' }, 409);
 });

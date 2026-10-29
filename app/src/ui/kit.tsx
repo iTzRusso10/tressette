@@ -232,7 +232,7 @@ export function Toggle({ label, sub, value, onChange }: { label: string; sub?: s
   );
 }
 
-export function Section({ title, children, note }: { title: string; children: ReactNode; note?: string }) {
+export function Section({ title, children, note }: { title: string; children?: ReactNode; note?: string }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>

@@ -149,18 +149,24 @@ function hash(s: string): number {
 
 /**
  * Le missioni di un periodo: `count` diverse, scelte dal seme del giocatore e dal periodo. Quelle in
- * `skip` (cambiate dal giocatore) non escono: al loro posto ne esce un'altra.
+ * `skip` (cambiate dal giocatore) non escono: al loro posto, nello stesso posto, esce la prossima della
+ * fila. Le altre restano le stesse (prima cambiare una missione le rimescolava tutte).
  */
 export function missionsFor(period: Period, key: string, seed: string, canOnline: boolean, skip: readonly string[] = []): MissionDef[] {
-  const pool = MISSIONS.filter(m => m.period === period && (!m.online || canOnline) && !skip.includes(m.id));
+  const pool = MISSIONS.filter(m => m.period === period && (!m.online || canOnline));
   const count = period === 'daily' ? BALANCE.missions.daily : BALANCE.missions.weekly;
-  const picked: MissionDef[] = [];
+  // La fila completa, nell'ordine deciso dal seme e dal periodo.
+  const order: MissionDef[] = [];
   let h = hash(`${seed}|${key}`);
   const left = pool.slice();
-  while (picked.length < count && left.length) {
+  while (left.length) {
     const i = h % left.length;
-    picked.push(left.splice(i, 1)[0]);
+    order.push(left.splice(i, 1)[0]);
     h = hash(`${h}`);
   }
-  return picked;
+  const picked = order.slice(0, count);
+  const spare = order.slice(count).filter(m => !skip.includes(m.id));
+  return picked
+    .map(m => (skip.includes(m.id) ? spare.shift() : m))
+    .filter((m): m is MissionDef => !!m);
 }

@@ -695,6 +695,8 @@ export function migrateCosmetics(owned: readonly string[], equipped: Record<stri
   else if (oldFelt && LEGACY.felt[oldFelt]) eq.felt = LEGACY.felt[oldFelt].felt;
   if (equipped.back && itemOf('back', equipped.back)) eq.back = equipped.back;
   else if (equipped.back && LEGACY.back[equipped.back]) eq.back = LEGACY.back[equipped.back];
+  // La cornice non ha nomi vecchi da convertire: si tiene com'è (prima si perdeva a ogni salvataggio).
+  if (equipped.frame && itemOf('frame', equipped.frame)) eq.frame = equipped.frame;
   for (const s of SLOTS) if (!out.has(`${s}:${eq[s]}`)) eq[s] = DEFAULT_EQUIPPED[s];
   return { owned: [...out], equipped: eq };
 }

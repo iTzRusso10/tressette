@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSync } from '@/meta/sync';
 import { useSettings } from '@/state/settings';
 import { BackButton, Screen, Section, Toggle } from '@/ui/kit';
 import { Text } from '@/ui/Text';
@@ -6,6 +7,7 @@ import { colors, fonts, radius, space } from '@/ui/theme';
 
 export default function Settings() {
   const s = useSettings();
+  const outdated = useSync(x => x.outdated);
   return (
     <Screen>
       <View style={styles.top}>
@@ -54,6 +56,13 @@ export default function Settings() {
             />
           </View>
         </Section>
+
+        {outdated ? (
+          <Section
+            title="Progressi online"
+            note="Il server dei progressi ha regole più vecchie di questa versione dell'app: finché non viene aggiornato, i progressi nuovi restano su questo telefono."
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );

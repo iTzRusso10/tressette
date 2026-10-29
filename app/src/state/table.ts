@@ -140,6 +140,8 @@ export function setOnRematch(f: (room: HostRoom) => void) {
 
 /** A friend's move, waited for at their turn. */
 let remoteWait: { seat: number; resolve: (mv: Move) => void } | null = null;
+/** La mossa di un amico arrivata mentre qui scorrevano ancora le animazioni: si usa al suo turno. */
+const pendingRemote = new Map<number, Move>();
 /** When a friend's seat went offline: after a while the computer plays for them. */
 const offlineSince = new Map<number, number>();
 const OFFLINE_GRACE = 15000;
@@ -175,8 +177,8 @@ export function pushFx(kind: FxKind, text: string, opts: { sub?: string; p?: num
 
 async function save() {
   const m = get().match;
-  // Online, only the host keeps the match; a friend's copy can't be resumed on its own.
-  if (!m || net?.role === 'guest') return;
+  // Una partita online non si riprende da soli (gli amici non ci sarebbero più): si salvano solo quelle locali.
+  if (!m || net) return;
   try {
     await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(m));
   } catch {
@@ -208,18 +210,39 @@ export const teamLabel = (m: Match, t: number) => (m.mode === '4' ? [t, t + 2].m
 
 /* ------------------------------------------------------------------ flow */
 
+/** Una partita contro il computer: una stanza rimasta aperta (un ingresso fallito) non c'entra più. */
 export function startMatch(cfg: MatchConfig) {
+  dropNet();
+  beginMatch(cfg);
+}
+
+function beginMatch(cfg: MatchConfig) {
   gen++;
   cancelSfx();
+  maxDeficit = 0;
+  pendingRemote.clear();
   const m = createMatch(cfg);
   set({ ...initial, match: m });
   clearSave();
   newHand();
 }
 
+/** Lascia la stanza online, se ce n'è una, senza toccare il tavolo. */
+export function dropNet() {
+  const n = net;
+  net = null;
+  remoteWait = null;
+  pendingRemote.clear();
+  if (n?.role === 'host') n.room.close();
+  else if (n?.role === 'guest') n.room.leave();
+}
+
 export function resumeMatch(m: Match) {
+  dropNet();
   gen++;
   cancelSfx();
+  // Il distacco delle mani prima non è salvato: meglio nessuna rimonta che una rimonta finta.
+  maxDeficit = Infinity;
   set({ ...initial, ...show(m), summary: !!m.h?.over });
   if (!m.h?.over) loop(gen);
 }
@@ -229,6 +252,7 @@ export function quitMatch() {
   cancelSfx();
   humanResolve = null;
   remoteWait = null;
+  pendingRemote.clear();
   resumeWaiters.splice(0).forEach(r => r());
   set({ ...initial });
   const n = net;
@@ -247,12 +271,18 @@ export function startHostMatch(room: HostRoom) {
   room.onMove = (seat, mv) => {
     const w = remoteWait;
     const m = get().match;
-    if (!w || w.seat !== seat || !m || !isValidMove(m, seat, mv)) return;
+    if (!m) return;
+    if (!w || w.seat !== seat) {
+      // In anticipo (l'amico ha finito le animazioni prima di noi): la teniamo per il suo turno.
+      if (m.h && !m.h.over && m.h.turn === seat) pendingRemote.set(seat, mv);
+      return;
+    }
+    if (!isValidMove(m, seat, mv)) return;
     remoteWait = null;
     w.resolve(mv);
   };
   room.start();
-  startMatch(room.matchConfig());
+  beginMatch(room.matchConfig());
 }
 
 /** Online, as a friend: the host deals and decides, here we show what happens and send our moves. */
@@ -272,12 +302,17 @@ export function startGuest(room: GuestRoom) {
   };
   room.onSteps = steps =>
     enqueue(async () => {
+      if (room.seat < 0) return;
       if (steps[0]?.event.k === 'deal') set({ summary: false });
       await runSteps(steps, g);
     });
   room.onSync = m =>
     enqueue(async () => {
+      if (room.seat < 0) return;
+      const was = get().match;
       set({ ...show(m), event: null, summary: !!m.h?.over, viewer: room.seat });
+      // La fine della partita arrivata con un riallineamento: si conta lo stesso, una volta.
+      if (m.h?.over && m.finished && was && !was.finished) recordEnd(m);
     });
 }
 
@@ -313,15 +348,15 @@ export function rematch() {
     net.room.start();
     onRematch?.(net.room);
   }
-  const s = useSettings.getState();
-  startMatch({
+  // Le stesse regole della partita appena finita (anche online, anche se intanto cambi le impostazioni).
+  beginMatch({
     game: m.game,
     mode: m.mode,
     perdN: m.n === 2 ? 2 : 4,
     seats: m.seats,
     level: m.level,
     target: m.target,
-    accusi: s.accusi,
+    accusi: m.accusi,
     cappotto: m.cappotto,
   });
 }
@@ -472,26 +507,39 @@ async function present(st: Step, g: number) {
         perfect: m.game === 'scopa' && !!row && row.pCards === 1 && row.pDen === 1 && row.pSb === 1 && row.pPrim === 1,
         handWon,
       });
-      if (out) {
-        const won = out.winners.includes(myTeam);
-        const comebackAt = m.game === 'briscola' ? (m.target >= 2 ? 1 : Infinity) : Math.ceil(m.target * 0.4);
-        recordMatch({
-          game: m.game,
-          mode: m.mode,
-          level: m.level,
-          online: !!net,
-          won,
-          comeback: won && maxDeficit >= comebackAt,
-          shutout: won && !lower && (m.game !== 'briscola' || m.target >= 2) && rest.every(x => x === 0),
-          opp: opponentPeers(m, myTeam),
-        });
-      }
+      if (out) recordEnd(m);
       if (out && out.winners.includes(myTeam)) sfx('win');
       await save();
       set({ summary: true });
       return;
     }
   }
+}
+
+/** Una partita finita va nei tuoi progressi (una volta sola per partita). */
+let recorded: Match | null = null;
+function recordEnd(m: Match) {
+  const out = m.h?.result?.out;
+  if (!out || recorded === m) return;
+  recorded = m;
+  const me = get().viewer;
+  const myTeam = teamOf(m, me);
+  const lower = m.game === 'tressette' && m.mode === 'perdere';
+  const rest = m.match.filter((_, i) => i !== myTeam);
+  const won = out.winners.includes(myTeam);
+  const comebackAt = m.game === 'briscola' ? (m.target >= 2 ? 1 : Infinity) : Math.ceil(m.target * 0.4);
+  // Online vale solo con almeno un'altra persona al tavolo: una stanza con soli computer è una partita locale.
+  const people = net?.room.lobby?.seats.some((s, i) => i !== me && s.type !== 'cpu') ?? false;
+  recordMatch({
+    game: m.game,
+    mode: m.mode,
+    level: m.level,
+    online: people,
+    won,
+    comeback: won && maxDeficit !== Infinity && maxDeficit >= comebackAt,
+    shutout: won && !lower && (m.game !== 'briscola' || m.target >= 2) && rest.every(x => x === 0),
+    opp: people ? opponentPeers(m, myTeam) : [],
+  });
 }
 
 async function loop(g: number) {
@@ -536,6 +584,10 @@ async function loop(g: number) {
 
 /** Waits for a friend's move; if they stay offline, the computer plays their turn. */
 function awaitRemote(p: number, g: number): Promise<Move> {
+  const early = pendingRemote.get(p);
+  pendingRemote.delete(p);
+  const m0 = get().match;
+  if (early && m0 && isValidMove(m0, p, early)) return Promise.resolve(early);
   return new Promise(resolve => {
     remoteWait = { seat: p, resolve };
     const room = net?.role === 'host' ? net.room : null;

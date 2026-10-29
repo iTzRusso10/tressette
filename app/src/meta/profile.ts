@@ -57,6 +57,8 @@ interface ProfileState extends Progress {
   /** Non salvati: cosa aspetta di essere mostrato, e i trofei dell'ultima partita. */
   celebrations: Celebration[];
   lastMatch: LastMatch | null;
+  /** Le feste già viste (salvate): la stessa cosa non si festeggia due volte, qualunque cosa succeda. */
+  celebrated: string[];
 }
 
 let seq = 0;
@@ -79,6 +81,7 @@ export const useProfile = create<ProfileState>()(
       friendCode: null,
       celebrations: [],
       lastMatch: null,
+      celebrated: [],
     }),
     {
       name: 'napoletane.profilo.v1',
@@ -95,7 +98,8 @@ export const useProfile = create<ProfileState>()(
       merge: (saved, current) => {
         const s = (saved ?? {}) as Partial<ProfileState>;
         const p = normalize(s as Parameters<typeof normalize>[0], current.meta.seed);
-        return { ...current, ...s, ...p };
+        const celebrated = Array.isArray(s.celebrated) ? s.celebrated.filter(x => typeof x === 'string') : [];
+        return { ...current, ...s, ...p, celebrated };
       },
     },
   ),
@@ -139,9 +143,62 @@ function worthShowing(gains: Gain[]): Gain[] {
   return out;
 }
 
+/**
+ * Cosa identifica una festa: un achievement, un livello, una missione si festeggiano una volta sola.
+ * Le monete no (ogni vittoria è nuova). Così uno stato riportato indietro (dal server, da un'altra
+ * versione, da un salvataggio vecchio) non fa rivedere le stesse feste alla partita dopo.
+ */
+function celebrationKey(g: Gain, p: Progress): string | null {
+  switch (g.k) {
+    case 'achievement':
+      return `a:${g.id}`;
+    case 'level':
+      return `l:${g.level}`;
+    case 'prestige':
+      return `p:${g.n}`;
+    case 'legend':
+      return `g:${g.n}`;
+    case 'arena':
+      return `ar:${g.index}`;
+    case 'chapter':
+      return `c:${g.n}`;
+    case 'item':
+      return `i:${g.key}`;
+    case 'set':
+      return `s:${g.id}`;
+    case 'mission':
+      return `m:${g.key}`;
+    case 'seasonTier':
+      return `st:${g.season}:${g.index}`;
+    case 'eventTier':
+      return `et:${g.event}:${g.index}`;
+    case 'league':
+      return `lg:${p.meta.ratingSeason ?? 'pre'}:${g.game}:${g.league}`;
+    default:
+      return null;
+  }
+}
+
+/** Quante feste ricordare (le più vecchie, mesi fa, non tornano comunque). */
+const CELEBRATED_MAX = 1500;
+
 function adopt(p: Progress, gains: Gain[]) {
-  const show = worthShowing(gains).map(g => ({ ...g, cid: ++seq }) as Celebration);
-  set(s => ({ ...p, celebrations: s.celebrations.concat(show) }));
+  const seen = new Set(get().celebrated);
+  const fresh: string[] = [];
+  const news = gains.filter(g => {
+    const k = celebrationKey(g, p);
+    if (!k) return true;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    fresh.push(k);
+    return true;
+  });
+  const show = worthShowing(news).map(g => ({ ...g, cid: ++seq }) as Celebration);
+  set(s => ({
+    ...p,
+    celebrations: s.celebrations.concat(show),
+    celebrated: fresh.length ? s.celebrated.concat(fresh).slice(-CELEBRATED_MAX) : s.celebrated,
+  }));
 }
 
 export function dismissCelebration(cid: number) {
@@ -265,6 +322,38 @@ export function earn(n: number) {
   if (n > 0) set(s => ({ coins: s.coins + n }));
 }
 
-export function setAccount(a: Account | null) {
-  set({ account: a });
+/** I progressi da ospite, messi da parte all'accesso e ripresi quando esci dall'account. */
+const GUEST_KEY = 'napoletane.ospite.v1';
+
+function whenHydrated(): Promise<void> {
+  if (useProfile.persist.hasHydrated()) return Promise.resolve();
+  return new Promise(res => {
+    const off = useProfile.persist.onFinishHydration(() => {
+      off();
+      res();
+    });
+  });
+}
+
+/**
+ * Entrare in un account mette da parte i progressi da ospite; uscire li riprende (quelli dell'account
+ * restano sul server e tornano al prossimo accesso).
+ */
+export async function setAccount(a: Account | null) {
+  await whenHydrated();
+  const prev = get().account;
+  if (!prev && a) {
+    await AsyncStorage.setItem(GUEST_KEY, JSON.stringify(progressOf())).catch(() => {});
+    set({ account: a });
+  } else if (prev && !a) {
+    set({ account: null, friendCode: null });
+    const raw = await AsyncStorage.getItem(GUEST_KEY).catch(() => null);
+    let guest: Progress;
+    try {
+      guest = raw ? normalize(JSON.parse(raw), randomSeed()) : newProgress(randomSeed());
+    } catch {
+      guest = newProgress(randomSeed());
+    }
+    if (!get().account) set({ ...guest, lastMatch: null });
+  } else set({ account: a });
 }

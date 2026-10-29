@@ -31,7 +31,8 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((Date.UTC(pb[0], pb[1] - 1, pb[2]) - Date.UTC(pa[0], pa[1] - 1, pa[2])) / 86400000);
 }
 
-export const canClaimOn = (s: BonusState, day: string) => s.lastDay !== day;
+/** Un giorno nuovo, mai uno già passato: rimettere indietro l'orologio non fa ritirare di nuovo. */
+export const canClaimOn = (s: BonusState, day: string) => !s.lastDay || day > s.lastDay;
 export const canClaim = (s: BonusState, now: Date) => canClaimOn(s, dayOf(now));
 
 /**

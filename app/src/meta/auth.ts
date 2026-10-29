@@ -29,7 +29,7 @@ function accountOf(session: Session | null): Account | null {
 }
 
 async function onSession(session: Session | null) {
-  setAccount(accountOf(session));
+  await setAccount(accountOf(session));
   if (session?.provider_token && session.user.app_metadata?.provider === 'facebook')
     await AsyncStorage.setItem(FB_TOKEN, session.provider_token).catch(() => {});
   if (session) await pullProgress().catch(() => {});
@@ -104,7 +104,7 @@ export async function signOut() {
   if (!supabaseConfigured) return;
   await AsyncStorage.removeItem(FB_TOKEN).catch(() => {});
   await supabase().auth.signOut();
-  setAccount(null);
+  await setAccount(null);
 }
 
 export const appleAvailable = () => (Platform.OS === 'ios' ? AppleAuthentication.isAvailableAsync() : Promise.resolve(Platform.OS === 'web'));

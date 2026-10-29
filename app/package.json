@@ -47,6 +47,7 @@
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4",
     "hermes-parser": "0.36.1",
+    "patch-package": "^8.0.1",
     "playwright": "^1.63.0",
     "typescript": "~6.0.3",
     "vitest": "^5.0.5"
@@ -68,7 +69,8 @@
     "check": "tsc --noEmit && expo lint && vitest run",
     "ios:telefono": "expo run:ios --device --configuration Release",
     "android:telefono": "expo run:android --device --variant release",
-    "check:db": "node scripts/db-check.mjs"
+    "check:db": "node scripts/db-check.mjs",
+    "postinstall": "patch-package"
   },
   "private": true,
   "overrides": {

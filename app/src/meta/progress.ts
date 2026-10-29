@@ -276,7 +276,7 @@ export function addMatch(s: Stats, r: MatchRecord, day: string): Stats {
     onlinePlayed: s.onlinePlayed + (r.online ? 1 : 0),
     onlineWins: s.onlineWins + (r.won && r.online ? 1 : 0),
     onlinePairWins: s.onlinePairWins + (r.won && r.online && four ? 1 : 0),
-    days: s.lastDay === day ? s.days : s.days + 1,
+    days: s.lastDay && s.lastDay >= day ? s.days : s.days + 1,
     lastDay: s.lastDay && s.lastDay > day ? s.lastDay : day,
   };
 }

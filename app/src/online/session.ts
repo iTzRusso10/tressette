@@ -5,7 +5,7 @@ import { reportDuel } from '@/meta/social';
 import { receiveReaction, resetReactions, trySend } from '@/state/reactions';
 import { useProfile } from '@/meta/profile';
 import { teamOf as teamOfSeat } from '@/engine';
-import { setOnRematch, startGuest, startHostMatch, useTable } from '@/state/table';
+import { dropNet, setOnRematch, startGuest, startHostMatch, useTable } from '@/state/table';
 import { GuestRoom, HostRoom, type Lobby, type RoomConfig } from './room';
 import { onlineConfigured as supabaseReady, SupabaseTransport } from './supabase';
 import { TabTransport, type Peer, type Status, type Transport } from './transport';
@@ -27,9 +27,11 @@ interface OnlineState {
   /** Chi ha creato la stanza: i nomi di chi chiede la rivincita. Chi è ospite: se l'ha già chiesta. */
   rematchAsks: string[];
   asked: boolean;
+  /** Perché non si è potuti entrare (partita già cominciata, nessun posto). */
+  refused: string | null;
 }
 
-export const useOnline = create<OnlineState>(() => ({ role: null, lobby: null, status: 'offline', hostOnline: true, online: [], closed: false, me: '', rematchAsks: [], asked: false }));
+export const useOnline = create<OnlineState>(() => ({ role: null, lobby: null, status: 'offline', hostOnline: true, online: [], closed: false, me: '', rematchAsks: [], asked: false, refused: null }));
 const set = useOnline.setState;
 
 let host: HostRoom | null = null;
@@ -80,7 +82,8 @@ export async function createRoom(cfg: RoomConfig, name: string): Promise<string>
 }
 
 export function hostStart() {
-  if (!host) return;
+  // Un doppio tocco su «Inizia» non deve far pagare la posta due volte.
+  if (!host || host.lobby.started) return;
   resetReactions();
   startHostMatch(host);
   const l = host.lobby;
@@ -99,6 +102,13 @@ export async function joinRoom(code: string, name: string): Promise<'ok' | 'noho
   const g = new GuestRoom(t, { id, name, host: false });
   let lastMatch = '';
   g.onLobby = lobby => {
+    // Arrivato a partita cominciata (o con la stanza piena): niente posto, quindi niente tavolo.
+    if (g.seat < 0 && lobby.started) {
+      dropNet();
+      void leaveRoom();
+      set({ refused: 'La partita è già cominciata e non ci sono posti liberi. Chiedi una rivincita a chi ha creato la stanza.' });
+      return;
+    }
     // Una partita nuova (anche la rivincita): reazioni e richieste ripartono da zero.
     if (lobby.matchId && lobby.matchId !== lastMatch) {
       lastMatch = lobby.matchId;
@@ -112,18 +122,20 @@ export async function joinRoom(code: string, name: string): Promise<'ok' | 'noho
   g.onHost = hostOnline => set({ hostOnline });
   g.onClosed = () => set({ closed: true });
   g.onReact = (seat, r) => receiveReaction(seat, r);
-  set({ role: 'guest', lobby: null, closed: false, me: id, hostOnline: true, rematchAsks: [], asked: false });
+  set({ role: 'guest', lobby: null, closed: false, me: id, hostOnline: true, rematchAsks: [], asked: false, refused: null });
   try {
     // Ready for the deal before saying hello.
     startGuest(g);
     const r = await g.join(code);
     if (r !== 'ok') {
+      dropNet();
       set({ role: null });
       return r;
     }
     guest = g;
     return 'ok';
   } catch {
+    dropNet();
     set({ role: null });
     return 'error';
   }
