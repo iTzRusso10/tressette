@@ -67,6 +67,24 @@ await host.waitForTimeout(6000);
 await host.screenshot({ path: join(out, 'online-2-tavolo-host.png') });
 await guest.screenshot({ path: join(out, 'online-2-tavolo-ospite.png') });
 
+// Reazioni veloci: frasi pronte, arrivano all'altro accanto al nome.
+await host.getByRole('button', { name: 'Reazioni veloci' }).click();
+await host.waitForTimeout(300);
+await host.screenshot({ path: join(out, 'online-2b-reazioni-vassoio.png') });
+await host.getByRole('button', { name: 'Bella giocata!' }).click();
+await guest
+  .getByText('Bella giocata!')
+  .waitFor({ timeout: 5000 })
+  .catch(() => fail("l'ospite non vede la reazione"));
+await guest.screenshot({ path: join(out, 'online-2c-reazione-ospite.png') });
+await guest.getByRole('button', { name: 'Reazioni veloci' }).click();
+await guest.getByRole('button', { name: 'Grazie!' }).click();
+await host
+  .getByText('Grazie!')
+  .waitFor({ timeout: 5000 })
+  .catch(() => fail("l'host non vede la reazione"));
+await host.screenshot({ path: join(out, 'online-2d-reazione-host.png') });
+
 const next = host.getByRole('button', { name: /Prossima mano|Rivincita/ });
 await next.waitFor({ timeout: 180000 }).catch(() => fail('la mano online non finisce'));
 await guest.getByText(/Aspetta che Giuseppe/).waitFor({ timeout: 20000 }).catch(() => fail("l'ospite non vede la fine della mano"));
@@ -96,4 +114,4 @@ if ((await next.textContent()).includes('Prossima')) {
 await browser.close();
 server.close();
 if (errors.length) fail('errori:\n  ' + errors.slice(0, 8).join('\n  '));
-if (!process.exitCode) console.log('Online a posto: stanza, partita, fine mano e uscita di un amico.');
+if (!process.exitCode) console.log('Online a posto: stanza, partita, reazioni, fine mano e uscita di un amico.');

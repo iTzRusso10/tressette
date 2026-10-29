@@ -125,3 +125,36 @@ describe('stanza online', () => {
     expect(got).toEqual(m);
   });
 });
+
+describe('reazioni e rivincita', () => {
+  it('le reazioni arrivano a tutti con il posto di chi le manda; nessuno può firmarsi con un altro posto', async () => {
+    const { hub, host, gs } = await setup({ ...base, game: 'scopa', mode: '4' }, 2);
+    const atHost: [number, string][] = [];
+    const atG1: [number, string][] = [];
+    host.onReact = (s, r) => atHost.push([s, r]);
+    gs[1].room.onReact = (s, r) => atG1.push([s, r]);
+    gs[0].room.react('bravo');
+    host.react('grazie');
+    await flush();
+    expect(atHost).toEqual([[2, 'bravo']]);
+    expect(atG1).toEqual([
+      [2, 'bravo'],
+      [0, 'grazie'],
+    ]);
+    // Un messaggio falso: un peer che dice di essere al posto di un altro.
+    const liar = new MemoryTransport(hub);
+    await liar.connect('1234', { id: 'zz', name: 'Furbo', host: false });
+    liar.send('react', { peer: 'zz', seat: 1, r: 'ops' });
+    await flush();
+    expect(atHost).toHaveLength(1);
+  });
+
+  it("la richiesta di rivincita arriva a chi ha creato la stanza, con il posto di chi la chiede", async () => {
+    const { host, gs } = await setup(base, 1);
+    const asks: number[] = [];
+    host.onAsk = s => asks.push(s);
+    gs[0].room.askRematch();
+    await flush();
+    expect(asks).toEqual([1]);
+  });
+});

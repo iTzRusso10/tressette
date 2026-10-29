@@ -71,7 +71,7 @@ function TrophyRow({ r }: { r: RankRow }) {
   );
 }
 
-function GameRow({ r, period }: { r: GameRankRow; period: GamePeriod }) {
+export function GameRow({ r, period }: { r: GameRankRow; period: GamePeriod }) {
   const pub = r.pub as { avatar?: string; frame?: string };
   const league = leagueOf(r.score);
   return (

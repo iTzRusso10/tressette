@@ -9,7 +9,7 @@ import { TrophyIcon } from '@/ui/icons';
 import { dur } from '@/ui/motion';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { fmtThirds, GAMES, isScopaRow, isTressetteRow, teamOf, type BriscolaRow, type HandRow, type Match } from '@/engine';
-import { leaveRoom } from '@/online/session';
+import { askRematch, leaveRoom, useOnline } from '@/online/session';
 import { hostName, netRole, nextHand, quitMatch, rematch, teamLabel } from '@/state/table';
 import { Button } from '@/ui/kit';
 import { Text } from '@/ui/Text';
@@ -83,6 +83,8 @@ function RatingLine() {
 
 export function Summary({ m, viewer }: { m: Match; viewer: number }) {
   const { width, height } = useWindowDimensions();
+  const asked = useOnline(s => s.asked);
+  const asks = useOnline(s => s.rematchAsks);
   const h = m.h!;
   const res = h.result!;
   const { rows, out } = res;
@@ -151,11 +153,19 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
         {out ? <TrophyLine /> : null}
         <View style={{ marginTop: space.xl, gap: space.s }}>
           {netRole() === 'guest' ? (
-            <Text v="lead" style={{ textAlign: 'center' }}>
-              {out ? `Aspetta che ${hostName()} faccia ripartire la partita.` : `Aspetta che ${hostName()} distribuisca la prossima mano.`}
-            </Text>
+            <>
+              <Text v="lead" style={{ textAlign: 'center' }}>
+                {out ? (asked ? `Hai chiesto la rivincita: decide ${hostName()}.` : `Aspetta che ${hostName()} faccia ripartire la partita.`) : `Aspetta che ${hostName()} distribuisca la prossima mano.`}
+              </Text>
+              {out && !asked ? <Button kind="secondary" label="Chiedi la rivincita" onPress={askRematch} /> : null}
+            </>
           ) : out ? (
             <>
+              {asks.length ? (
+                <Text v="lead" style={{ textAlign: 'center', color: colors.sun }}>
+                  {asks.join(' e ')} {asks.length === 1 ? 'chiede' : 'chiedono'} la rivincita
+                </Text>
+              ) : null}
               <Button label="Rivincita" onPress={rematch} />
               <Button
                 kind="secondary"

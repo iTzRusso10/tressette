@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { payIn, payOut } from '@/meta/pot';
+import { reportDuel } from '@/meta/social';
+import { receiveReaction, resetReactions, trySend } from '@/state/reactions';
 import { useProfile } from '@/meta/profile';
+import { teamOf as teamOfSeat } from '@/engine';
 import { setOnRematch, startGuest, startHostMatch, useTable } from '@/state/table';
 import { GuestRoom, HostRoom, type Lobby, type RoomConfig } from './room';
 import { onlineConfigured as supabaseReady, SupabaseTransport } from './supabase';
@@ -21,9 +24,12 @@ interface OnlineState {
   online: string[];
   closed: boolean;
   me: string;
+  /** Chi ha creato la stanza: i nomi di chi chiede la rivincita. Chi è ospite: se l'ha già chiesta. */
+  rematchAsks: string[];
+  asked: boolean;
 }
 
-export const useOnline = create<OnlineState>(() => ({ role: null, lobby: null, status: 'offline', hostOnline: true, online: [], closed: false, me: '' }));
+export const useOnline = create<OnlineState>(() => ({ role: null, lobby: null, status: 'offline', hostOnline: true, online: [], closed: false, me: '', rematchAsks: [], asked: false }));
 const set = useOnline.setState;
 
 let host: HostRoom | null = null;
@@ -64,12 +70,18 @@ export async function createRoom(cfg: RoomConfig, name: string): Promise<string>
   host = new HostRoom(t, me, cfg);
   host.onLobby = lobby => set({ lobby });
   host.onPeers = online => set({ online: [...online] });
-  set({ role: 'host', lobby: host.lobby, closed: false, me: id, hostOnline: true });
+  host.onReact = (seat, r) => receiveReaction(seat, r);
+  host.onAsk = seat => {
+    const name = host?.lobby.seats[seat]?.name;
+    if (name) set(s => ({ rematchAsks: s.rematchAsks.includes(name) ? s.rematchAsks : [...s.rematchAsks, name] }));
+  };
+  set({ role: 'host', lobby: host.lobby, closed: false, me: id, hostOnline: true, rematchAsks: [], asked: false });
   return host.open();
 }
 
 export function hostStart() {
   if (!host) return;
+  resetReactions();
   startHostMatch(host);
   const l = host.lobby;
   payIn(l.matchId, l.cfg.stake);
@@ -85,14 +97,22 @@ export async function joinRoom(code: string, name: string): Promise<'ok' | 'noho
   const t = transport();
   t.onStatus(status => set({ status }));
   const g = new GuestRoom(t, { id, name, host: false });
+  let lastMatch = '';
   g.onLobby = lobby => {
+    // Una partita nuova (anche la rivincita): reazioni e richieste ripartono da zero.
+    if (lobby.matchId && lobby.matchId !== lastMatch) {
+      lastMatch = lobby.matchId;
+      resetReactions();
+      set({ asked: false });
+    }
     set({ lobby });
     useTable.setState({ viewer: Math.max(0, g.seat) });
     if (lobby.started && g.seat >= 0) payIn(lobby.matchId, lobby.cfg.stake);
   };
   g.onHost = hostOnline => set({ hostOnline });
   g.onClosed = () => set({ closed: true });
-  set({ role: 'guest', lobby: null, closed: false, me: id, hostOnline: true });
+  g.onReact = (seat, r) => receiveReaction(seat, r);
+  set({ role: 'guest', lobby: null, closed: false, me: id, hostOnline: true, rematchAsks: [], asked: false });
   try {
     // Ready for the deal before saying hello.
     startGuest(g);
@@ -107,6 +127,20 @@ export async function joinRoom(code: string, name: string): Promise<'ok' | 'noho
     set({ role: null });
     return 'error';
   }
+}
+
+/** Una reazione veloce dal tuo posto (con il limite). */
+export function sendReaction(id: string): boolean {
+  if (host) return trySend(0, id, r => host!.react(r));
+  if (guest && guest.seat >= 0) return trySend(guest.seat, id, r => guest!.react(r));
+  return false;
+}
+
+/** Da ospite, a fine partita: chiedi a chi ha creato la stanza di rigiocare. */
+export function askRematch() {
+  if (!guest || useOnline.getState().asked) return;
+  guest.askRematch();
+  set({ asked: true });
 }
 
 export async function leaveRoom() {
@@ -135,6 +169,19 @@ useTable.subscribe((s, prev) => {
     winnerTeams: out.winners,
     peerOf: seat => lobby.seats[seat]?.peer,
   });
+  // Le sfide tra persone con l'account: ognuno dice chi ha vinto, conta quando la maggioranza è d'accordo.
+  const people = lobby.seats.map((x, i) => ({ peer: x.peer, i, cpu: x.type === 'cpu' })).filter(x => !x.cpu && !!x.peer);
+  if (people.length >= 2)
+    void reportDuel(
+      lobby.matchId,
+      m.game,
+      people.map(x => x.peer!),
+      people.filter(x => out.winners.includes(teamOfSeat(m, x.i))).map(x => x.peer!),
+    );
 });
 
-setOnRematch(room => payIn(room.lobby.matchId, room.lobby.cfg.stake));
+setOnRematch(room => {
+  payIn(room.lobby.matchId, room.lobby.cfg.stake);
+  resetReactions();
+  set({ rematchAsks: [] });
+});

@@ -10,6 +10,9 @@ import { dayOf } from '@/meta/economy';
 import { daysLeftIn, daysUntil, eventAt, nextEvent, type EventWindow } from '@/meta/events';
 import { eventProgressOf } from '@/meta/ledger';
 import { claim, progressOf, useProfile } from '@/meta/profile';
+import { isOnline } from '@/meta/social';
+import { useSocial } from '@/state/social';
+import { PlayerAvatar } from '@/ui/avatar';
 import { ItemPreview } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
@@ -77,6 +80,50 @@ export function ClaimsCard({ width }: { width: number }) {
         <Text style={styles.claimAllText}>Riscuoti tutto</Text>
       </Squish>
     </Animated.View>
+  );
+}
+
+/* ------------------------------------------------------------------ amici */
+
+/** Chi dei tuoi amici è online adesso, e le richieste di amicizia in attesa. Solo se c'è qualcosa. */
+export function FriendsCard({ width, onOpen }: { width: number; onOpen: () => void }) {
+  const account = useProfile(s => s.account);
+  const friends = useSocial(s => s.friends);
+  const requests = useSocial(s => s.requests);
+  if (!account || !friends) return null;
+  const online = friends.filter(f => isOnline(f.last_seen));
+  if (!online.length && !requests.length) return null;
+  const shown = online.slice(0, 5);
+  return (
+    <Squish accessibilityRole="button" accessibilityLabel={`Amici: ${online.length} online${requests.length ? `, ${requests.length} richieste` : ''}`} onPress={onOpen} scaleTo={0.98}>
+      <View style={[styles.friends, { width }]}>
+        <View style={styles.faces}>
+          {shown.map((f, i) => {
+            const pub = (f.pub ?? {}) as { avatar?: string; frame?: string };
+            return (
+              <View key={f.id} style={{ marginLeft: i ? -10 : 0 }}>
+                <PlayerAvatar avatar={pub.avatar} photo={f.avatar} name={f.name} frame={pub.frame} size={40} />
+                <View style={styles.onDot} />
+              </View>
+            );
+          })}
+          {!shown.length ? (
+            <View style={styles.reqIcon}>
+              <Icon name="friends" size={20} color={colors.ink} />
+            </View>
+          ) : null}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.friendsTitle} numberOfLines={1}>
+            {online.length ? (online.length === 1 ? `${online[0].name} è online` : `${online.length} amici online`) : 'Richieste di amicizia'}
+          </Text>
+          <Text v="small" numberOfLines={1}>
+            {requests.length ? `${requests.length === 1 ? 'Una richiesta' : `${requests.length} richieste`} da guardare` : 'Sfidali in una stanza'}
+          </Text>
+        </View>
+        <Icon name="chevron" size={18} color={colors.textFaint} />
+      </View>
+    </Squish>
   );
 }
 
@@ -221,5 +268,10 @@ const styles = StyleSheet.create({
   tierGoal: { fontFamily: fonts.semi, fontSize: 11, lineHeight: 14, color: colors.textFaint, fontVariant: ['tabular-nums'] },
   eventPlay: { height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', marginTop: space.m },
   eventPlayText: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19, color: colors.ink },
+  friends: { alignSelf: 'center', marginTop: space.l, flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.m, borderRadius: radius.l, backgroundColor: colors.panel, borderWidth: 1, borderColor: 'rgba(124,242,210,0.45)' },
+  faces: { flexDirection: 'row', alignItems: 'center' },
+  onDot: { position: 'absolute', right: 2, bottom: 2, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.mint, borderWidth: 2, borderColor: '#2A0E4A' },
+  reqIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  friendsTitle: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 19, color: colors.text },
   nextPrize: { flexDirection: 'row', alignItems: 'center', gap: space.m, marginTop: space.s },
 });

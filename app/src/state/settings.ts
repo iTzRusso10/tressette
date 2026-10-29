@@ -20,6 +20,8 @@ export interface Settings {
   haptics: boolean;
   /** Faster animations and computer turns. */
   fast: boolean;
+  /** Online: non mostrare le reazioni veloci degli altri. */
+  muteReactions: boolean;
   lastGame: GameId;
   set: (patch: Partial<Omit<Settings, 'set' | 'setGame'>>) => void;
   setGame: (game: GameId, patch: Partial<GamePrefs>) => void;
@@ -40,6 +42,7 @@ export const useSettings = create<Settings>()(
       sound: true,
       haptics: true,
       fast: false,
+      muteReactions: false,
       lastGame: 'tressette',
       set: patch => set(patch),
       setGame: (game, patch) =>

@@ -45,6 +45,16 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - Ogni regola sta in `ledger.ts`: per cambiare un comportamento si cambia lì (e i test in `src/meta/__tests__/progression.test.ts`), poi si ripubblica la funzione `progress`. Nessun oggetto dà vantaggi in partita.
 - Lo svelamento di una nuova arena aspetta che si lasci il tavolo.
 
+## Competizione e amici
+
+- **Punteggio per gioco** (`rating.ts`): un Elo con forze fisse per gli avversari (Facile 800, Medio 1100, Esperto 1400, persona online 1300), 10 partite di calibrazione, poi K=20. Non premia il volume: oltre la propria bravura le vittorie valgono zero. Sette **leghe** con i nomi delle monete napoletane, ognuna con la sua cornice; a fine stagione il punteggio torna a metà strada da 1000. Online, contro la stessa persona contano solo 3 partite al giorno. Separato dai trofei, che restano la progressione permanente.
+- **Classifiche** (`Classifica.tsx`): stagione (per gioco), settimana (prestazione da 5 partite, podio con premi) e trofei; tutti, amici, vicino a te.
+- **Ricompense da riscuotere** (`meta.claims`): missioni, traguardi di stagione ed eventi, leghe, podi. Restano finché non le riscuoti, una volta sola (`meta.claimed`). Le missioni del giorno si possono cambiare una volta al giorno.
+- **Eventi** (`events.ts`): un calendario di cinque settimane che si ripete, misurato sulle statistiche che ci sono già, tre traguardi e una cornice esclusiva. Niente valute nuove.
+- **Profilo** (`profilo.tsx`, `giocatore/[id].tsx`): avatar (`avatars.ts`), cornice (posto `frame` del catalogo), vetrina di tre cose, statistiche e punteggio per gioco, leghe passate. Quello che vedono gli altri è `publicOf` (`ledger.ts`).
+- **Achievement segreti**: 12, categoria «Segreti», si vede solo l'indizio finché non si scoprono.
+- **Amici** (`Amici.tsx`, `state/social.ts`): ricerca per nome, richieste, chi è online, inviti alle stanze, sfide confermate dalla maggioranza. Niente chat libera: al tavolo online solo **reazioni veloci** (`reactions.ts`, frasi pronte con un limite, silenziabili).
+
 ## Qualità
 
 - Carte sempre nitide: le carte si disegnano alla misura della mano e si rimpiccioliscono, mai ingrandite; nessun filtro. La carta si gira schiacciandola in orizzontale, senza 3D.
@@ -63,7 +73,8 @@ npm run check            # tipi + lint + test (regole, partite simulate, online)
 npm run export:web       # sito in dist/
 npm run check:visual     # foto di tutte le modalità su 3 schermi in .visual/, e controllo che niente si sposti
 npm run check:online     # due schede giocano online tra loro (?local), senza server
-npm run check:hub        # foto delle cinque sezioni (e della scelta del gioco e del negozio) su 3 schermi
+npm run check:hub        # foto delle cinque sezioni, del profilo e dei pannelli su 3 schermi
+npm run check:db         # migrazioni e regole del server su un Postgres vero (supabase/tests)
 ```
 
 Prima di chiudere una modifica visiva: `npm run export:web && npm run check:visual`, e guarda le foto delle 8 combinazioni (Tressette in 2, in 4, a perdere in 4 e in 2, Briscola in 2 e in 4, Scopa in 2 e in 4) a 393×852, 375×667 e 1280×800.

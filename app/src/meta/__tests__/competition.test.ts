@@ -192,3 +192,18 @@ describe('profilo', () => {
     for (const f of FRAMES) expect(sourcesOf(`frame:${f.id}`).length, f.id).toBeGreaterThan(0);
   });
 });
+
+describe('reazioni veloci', () => {
+  it('limite per chi manda: una ogni due secondi e mezzo, al massimo cinque in trenta secondi', async () => {
+    const { canSend, canShow, REACT_LIMIT } = await import('../reactions');
+    expect(canSend([], 0)).toBe(true);
+    expect(canSend([1000], 2000)).toBe(false);
+    expect(canSend([1000], 1000 + REACT_LIMIT.cooldownMs)).toBe(true);
+    const five = [0, 3000, 6000, 9000, 12000];
+    expect(canSend(five, 15000)).toBe(false);
+    expect(canSend(five, 30001)).toBe(true);
+    expect(canShow('bravo', undefined, 0)).toBe(true);
+    expect(canShow('bravo', 1000, 1500)).toBe(false);
+    expect(canShow('parolaccia', undefined, 0)).toBe(false);
+  });
+});

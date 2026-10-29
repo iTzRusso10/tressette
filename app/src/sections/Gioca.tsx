@@ -23,7 +23,8 @@ import { colors, fonts, gradients, radius, shadow, space } from '@/ui/theme';
 import { GameTile, ORDER, ResumeCard } from './GameTiles';
 import { useTabs } from './Hub';
 import { Bar } from '@/ui/progression';
-import { ClaimsCard, EventCard } from './HomeCards';
+import { refreshSocial } from '@/state/social';
+import { ClaimsCard, EventCard, FriendsCard } from './HomeCards';
 import { Missions } from './Missions';
 import { SectionScroll } from './parts';
 
@@ -122,6 +123,7 @@ export function Chooser({ onClose }: { onClose: () => void }) {
 
 /** The daily bonus opens by itself once per app launch, when it is there to collect. */
 let bonusShown = false;
+let socialAt = 0;
 
 export function Gioca({ active }: { active: boolean }) {
   const { width, height } = useWindowDimensions();
@@ -146,7 +148,13 @@ export function Gioca({ active }: { active: boolean }) {
   );
   // Un giorno nuovo porta missioni nuove (e, a fine stagione, la stagione dopo).
   useEffect(() => {
-    if (active) refreshDay();
+    if (!active) return;
+    refreshDay();
+    // Chi è online tra gli amici, al massimo una volta al minuto.
+    if (Date.now() - socialAt > 60000) {
+      socialAt = Date.now();
+      void refreshSocial();
+    }
   }, [active]);
   useEffect(() => {
     if (!active) return;
@@ -198,6 +206,7 @@ export function Gioca({ active }: { active: boolean }) {
           )}
         </View>
         <ClaimsCard width={colW} />
+        <FriendsCard width={colW} onOpen={() => go('amici')} />
         <EventCard width={colW} onPlay={choose} />
         <Missions width={colW} />
       </SectionScroll>

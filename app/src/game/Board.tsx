@@ -14,6 +14,7 @@ import { CardSprite } from './CardSprite';
 import { Felt } from './Felt';
 import { FxLayer } from './FxLayer';
 import { hasDeck, layoutCards, measure, sideOf, TAG_H, type Geometry, type Place } from './layout';
+import { ReactionBubbles, ReactionTray } from './Reactions';
 import { Tag } from './Tag';
 import { TopBar } from './TopBar';
 
@@ -149,6 +150,8 @@ function Table({ W, H, onMenu }: { W: number; H: number; onMenu: () => void }) {
       {canSignal() ? <SignalBar g={g} pending={pendingSig} /> : null}
       {choices && selected !== null ? <Choices g={g} choices={choices} /> : null}
       <FxLayer g={g} m={m} viewer={viewer} />
+      <ReactionBubbles g={g} m={m} viewer={viewer} />
+      <ReactionTray g={g} />
     </View>
   );
 }

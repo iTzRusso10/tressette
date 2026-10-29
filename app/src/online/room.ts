@@ -39,6 +39,8 @@ type Msg =
   | { e: 'sync'; ver: number; match: Match; to?: string }
   | { e: 'resync'; peer: string }
   | { e: 'move'; peer: string; seat: number; mv: Move }
+  | { e: 'react'; peer: string; seat: number; r: string }
+  | { e: 'ask'; peer: string; k: 'rematch' }
   | { e: 'closed' };
 
 /** A cheap fingerprint of a match, to notice when someone fell out of step. */
@@ -70,6 +72,10 @@ export class HostRoom {
   onLobby: (l: Lobby) => void = () => {};
   onMove: (seat: number, mv: Move) => void = () => {};
   onPeers: (online: Set<string>) => void = () => {};
+  /** Una reazione veloce da un posto (già controllato: il posto è di chi la manda). */
+  onReact: (seat: number, r: string) => void = () => {};
+  /** Un amico chiede la rivincita. */
+  onAsk: (seat: number) => void = () => {};
 
   constructor(
     private t: Transport,
@@ -95,6 +101,13 @@ export class HostRoom {
       this.t.on('hello', (m: Extract<Msg, { e: 'hello' }>) => this.hello(m.peer)),
       this.t.on('move', (m: Extract<Msg, { e: 'move' }>) => this.move(m)),
       this.t.on('resync', (m: Extract<Msg, { e: 'resync' }>) => this.resync(m.peer)),
+      this.t.on('react', (m: Extract<Msg, { e: 'react' }>) => {
+        if (this.lobby.seats[m.seat]?.peer === m.peer) this.onReact(m.seat, m.r);
+      }),
+      this.t.on('ask', (m: Extract<Msg, { e: 'ask' }>) => {
+        const seat = this.lobby.seats.findIndex(s => s.peer === m.peer);
+        if (seat > 0 && m.k === 'rematch') this.onAsk(seat);
+      }),
       this.t.onPeers(peers => {
         this.peers = peers;
         this.onPeers(new Set(peers.map(p => p.id)));
@@ -177,6 +190,11 @@ export class HostRoom {
     this.onMove(m.seat, m.mv);
   }
 
+  /** Manda a tutti una reazione dal posto di chi ha creato la stanza. */
+  react(r: string) {
+    this.t.send('react', { peer: this.me.id, seat: 0, r });
+  }
+
   private resync(peer: string) {
     if (this.match) this.t.send('sync', { ver: this.ver, match: this.match, to: peer });
   }
@@ -206,6 +224,7 @@ export class GuestRoom {
   onSync: (m: Match) => void = () => {};
   onHost: (online: boolean) => void = () => {};
   onClosed: () => void = () => {};
+  onReact: (seat: number, r: string) => void = () => {};
 
   constructor(
     private t: Transport,
@@ -249,6 +268,9 @@ export class GuestRoom {
         this.onSync(m.match);
       }),
       this.t.on('closed', () => this.onClosed()),
+      this.t.on('react', (m: Extract<Msg, { e: 'react' }>) => {
+        if (m.peer !== this.me.id && this.lobby?.seats[m.seat]?.peer === m.peer) this.onReact(m.seat, m.r);
+      }),
       this.t.onPeers(peers => {
         const on = peers.some(p => p.host);
         if (on !== this.hostOnline) {
@@ -264,6 +286,14 @@ export class GuestRoom {
 
   private askSync() {
     this.t.send('resync', { peer: this.me.id });
+  }
+
+  react(r: string) {
+    if (this.seat >= 0) this.t.send('react', { peer: this.me.id, seat: this.seat, r });
+  }
+
+  askRematch() {
+    this.t.send('ask', { peer: this.me.id, k: 'rematch' });
   }
 
   sendMove(mv: Move) {

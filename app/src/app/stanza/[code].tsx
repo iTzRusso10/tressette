@@ -1,7 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
-import { GAMES, MODE_INFO } from '@/engine';
+import { GAMES, MODE_INFO, type GameId } from '@/engine';
+import { isOnline, seenText, sendInvite } from '@/meta/social';
+import { refreshSocial, useSocial } from '@/state/social';
+import { PlayerAvatar } from '@/ui/avatar';
 import { freeSeat, hostStart, joinRoom, leaveRoom, onlineConfigured, roomLink, useOnline } from '@/online/session';
 import { useProfile } from '@/meta/profile';
 import { useSettings } from '@/state/settings';
@@ -11,9 +14,55 @@ import { BackButton, Button, Screen } from '@/ui/kit';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, seatColors, space } from '@/ui/theme';
 
+/** Gli amici collegati: un tocco e ricevono l'invito nella stanza (vale dieci minuti). */
+function InviteFriends({ code, game, mode, invited }: { code: string; game: GameId; mode: string; invited?: string }) {
+  const account = useProfile(s => s.account);
+  const friends = useSocial(s => s.friends);
+  const [sent, setSent] = useState<Record<string, 'ok' | 'err'>>(() => (invited ? { [invited]: 'ok' } : {}));
+  useEffect(() => {
+    if (account) void refreshSocial();
+  }, [account]);
+  if (!account || !friends?.length) return null;
+  const list = [...friends].sort((a, b) => Number(isOnline(b.last_seen)) - Number(isOnline(a.last_seen))).slice(0, 8);
+  const invite = async (id: string) => {
+    setSent(s => ({ ...s, [id]: 'ok' }));
+    const r = await sendInvite(id, code, game, mode);
+    if (r !== 'ok') setSent(s => ({ ...s, [id]: 'err' }));
+  };
+  return (
+    <View style={styles.friends}>
+      <Text v="label">Invita un amico</Text>
+      {list.map(f => {
+        const pub = (f.pub ?? {}) as { avatar?: string; frame?: string };
+        const st = sent[f.id];
+        return (
+          <View key={f.id} style={styles.friend}>
+            <PlayerAvatar avatar={pub.avatar} photo={f.avatar} name={f.name} frame={pub.frame} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text v="label" numberOfLines={1}>
+                {f.name}
+              </Text>
+              <Text v="small" style={isOnline(f.last_seen) ? { color: colors.mint } : undefined}>
+                {seenText(f.last_seen)}
+              </Text>
+            </View>
+            {st === 'ok' ? (
+              <Text v="small" style={{ color: colors.mint }}>
+                Invitato
+              </Text>
+            ) : (
+              <Button kind="secondary" label={st === 'err' ? 'Riprova' : 'Invita'} onPress={() => invite(f.id)} style={{ minHeight: 40, paddingHorizontal: 16 }} />
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 /** The room before the match: the code to share, who is in, and the start. Also opened from an invite link. */
 export default function Stanza() {
-  const { code } = useLocalSearchParams<{ code: string }>();
+  const { code, invited } = useLocalSearchParams<{ code: string; invited?: string }>();
   const { role, lobby, online, hostOnline, closed, status, me } = useOnline();
   const name = useSettings(s => s.name);
   const coins = useProfile(s => s.coins);
@@ -127,6 +176,7 @@ export default function Stanza() {
             style={{ marginTop: space.l }}
           />
         ) : null}
+        {role === 'host' && cfg && !lobby?.started ? <InviteFriends code={code} game={cfg.game} mode={cfg.mode} invited={invited} /> : null}
 
         <View style={styles.seats}>
           {(lobby?.seats ?? []).map((s, i) => {
@@ -198,4 +248,6 @@ const styles = StyleSheet.create({
   seats: { marginTop: space.xl, borderTopWidth: 1, borderColor: colors.glassLineSoft },
   seat: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderBottomWidth: 1, borderColor: colors.glassLineSoft },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  friends: { marginTop: space.xl, gap: space.s },
+  friend: { flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: 4 },
 });

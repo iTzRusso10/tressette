@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initAds } from '@/meta/admob';
 import { initAuth } from '@/meta/auth';
+import { startPresence } from '@/state/social';
 import { Overlays } from '@/ui/Overlays';
 import { colors } from '@/ui/theme';
 
@@ -18,6 +19,7 @@ SplashScreen.setOptions({ duration: 300, fade: true });
 SystemUI.setBackgroundColorAsync(colors.night).catch(() => {});
 initAuth();
 initAds();
+startPresence();
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Feels like an app: no page bounce, no text selection, no double-tap zoom, no long-press menu.

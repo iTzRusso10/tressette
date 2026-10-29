@@ -21,6 +21,7 @@ import { CATEGORY_GLYPH } from './progression';
 import { GAME_LABEL, LeagueCoin } from './competition';
 import { sfx } from './feedback';
 import { ArenaReveal } from './ArenaReveal';
+import { InviteBanner } from './InviteBanner';
 import { CoinIcon, Emblem, Medal, TIER_NAMES } from './meta';
 import { Text } from './Text';
 import { colors, fonts, radius } from './theme';
@@ -178,6 +179,7 @@ export function Overlays() {
       {c && c.k !== 'arena' ? <Banner key={c.cid} c={c} /> : null}
       {c?.k === 'arena' && !atTable ? <ArenaReveal key={c.cid} arena={ARENAS[c.index]} onClose={() => dismissCelebration(c.cid)} /> : null}
       {c?.k === 'achievement' || c?.k === 'set' || c?.k === 'league' ? <Confetti key={'k' + c.cid} x={width / 2} y={110} count={30} spread={0.7} duration={1600} seed={c.cid} /> : null}
+      {!c ? <InviteBanner /> : null}
       <AdSim />
     </View>
   );
