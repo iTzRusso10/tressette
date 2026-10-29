@@ -1,4 +1,5 @@
 // Negozio e collezione: tavolini, panni e dorsi con la loro rarità, da dove si ottengono, i set.
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -10,7 +11,7 @@ import { RARITIES, rarityRank, RARITY_NAMES, type Rarity } from '@/meta/rarity';
 import { completedSets, setOf, setParts, setReady, SETS, type CosmeticSet } from '@/meta/sets';
 import { buyable, ownsKey, priceOf, todayOffer } from '@/meta/shop';
 import { sourcesOf, sourceText } from '@/meta/sources';
-import { ComingPreview, FramePreview, ItemPreview, TablePreview } from '@/ui/cosmetics';
+import { ComingPreview, DorsoVetrina, FondoRarita, FramePreview, ItemPreview, TavoloVetrina } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
 import { Button, Choice, Squish } from '@/ui/kit';
@@ -91,6 +92,9 @@ function ItemCard({ item, width, artH, day, onOpen }: { item: Item; width: numbe
     <Squish accessibilityRole="button" accessibilityLabel={label} onPress={onOpen} scaleTo={0.96}>
       <View style={[styles.card, { width, height: artH + CARD_FOOT }, state === 'inUse' && { borderColor: colors.sun }]}>
         <View style={[styles.cardArt, { height: artH }]}>
+          <View style={StyleSheet.absoluteFill}>
+            <FondoRarita rarita={item.rarity} width={width - 20} height={artH} raggio={radius.m} />
+          </View>
           <ItemPreview item={item} width={width - 20} height={artH - 14} />
         </View>
         <RarityChip rarity={item.rarity} style={{ marginTop: space.s }} />
@@ -159,10 +163,27 @@ function ItemSheet({ item, day, onClose }: { item: Item; day: string; onClose: (
           <ComingPreview item={item} width={w} height={Math.round(w * 0.6)} />
         ) : item.slot === 'frame' ? (
           <FramePreview frame={item.id} width={w} height={Math.min(180, Math.round(w * 0.5))} />
+        ) : item.slot === 'back' ? (
+          <View style={styles.sheetBack}>
+            <TavoloVetrina table={preview.table} felt={preview.felt} back={preview.back} width={Math.round(w * 0.62)} height={Math.round(w * 0.62 * 0.6)} vivo={false} />
+            <DorsoVetrina id={item.id} width={Math.round(w * 0.3)} />
+          </View>
         ) : (
-          <TablePreview table={preview.table} felt={preview.felt} back={preview.back} width={w} height={Math.round(w * 0.6)} cards />
+          <TavoloVetrina table={preview.table} felt={preview.felt} back={preview.back} width={w} height={Math.round(w * 0.6)} cards />
         )}
       </View>
+      {item.status !== 'coming' ? (
+        <Button
+          kind="secondary"
+          label="Prova sul tuo tavolo"
+          sub={item.slot === 'frame' ? 'con il tuo avatar e gli altri pezzi' : 'insieme agli altri pezzi'}
+          onPress={() => {
+            onClose();
+            router.push({ pathname: '/personalizza', params: { posto: item.slot, id: item.id } });
+          }}
+          style={{ marginBottom: space.l }}
+        />
+      ) : null}
       <View style={styles.sources}>
         <Text style={styles.sourcesHead}>Come si ottiene</Text>
         {sources.map((s, i) => (
@@ -439,7 +460,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.panelLine,
   },
-  cardArt: { borderRadius: radius.m, backgroundColor: 'rgba(20,4,40,0.35)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  cardArt: { borderRadius: radius.m, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   cardName: { fontFamily: fonts.bold, fontSize: 14.5, lineHeight: 19, color: colors.text, marginTop: 6 },
   cardFoot: { height: 22, justifyContent: 'center', marginTop: 2 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -451,6 +472,7 @@ const styles = StyleSheet.create({
   sheetTop: { flexDirection: 'row', alignItems: 'center', gap: space.s, marginTop: -space.s },
   sheetSlot: { flex: 1, fontFamily: fonts.semi, fontSize: 12.5, lineHeight: 16, color: colors.textSoft },
   sheetArt: { alignItems: 'center', marginVertical: space.l },
+  sheetBack: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.l },
   sources: { gap: 6, marginBottom: space.l },
   sourcesHead: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 15, color: colors.sun, textTransform: 'uppercase', letterSpacing: 0.4 },
   sourceRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
