@@ -14,7 +14,9 @@
 // - `Moneta`        { misura? } la moneta d'ottone statica (la stessa che vola), per contatori e buste.
 // - `Teca`          { visibile, onChiudi, occhiello? (es. «Leggendario»), titolo (Bodoni), rarita?: Rarity,
 //                    children (l'oggetto, ≤ 180 punti di lato), sotto?: ReactNode (righe «e 3 achievement»),
-//                    azioni?: ReactNode (i Pulsante), particelle?: boolean (default: dalla rarità), seme? }
+//                    azioni?: ReactNode (i Pulsante), particelle?: boolean (default: dalla rarità), seme?,
+//                    forma?: 'cerchio' | 'rettangolo' (la sagoma dell'oggetto, per il riflesso; default 'rettangolo'
+//                    con raggio 12) }
 //   Il guscio della presentazione grande: velo all'84%, l'oggetto su un cuscino di velluto sotto la lampada
 //   (la luce si accende), nome in Bodoni, TarghettaRarita, un riflesso che passa una volta (epico in su),
 //   scintille o granelli solo da leggendario. Sequenza (§5.9): velo 0 → luce 0–420 → cuscino 80 → oggetto 160
@@ -29,7 +31,7 @@ import { seeded } from '@/engine/rng';
 import type { Rarity } from '@/meta/rarity';
 import { sfx } from '../feedback';
 import { Text } from '../Text';
-import { alone, ombra } from './luce';
+import { ombra } from './luce';
 import { Lampada, Superficie } from './materiali';
 import { ACCENSIONE, dur, ease, mov } from './movimento';
 import { rarita } from './rarita';
@@ -147,6 +149,23 @@ export function MoneteInVolo({
 
 /* ------------------------------------------------------------------ Teca */
 
+/** Alone del materiale (leggendario, mitico): un radiale tondo dietro l'oggetto, opacità ≤ 0,25. */
+function Alone({ lato, colore, opacita }: { lato: number; colore: string; opacita: number }) {
+  const id = 'al' + useId().replace(/[^a-zA-Z0-9]/g, '');
+  const L = lato * 1.8;
+  return (
+    <Svg pointerEvents="none" width={L} height={L} style={{ position: 'absolute', left: (lato - L) / 2, top: (lato - L) / 2 }}>
+      <Defs>
+        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+          <Stop offset={0.3} stopColor={colore} stopOpacity={Math.min(0.25, opacita)} />
+          <Stop offset={1} stopColor={colore} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={L / 2} cy={L / 2} r={L / 2} fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
 /** Un valore che va da 0 a 1 dopo `a` ms in `durata` ms; `fine` lo porta subito a 1. */
 function useEntrata(a: number, durata: number, fine: boolean, riduci: boolean) {
   const v = useSharedValue(0);
@@ -179,6 +198,7 @@ export function Teca({
   azioni,
   particelle,
   seme = 3,
+  forma = 'rettangolo',
 }: {
   visibile: boolean;
   onChiudi: () => void;
@@ -190,6 +210,7 @@ export function Teca({
   azioni?: ReactNode;
   particelle?: boolean;
   seme?: number;
+  forma?: 'cerchio' | 'rettangolo';
 }) {
   const { width } = useWindowDimensions();
   const riduci = useReducedMotion();
@@ -228,9 +249,10 @@ export function Teca({
             <Animated.View style={[styles.assoluto, { bottom: 0 }, sCus]}>
               <Cuscino w={lato * 1.5} />
             </Animated.View>
-            <Animated.View style={[{ width: lato, height: lato, marginBottom: lato * 0.3 * 0.42, boxShadow: st.alone ? alone(st.colore, st.alone, 40) : undefined }, sOgg]}>
+            <Animated.View style={[{ width: lato, height: lato, marginBottom: lato * 0.3 * 0.42 }, sOgg]}>
+              {st.alone ? <Alone lato={lato} colore={st.colore} opacita={st.alone} /> : null}
               {children}
-              {st.movimenti > 0 ? <Riflesso larghezza={lato} altezza={lato} raggio={12} volte={1} ritardo={ACCENSIONE.eroe.a + mov.rivela} intensita={st.riflesso.opacita} /> : null}
+              {st.movimenti > 0 ? <Riflesso forma={forma} larghezza={lato} altezza={lato} raggio={12} volte={1} ritardo={ACCENSIONE.eroe.a + mov.rivela} intensita={st.riflesso.opacita} /> : null}
               {conParticelle ? <Scintille larghezza={lato} altezza={lato} quante={st.particelle} tipo={st.id === 'mitico' ? 'granello' : 'scintilla'} seme={seme} /> : null}
             </Animated.View>
           </View>
@@ -252,6 +274,6 @@ const styles = StyleSheet.create({
   moneta: { position: 'absolute', left: 0, top: 0 },
   teca: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 14 },
   assoluto: { position: 'absolute' },
-  centro: { alignItems: 'center', maxWidth: 420, alignSelf: 'stretch' },
+  centro: { alignItems: 'center', width: '100%', maxWidth: 420, alignSelf: 'center' },
   azioni: { flexDirection: 'row', gap: 12, marginTop: 8, alignSelf: 'stretch', justifyContent: 'center' },
 });

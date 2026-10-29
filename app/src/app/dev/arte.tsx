@@ -288,6 +288,7 @@ export default function DevArte() {
         occhiello="Nuovo oggetto"
         titolo="Medaglia del Circolo"
         rarita="leggendario"
+        forma="cerchio"
         azioni={
           <>
             <Pulsante tipo="secondario" etichetta="Avanti" onPress={() => setTeca(false)} style={{ flex: 1 }} />
