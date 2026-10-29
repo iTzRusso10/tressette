@@ -129,7 +129,7 @@ export default function Tavolo() {
           <View style={styles.toggles}>
             <Toggle label="Suoni" value={sound} onChange={v => set({ sound: v })} />
             <Toggle label="Vibrazione" value={haptics} onChange={v => set({ haptics: v })} />
-            <Toggle label="Partita veloce" sub="Animazioni e turni del computer più rapidi." value={fast} onChange={v => set({ fast: v })} />
+            <Toggle label="Animazioni rapide" sub="Carte e turni del computer più svelti." value={fast} onChange={v => set({ fast: v })} />
           </View>
           <Button
             kind="danger"

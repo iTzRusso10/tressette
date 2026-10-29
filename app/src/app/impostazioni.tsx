@@ -35,7 +35,7 @@ export default function Settings() {
           <View style={styles.group}>
             <Toggle label="Suoni" value={s.sound} onChange={sound => s.set({ sound })} />
             <Toggle label="Vibrazione" sub="Quando giochi, prendi punti o vinci." value={s.haptics} onChange={haptics => s.set({ haptics })} />
-            <Toggle label="Partita veloce" sub="Animazioni e turni del computer più rapidi." value={s.fast} onChange={fast => s.set({ fast })} />
+            <Toggle label="Animazioni rapide" sub="Carte e turni del computer più svelti." value={s.fast} onChange={fast => s.set({ fast })} />
             <Toggle
               label="Silenzia le reazioni"
               sub="Online non vedi le frasi veloci degli altri giocatori."
