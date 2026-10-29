@@ -10,9 +10,15 @@
 // mescolati con il colore del cielo (profondità atmosferica). Con `dim` ogni colore passa per `night()`:
 // la stessa scena, scura e desaturata, come una silhouette notturna. Statica, niente animazioni.
 // Le scene stanno in `arene/` (un file per mondo), gli attrezzi comuni in `arene/kit.tsx`.
-
+//
+// Eccezione, l'arena del prototipo di «Lampara»: «Il Club dei Signori» (arene/club/, docs/direzione-artistica.md
+// §5.14) è una sala vera in prospettiva, inquadrata per ogni proporzione (non tagliata), con la luce calcolata.
+// Con `dim` ha le «luci spente»: la stessa sala con la lampada spenta e solo la luna. Con le props opzionali di
+// vetrina diventa a piani (parallasse e vita): le altre 29 arene le ignorano e restano identiche.
 import { memo, useId } from 'react';
+import type { SharedValue } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
+import { ClubFermo, ClubVivo, type TavoloEquipaggiato } from './arene/club/ClubDeiSignori';
 import { BarDelPaese, CaffeDelleCarte, CircoloDegliAmici, LocandaDelRe, PiazzaDelBorgo, TavernaDelMoro } from './arene/borgo';
 import { CasinoDiVenezia, CircoloDOro, LoggiaDeiNobili, PalazzoDelleCarte, SalaDeiMaestri, SaloneDeiCampioni } from './arene/circolo';
 import { ClubDeiSignori, CorteDeiRe, PalazzoReale, SalaDegliImperatori, SalaDiCristallo, TronoDelleCarte } from './arene/reggia';
@@ -94,12 +100,40 @@ const SCENES: Record<string, SceneFn> = {
   'leggenda-vivente': LeggendaVivente,
 };
 
+export interface ArenaSceneProps {
+  id: string;
+  width: number;
+  height: number;
+  /** Arena non ancora raggiunta: la scena di notte (il Club: «luci spente»). */
+  dim?: boolean;
+  /** Vita ambientale (solo vetrina: «Esplora», svelamento, profilo). Si ferma da sola con useAmbient. */
+  vivo?: boolean;
+  /** Il tavolino equipaggiato dentro la scena, in prospettiva (solo il Club). */
+  tavolo?: TavoloEquipaggiato;
+  /** Lo scrollY di una lista: i piani scorrono a velocità diverse (parallasse). */
+  scorrimento?: SharedValue<number>;
+  /** Lo sguardo orizzontale (punti), per esempio da un trascinamento in «Esplora»: parallasse orizzontale. */
+  sguardo?: SharedValue<number>;
+  /** 0…1: l'entrata dei piani nello svelamento (la camera che arriva, la lampada per ultima). */
+  entrata?: SharedValue<number>;
+  /** 'esplora': inquadratura verticale vicina, la polvere nel cono della lampada. */
+  modo?: 'scena' | 'esplora';
+}
+
 /**
  * L'illustrazione di un'arena, a riempire width×height (da circa 1:1 a 3:1, il soggetto resta al centro).
  * `dim` per le arene non ancora raggiunte: la stessa scena di notte, scura e desaturata.
  */
-export const ArenaScene = memo(function ArenaScene({ id, width, height, dim }: { id: string; width: number; height: number; dim?: boolean }) {
+export const ArenaScene = memo(function ArenaScene({ id, width, height, dim, vivo, tavolo, scorrimento, sguardo, entrata, modo }: ArenaSceneProps) {
   const uid = 'as' + useId().replace(/[^a-zA-Z0-9]/g, '');
+  if (id === 'club-dei-signori') {
+    const piani = vivo || tavolo || scorrimento || sguardo || entrata || modo === 'esplora';
+    return piani ? (
+      <ClubVivo larghezza={width} altezza={height} modo={modo} spenta={!!dim} vivo={!!vivo} polvere={modo === 'esplora'} tavolo={tavolo} sguardo={sguardo} scorrimento={scorrimento} entrata={entrata} />
+    ) : (
+      <ClubFermo larghezza={width} altezza={height} spenta={!!dim} />
+    );
+  }
   const Scene = SCENES[id] ?? BarDelPaese;
   const k: Ctx = {
     c: dim ? night : (hex: string) => hex,

@@ -1,5 +1,6 @@
 // Trofei: la strada delle 30 arene (con la Leggenda dopo l'ultima), gli achievement e i titoli.
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENTS, type Achievement, type AchievementCategory } from '@/meta/achievements';
@@ -53,9 +54,18 @@ function ArenaStop({ arena, width }: { arena: Arena; width: number }) {
   const { have, need } = arenaProgress(p.cups, arena.index);
   const next = ARENAS[arena.index + 1];
   const blocked = blockedArena(p);
+  // Una scheda raggiunta si apre: «Esplora l'arena» a tutto schermo (/arena/[id]). Quelle chiuse non si toccano.
+  const apri = reached ? () => router.push({ pathname: '/arena/[id]', params: { id: arena.id } }) : undefined;
   return (
     <View style={[styles.stop, { width, height: (current ? CURRENT_H : ARENA_H) - space.m }, current && styles.stopCurrent]}>
-      <View style={{ height: sceneH }}>
+      <Squish
+        disabled={!reached}
+        onPress={apri}
+        scaleTo={0.985}
+        accessibilityRole={reached ? 'button' : undefined}
+        accessibilityLabel={reached ? `${arena.name}: esplora l’arena` : undefined}
+        style={{ height: sceneH }}
+      >
         <ArenaScene id={arena.id} width={width} height={sceneH} dim={!reached} />
         <LinearGradient colors={['rgba(20,4,40,0.74)', 'rgba(20,4,40,0)']} start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 0.95 }} style={StyleSheet.absoluteFill} />
         <View style={styles.stopHead}>
@@ -84,7 +94,7 @@ function ArenaStop({ arena, width }: { arena: Arena; width: number }) {
           )}
           {!reached || current ? <Text style={styles.cornerText}>{n(current ? p.cups : arena.threshold)}</Text> : null}
         </View>
-      </View>
+      </Squish>
       <View style={styles.stopFoot}>
         {current ? (
           <View style={{ gap: 6 }}>
