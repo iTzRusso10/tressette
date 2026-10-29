@@ -18,7 +18,7 @@ import { claimBonusOn, type BonusState } from './economy.ts';
 import { eventAt, templateById } from './events.ts';
 import { levelInfo } from './levels.ts';
 import { distinctProgress, missionsFor, weekOf, type MissionEvent } from './missions.ts';
-import { addHand, addMatch, emptyStats, GAME_IDS, normalizeStats, type HandRecord, type MatchRecord, type Stats } from './progress.ts';
+import { addHand, addMatch, emptyStats, GAME_IDS, normalizeStats, queueOf, type HandRecord, type MatchRecord, type Stats } from './progress.ts';
 import { carryOver, LEAGUES, leagueIndex, leagueOf, newRatings, rate, RATING, type GameRating, type WeeklyPerf } from './rating.ts';
 import { reqProgress, type ReqView } from './reqs.ts';
 import { levelReward, legendReward, prestigeReward } from './rewards.ts';
@@ -34,7 +34,7 @@ import { DEFAULT_TITLE, hasTitle, titleById } from './titles.ts';
  * stato il telefono li perderebbe (e li festeggerebbe di nuovo alla prossima partita). Va aumentata a
  * ogni cambio di regole o di catalogo: il test in __tests__/progression.test.ts lo ricorda.
  */
-export const LEDGER_VERSION = 2;
+export const LEDGER_VERSION = 3;
 
 /* ================================================================== stato */
 
@@ -403,7 +403,7 @@ function roll(tx: Tx, day: string) {
     m.week = week;
   }
   m.online ??= {};
-  for (const k of [day, week]) if (!(k in m.online)) m.online[k] = q.stats.onlinePlayed > 0;
+  for (const k of [day, week]) if (!(k in m.online)) m.online[k] = playsOnline(q);
   // L'offerta del giorno si decide una volta, con gli oggetti che hai a inizio giornata.
   if (q.meta.offer.day !== day) {
     const o = offerOf(day, q.owned, ITEMS);
@@ -455,9 +455,12 @@ function closeRatingSeason(tx: Tx, season: string) {
   }
 }
 
+/** Ha già giocato con altre persone o vinto trofei: le missioni online e dei trofei sono alla sua portata. */
+const playsOnline = (p: Progress) => p.stats.onlinePlayed > 0 || p.stats.trophiesWon > 0;
+
 /** Le missioni attive oggi e questa settimana, con la loro chiave. */
 export function activeMissions(p: Progress, day: string) {
-  const now = p.stats.onlinePlayed > 0;
+  const now = playsOnline(p);
   const week = weekOf(day);
   const online = p.meta.missions.online ?? {};
   const skip = p.meta.missions.swaps[day] ?? [];
@@ -687,18 +690,24 @@ export interface MatchOutcome {
   refused?: MatchRefusal;
 }
 
-/** La forza degli avversari di una partita: il computer per livello, o una persona online. */
-export const opponentStrength = (r: MatchRecord) => (r.online && r.opp && r.opp.length ? RATING.opponent.online : RATING.opponent[r.level]);
+/** La forza degli avversari in classificata: la media dei loro punteggi (il server la ricalcola). */
+export const opponentStrength = (r: MatchRecord) =>
+  Number.isFinite(r.oppRating) ? Math.max(RATING.floor, Math.min(4000, Math.round(r.oppRating!))) : RATING.unknownOpponent;
 
 /**
  * Una partita finita. Non conta se lo stesso id è già arrivato, e (sul server) se arriva troppo presto
  * dopo la precedente contro il computer. Le partite abbandonate non arrivano mai qui.
+ *
+ * Ogni strada dà la sua cosa: la partita veloce i trofei (e quindi le arene), la classificata il
+ * punteggio di bravura (e quindi la lega e le classifiche); contro il computer e tra amici restano
+ * monete, esperienza, missioni e achievement, che danno anche le altre due.
  */
 export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number, opts: { server?: boolean } = {}): MatchOutcome {
   day = dayFor(p, day);
   if (r.id && p.meta.recent.includes(r.id)) return { p, gains: [], delta: 0, ratingDelta: 0, refused: 'duplicate' };
   if (opts.server && !r.online && now - p.meta.lastMatchAt < BALANCE.antiAbuse.minSecondsBetweenMatches * 1000)
     return { p, gains: [], delta: 0, ratingDelta: 0, refused: 'tooSoon' };
+  const queue = queueOf(r);
   let delta = 0;
   let ratingDelta = 0;
   const out = run(p, day, tx => {
@@ -710,28 +719,19 @@ export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number
       credit(tx, { coins: BALANCE.coins.firstWinOfDay }, 'Prima vittoria del giorno');
     } else credit(tx, { coins: r.won ? BALANCE.coins.win : BALANCE.coins.loss }, r.won ? 'Vittoria' : 'Partita completata');
     q.xp += r.won ? BALANCE.xp.win : BALANCE.xp.loss;
-    // Trofei, con il pavimento dell'arena raggiunta.
+    // Trofei (solo la partita veloce), con il pavimento dell'arena raggiunta.
     const t = applyTrophies(q.cups, q.meta.arena, r);
     delta = t.delta;
     q.cups = t.trophies;
     q.bestCups = Math.max(q.bestCups, q.cups);
     q.stats.trophiesWon += Math.max(0, delta);
-    // Stagione: i punti seguono i trofei, mai sotto zero.
-    const s = q.meta.season;
-    if (s.id) {
-      if (s.matches === 0) q.stats.seasonsPlayed++;
-      s.matches++;
-      s.points = Math.max(0, s.points + delta);
-      s.streak = r.won ? s.streak + 1 : 0;
-      s.bestStreak = Math.max(s.bestStreak, s.streak);
-    }
 
-    // Persone online: oltre tre partite al giorno contro la stessa non contano per il punteggio.
+    // Persone al tavolo: oltre tre partite al giorno contro la stessa non contano per il punteggio.
     const opp = r.online ? (r.opp ?? []).filter(x => typeof x === 'string').slice(0, 3) : [];
     if (q.meta.pairs.day !== day) q.meta.pairs = { day, n: {} };
-    for (const o of opp) q.meta.pairs.n[o] = (q.meta.pairs.n[o] ?? 0) + 1;
-    const rated = opp.every(o => q.meta.pairs.n[o] <= RATING.samePairPerDay);
-    if (rated) {
+    if (queue === 'ranked') for (const o of opp) q.meta.pairs.n[o] = (q.meta.pairs.n[o] ?? 0) + 1;
+    // Il punteggio di bravura (solo la classificata).
+    if (queue === 'ranked' && opp.every(o => q.meta.pairs.n[o] <= RATING.samePairPerDay)) {
       const strength = opponentStrength(r);
       const before = q.meta.ratings[r.game];
       const lBefore = leagueIndex(before.r);
@@ -743,6 +743,15 @@ export function applyMatch(p: Progress, r: MatchRecord, day: string, now: number
       if (leagueIndex(after.g.r) > Math.max(lBefore, leagueIndex(before.peak))) tx.gains.push({ k: 'league', game: r.game, league: leagueOf(after.g.r).id });
       const w = q.meta.weekly[r.game];
       q.meta.weekly[r.game] = { ...w, n: w.n + 1, opp: w.opp + strength, w: w.w + (r.won ? 1 : 0), l: w.l + (r.won ? 0 : 1) };
+    }
+    // Stagione: le partite veloci e classificate; i punti seguono trofei e punteggio, mai sotto zero.
+    const s = q.meta.season;
+    if (s.id && (queue === 'quick' || queue === 'ranked')) {
+      if (s.matches === 0) q.stats.seasonsPlayed++;
+      s.matches++;
+      s.points = Math.max(0, s.points + (queue === 'quick' ? delta : ratingDelta));
+      s.streak = r.won ? s.streak + 1 : 0;
+      s.bestStreak = Math.max(s.bestStreak, s.streak);
     }
     // Rivali: vittorie contro la stessa persona.
     if (r.won && opp.length) {

@@ -198,7 +198,7 @@ function Road({ width }: { width: number }) {
       getItemLayout={(_, i) => ({ length: rowHeight(ROWS[i], current), offset: offsets[i], index: i })}
       ListHeaderComponent={
         <Text v="body" style={styles.intro}>
-          Una nuova arena ogni {BALANCE.trophies.arenaStep} trofei. I trofei non si azzerano mai e un’arena raggiunta resta tua: non si scende sotto il suo primo trofeo.
+          Una nuova arena ogni {BALANCE.trophies.arenaStep} trofei, che si vincono nella partita veloce. I trofei non si azzerano mai e un’arena raggiunta resta tua: non si scende sotto il suo primo trofeo.
         </Text>
       }
       renderItem={({ item: r }) =>

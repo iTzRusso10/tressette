@@ -26,7 +26,7 @@ function Upcoming({ w }: { w: SeasonWindow }) {
       <Text style={styles.kicker}>Prossima stagione</Text>
       <Text style={styles.name}>{w.season.name}</Text>
       <Text v="body">
-        Comincia il {fmt(w.start)} e dura fino al {fmt(w.end)}. Ogni partita vale punti stagione quanti i trofei che vinci o perdi; a fine stagione si azzerano solo quelli, mai trofei e oggetti.
+        Comincia il {fmt(w.start)} e dura fino al {fmt(w.end)}. Le partite veloci e classificate valgono punti stagione: i trofei o i punti della lega che vinci o perdi. A fine stagione si azzerano solo quelli, mai trofei e oggetti.
       </Text>
       <View style={styles.special}>
         <ItemPreview item={special} width={84} height={58} />

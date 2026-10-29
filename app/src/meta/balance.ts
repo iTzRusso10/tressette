@@ -1,17 +1,17 @@
 // Tutti i numeri del bilanciamento in un posto solo: trofei, monete, esperienza, prestigio, missioni,
 // stagioni. Cambiarli qui li cambia sul telefono e sul server (che importa questo file).
 //
-// Valori di partenza scelti con Giuseppe il 28 ottobre 2026. Con questi un giocatore medio arriva
-// alla trentesima arena (2900 trofei) in circa 375–445 partite (simulazione: scripts/sim-trofei.py).
-
-import type { Level } from '../engine/types.ts';
+// Valori di partenza scelti con Giuseppe il 28 ottobre 2026; il 29 ottobre i trofei sono diventati
+// solo della partita veloce (avversari veri trovati dal matchmaking). Con avversari della propria
+// arena si vince circa una partita su due: un giocatore medio arriva alla trentesima arena (2900
+// trofei) in circa 350–445 partite, secondo quante volte trova un computer (scripts/sim-trofei.py).
 
 export const BALANCE = {
   trophies: {
-    /** Trofei per una vittoria, per livello del computer; online vale come l'Esperto. */
-    win: { facile: 10, medio: 20, difficile: 30, online: 30 } satisfies Record<Level | 'online', number>,
-    /** Trofei persi con una sconfitta: contro il Facile non si perde niente. */
-    loss: { facile: 0, medio: 5, difficile: 10, online: 10 } satisfies Record<Level | 'online', number>,
+    /** Partita veloce contro persone: trofei vinti e persi. */
+    quick: { win: 25, loss: 10 },
+    /** Partita veloce con un computer al posto di chi non si è trovato in tempo: la metà. */
+    quickCpu: { win: 12, loss: 5 },
     /** Distanza tra due arene. */
     arenaStep: 100,
     /** Dopo l'ultima arena: un grado di Leggenda ogni tanti trofei, senza fine. */
@@ -65,6 +65,12 @@ export const BALANCE = {
     days: 60,
     /** Punti stagione: i trofei vinti e persi durante la stagione, mai sotto zero. */
     minMatchesToRank: 10,
+  },
+
+  /** Matchmaking: la classificata si sblocca a questo livello; dopo tanti secondi la partita veloce mette un computer. */
+  matchmaking: {
+    rankedLevel: 10,
+    cpuAfterSeconds: 20,
   },
 
   antiAbuse: {

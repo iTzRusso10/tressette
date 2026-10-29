@@ -208,6 +208,19 @@ export function cleanHand(h: Partial<HandRecord> | undefined): HandRecord {
   };
 }
 
+/**
+ * Che partita era. Le strade del gioco danno cose diverse:
+ * - `quick`, la partita veloce: avversari trovati dal matchmaking, si vincono e si perdono trofei;
+ * - `ranked`, la classificata: avversari del tuo livello, si muove il punteggio di bravura (la lega);
+ * - `cpu`, contro il computer: allenamento, monete, esperienza e missioni, niente trofei né lega;
+ * - `friends`, una stanza con gli amici: come contro il computer (più le sfide tra voi).
+ */
+export type Queue = 'cpu' | 'friends' | 'quick' | 'ranked';
+export const QUEUES: Queue[] = ['cpu', 'friends', 'quick', 'ranked'];
+
+/** Le partite salvate prima delle strade: online era una stanza con gli amici, il resto contro il computer. */
+export const queueOf = (r: { queue?: Queue; online: boolean }): Queue => r.queue ?? (r.online ? 'friends' : 'cpu');
+
 /** Come è finita una partita per te. `id` la identifica: la stessa partita non conta due volte. */
 export interface MatchRecord {
   id: string;
@@ -221,6 +234,14 @@ export interface MatchRecord {
   shutout?: boolean;
   /** Online: gli id delle persone avversarie (non i compagni, non il computer). */
   opp?: string[];
+  /** Quale strada (vedi `Queue`); manca nelle partite di prima. */
+  queue?: Queue;
+  /** Partita veloce e classificata: l'id della partita creata dal matchmaking (il server la verifica). */
+  mm?: string;
+  /** Partita veloce: al tavolo c'era un computer al posto di chi non si è trovato (trofei dimezzati). */
+  withCpu?: boolean;
+  /** Classificata: la forza media degli avversari (il server la ricalcola dai loro punteggi). */
+  oppRating?: number;
 }
 
 export function addHand(s: Stats, h: HandRecord): Stats {
@@ -246,12 +267,15 @@ export function addHand(s: Stats, h: HandRecord): Stats {
 
 export function addMatch(s: Stats, r: MatchRecord, day: string): Stats {
   const streak = r.won ? s.streak + 1 : 0;
-  const expert = !r.online && r.level === 'difficile';
+  // I livelli del computer contano solo contro il computer: un computer al posto di chi manca nella
+  // partita veloce non è una vittoria «contro l'Esperto».
+  const vsCpu = queueOf(r) === 'cpu';
+  const expert = vsCpu && r.level === 'difficile';
   const expertStreak = expert ? (r.won ? s.expertStreak + 1 : 0) : s.expertStreak;
   const g = s.byGame[r.game];
   const gStreak = r.won ? g.streak + 1 : 0;
   const four = r.mode === '4';
-  const levelBit = r.won && !r.online ? 1 << (GAME_IDS.indexOf(r.game) * 3 + ['facile', 'medio', 'difficile'].indexOf(r.level)) : 0;
+  const levelBit = r.won && vsCpu ? 1 << (GAME_IDS.indexOf(r.game) * 3 + ['facile', 'medio', 'difficile'].indexOf(r.level)) : 0;
   return {
     ...s,
     played: s.played + 1,

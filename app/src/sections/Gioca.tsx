@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Match } from '@/engine';
-import { Sheet } from '@/game/Sheet';
 import { canClaim } from '@/meta/economy';
 import { ARENAS, arenaProgress, blockedArena, LAST_ARENA } from '@/meta/arenas';
-import { BALANCE } from '@/meta/balance';
 import { roman } from '@/meta/levels';
 import { bonusAvailable, refreshDay, useProfile } from '@/meta/profile';
 import { legendOf } from '@/meta/reqs';
@@ -19,8 +17,9 @@ import { Icon, TrophyIcon } from '@/ui/icons';
 import { Squish } from '@/ui/kit';
 import { CoinIcon } from '@/ui/meta';
 import { Text } from '@/ui/Text';
-import { colors, fonts, gradients, radius, shadow, space } from '@/ui/theme';
-import { GameTile, ORDER, ResumeCard } from './GameTiles';
+import { colors, fonts, radius, shadow, space } from '@/ui/theme';
+import { ResumeCard } from './GameTiles';
+import { Chooser, PlayModes, rankedOpen, RankedLocked, type PlayKind } from './PlayModes';
 import { useTabs } from './Hub';
 import { Bar } from '@/ui/progression';
 import { refreshSocial } from '@/state/social';
@@ -81,46 +80,6 @@ function ArenaCard({ width, room }: { width: number; room: number }) {
   );
 }
 
-/** How many trophies each opponent is worth: shown when you choose the game. */
-function TrophyKey() {
-  const t = BALANCE.trophies;
-  const rows: [string, string, string][] = [
-    ['Facile', `+${t.win.facile}`, `${t.loss.facile}`],
-    ['Medio', `+${t.win.medio}`, `−${t.loss.medio}`],
-    ['Esperto', `+${t.win.difficile}`, `−${t.loss.difficile}`],
-    ['Online', `+${t.win.online}`, `−${t.loss.online}`],
-  ];
-  return (
-    <View style={styles.key}>
-      {rows.map(([who, win, loss]) => (
-        <View key={who} style={styles.keyCell}>
-          <Text style={styles.keyWho}>{who}</Text>
-          <View style={styles.keyRow}>
-            <TrophyIcon size={14} />
-            <Text style={styles.keyWin}>{win}</Text>
-          </View>
-          <Text style={styles.keyLoss}>{loss === '0' ? 'non perdi' : `${loss} se perdi`}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-export function Chooser({ onClose }: { onClose: () => void }) {
-  const { width } = useWindowDimensions();
-  const w = Math.min(width, 560) - space.xl * 2;
-  return (
-    <Sheet title="Che si gioca?" sub="Vinci per guadagnare trofei: più è forte l’avversario, più ne vinci." onDismiss={onClose}>
-      <View style={{ gap: space.m }}>
-        {ORDER.map((g, i) => (
-          <GameTile key={g} game={g} width={w} index={i} onPick={onClose} />
-        ))}
-      </View>
-      <TrophyKey />
-    </Sheet>
-  );
-}
-
 /** The daily bonus opens by itself once per app launch, when it is there to collect. */
 let bonusShown = false;
 let socialAt = 0;
@@ -134,7 +93,12 @@ export function Gioca({ active }: { active: boolean }) {
   const canBonus = canClaim(bonusState, new Date());
   const colW = Math.min(width, 560) - 40;
 
-  const choose = () => sheet(<Chooser onClose={() => sheet(null)} />);
+  const xp = useProfile(s => s.xp);
+  const choose = (kind: PlayKind = 'quick') => {
+    if (kind === 'ranked' && !rankedOpen(xp))
+      return sheet(<RankedLocked onClose={() => sheet(null)} onQuick={() => sheet(<Chooser kind="quick" onClose={() => sheet(null)} />)} />);
+    sheet(<Chooser kind={kind} onClose={() => sheet(null)} />);
+  };
   const openBonus = () => sheet(<DailyBonus onClose={() => sheet(null)} />);
 
   useFocusEffect(
@@ -172,16 +136,9 @@ export function Gioca({ active }: { active: boolean }) {
   return (
     <>
       <SectionScroll>
-        <ArenaCard width={colW} room={height - ins.top - ins.bottom - 60 - 76 - 8 - 92 - 66 - 48 - (saved ? 96 : 0)} />
+        <ArenaCard width={colW} room={height - ins.top - ins.bottom - 60 - 76 - 8 - 92 - 76 - 66 - 48 - (saved ? 96 : 0)} />
         {saved ? <ResumeCard m={saved} /> : null}
-        <Squish accessibilityRole="button" accessibilityLabel="Gioca: scegli tra Tressette, Briscola e Scopa" onPress={choose} scaleTo={0.97}>
-          <View style={styles.play}>
-            <LinearGradient colors={gradients.sun.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: radius.pill }]} />
-            <View style={styles.playShine} />
-            <Text style={styles.playLabel}>Gioca</Text>
-            <Text style={styles.playSub}>Tressette, Briscola o Scopa</Text>
-          </View>
-        </Squish>
+        <PlayModes onPick={choose} />
         <View style={styles.row}>
           <Squish accessibilityRole="button" accessibilityLabel="Gioca con gli amici" onPress={() => go('amici')} outerStyle={{ flex: 1 }} style={styles.small}>
             <Icon name="friends" size={22} color={colors.mint} />
@@ -207,7 +164,7 @@ export function Gioca({ active }: { active: boolean }) {
         </View>
         <ClaimsCard width={colW} />
         <FriendsCard width={colW} onOpen={() => go('amici')} />
-        <EventCard width={colW} onPlay={choose} />
+        <EventCard width={colW} onPlay={() => choose('quick')} />
         <Missions width={colW} />
       </SectionScroll>
     </>
@@ -240,18 +197,6 @@ const styles = StyleSheet.create({
   roadBar: { flexDirection: 'row', alignItems: 'center', gap: space.s },
   roadNum: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19, color: colors.text, fontVariant: ['tabular-nums'], minWidth: 44, textAlign: 'right' },
   roadText: { fontFamily: fonts.semi, fontSize: 13.5, lineHeight: 18, color: colors.textSoft, textAlign: 'center' },
-  play: {
-    height: 76,
-    borderRadius: radius.pill,
-    marginTop: space.l,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    boxShadow: '0px 14px 30px rgba(255,194,61,0.45)',
-  },
-  playShine: { position: 'absolute', left: 0, right: 0, top: 0, height: 34, backgroundColor: 'rgba(255,255,255,0.28)' },
-  playLabel: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, color: colors.ink, letterSpacing: -0.6 },
-  playSub: { fontFamily: fonts.semi, fontSize: 12.5, lineHeight: 16, color: colors.ink, opacity: 0.7 },
   row: { flexDirection: 'row', gap: space.m, marginTop: space.m },
   small: {
     height: 54,
@@ -266,10 +211,4 @@ const styles = StyleSheet.create({
   },
   smallGold: { borderColor: 'rgba(255,224,102,0.6)' },
   smallText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 18, color: colors.text },
-  key: { flexDirection: 'row', gap: space.s, marginTop: space.l },
-  keyCell: { flex: 1, alignItems: 'center', paddingVertical: space.s, borderRadius: radius.m, backgroundColor: 'rgba(255,255,255,0.08)' },
-  keyWho: { fontFamily: fonts.semi, fontSize: 11.5, lineHeight: 14, color: colors.textSoft },
-  keyRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
-  keyWin: { fontFamily: fonts.display, fontSize: 16, lineHeight: 20, color: colors.text },
-  keyLoss: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 13, color: colors.textFaint, marginTop: 1 },
 });

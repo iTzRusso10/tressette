@@ -60,6 +60,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="index" options={{ animation: 'fade' }} />
           <Stack.Screen name="tavolo" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="cerca" options={{ animation: 'fade' }} />
         </Stack>
         <Overlays />
       </SafeAreaProvider>

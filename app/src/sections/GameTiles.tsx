@@ -7,6 +7,8 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay
 import Svg, { Path } from 'react-native-svg';
 import { GAMES, type GameId, type Match } from '@/engine';
 import { FRONTS } from '@/game/cardImages';
+import { useProfile } from '@/meta/profile';
+import { leagueOf, placed, RATING } from '@/meta/rating';
 import { resumeMatch } from '@/state/table';
 import { sfx } from '@/ui/feedback';
 import { Squish } from '@/ui/kit';
@@ -52,8 +54,28 @@ function DealtCard({ c, w, i, pose }: { c: number; w: number; i: number; pose: {
   );
 }
 
-export function GameTile({ game, width, index, onPick }: { game: GameId; width: number; index: number; onPick?: () => void }) {
+export function GameTile({
+  game,
+  width,
+  index,
+  onPick,
+  kind = 'cpu',
+}: {
+  game: GameId;
+  width: number;
+  index: number;
+  onPick?: () => void;
+  kind?: 'quick' | 'ranked' | 'cpu';
+}) {
   const cards = FAN[game];
+  const rating = useProfile(s => s.meta.ratings[game]);
+  // In classificata, sotto il nome del gioco la tua lega (o la calibrazione).
+  const sub =
+    kind === 'ranked'
+      ? placed(rating)
+        ? `Lega: ${leagueOf(rating.r).coin} · ${rating.r.toLocaleString('it-IT')}`
+        : `Calibrazione ${rating.n}/${RATING.placement}`
+      : SUB[game];
   const cw = Math.min(70, width * 0.18);
   const poses = [
     { right: cw * 1.35, top: -6, rotate: -14 },
@@ -63,11 +85,11 @@ export function GameTile({ game, width, index, onPick }: { game: GameId; width: 
   return (
     <Squish
       accessibilityRole="button"
-      accessibilityLabel={`${GAMES[game].name}: ${SUB[game]}`}
+      accessibilityLabel={`${GAMES[game].name}: ${sub}`}
       onPress={() => {
         sfx('tick');
         onPick?.();
-        router.push({ pathname: '/gioca/[game]', params: { game } });
+        router.push({ pathname: '/gioca/[game]', params: { game, queue: kind } });
       }}
       style={[styles.tile, { boxShadow: `0px 14px 30px ${gradients.games[game][1]}66` }]}
       scaleTo={0.97}
@@ -81,7 +103,9 @@ export function GameTile({ game, width, index, onPick }: { game: GameId; width: 
       <View style={styles.tileShine} />
       <View style={styles.tileText}>
         <Text style={styles.tileName}>{GAMES[game].name}</Text>
-        <Text style={styles.tileSub}>{SUB[game]}</Text>
+        <Text style={styles.tileSub} numberOfLines={1}>
+          {sub}
+        </Text>
       </View>
       <View style={[styles.fan, { width: cw * 2.5 }]} pointerEvents="none">
         {cards.map((c, i) => (

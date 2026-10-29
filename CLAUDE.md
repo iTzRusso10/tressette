@@ -39,15 +39,23 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 
 ## Progressione: trofei, livelli, achievement, stagioni
 
-- Quattro percorsi indipendenti che si premiano a vicenda. **Trofei** (`cups` nel codice): vittoria Facile +10, Medio +20, Esperto e online +30; sconfitta 0, −5, −10. **30 arene** in cinque capitoli, una ogni 100 trofei (0…2900); alcune avanzate chiedono un requisito (livello, vittorie contro l'Esperto, vittorie in tutti e tre i giochi). I trofei non si azzerano mai e non si scende sotto il primo trofeo dell'arena raggiunta. Dopo la trentesima, un grado di **Leggenda** ogni 200 trofei, senza fine. Un giocatore medio arriva in cima in circa 375–445 partite (`scripts/sim-trofei.py`).
+- Quattro percorsi indipendenti che si premiano a vicenda. **Trofei** (`cups` nel codice): solo dalla **partita veloce**, +25 se vinci, −10 se perdi; +12/−5 quando al tavolo c'è un computer al posto di chi non si è trovato. Contro il computer, tra amici e in classificata niente trofei. **30 arene** in cinque capitoli, una ogni 100 trofei (0…2900); alcune avanzate chiedono un requisito (livello, vittorie contro l'Esperto, vittorie in tutti e tre i giochi). I trofei non si azzerano mai e non si scende sotto il primo trofeo dell'arena raggiunta. Dopo la trentesima, un grado di **Leggenda** ogni 200 trofei, senza fine. Un giocatore medio arriva in cima in circa 350–445 partite (`scripts/sim-trofei.py`).
 - **Livello**: 100 livelli con esperienza crescente, poi gradi di **Prestigio** ogni 10.000 punti. **Achievement** (`trophies` nel codice e sul server per ragioni storiche): 183 in 16 categorie, bronzo/argento/oro/platino. **Titoli**: 60, ognuno con un requisito, si scelgono nella sezione Trofei. **Missioni**: 3 al giorno e 4 alla settimana, scelte con il seme del giocatore. **Stagioni**: 60 giorni, dalla prima del 2 novembre 2026; azzerano solo i punti stagione.
 - **Cosmetici**: tavolino (la sponda), grafica del panno (la superficie) e dorso, liberamente combinabili; sei rarità; si ottengono dal negozio, dalle arene, dagli achievement, dai livelli, dalle stagioni, dai set, dagli eventi. Gli oggetti «in arrivo» aspettano un'illustrazione (`docs/asset-mancanti.md`, generato da `scripts/asset-mancanti.mjs`): si vedono ma non si comprano né si usano. Gli id degli oggetti in `owned` hanno il posto davanti (`felt:verde-smeraldo`); i vecchi id li converte `migrateCosmetics`.
 - Ogni regola sta in `ledger.ts`: per cambiare un comportamento si cambia lì (e i test in `src/meta/__tests__/progression.test.ts`), poi si ripubblica la funzione `progress`. Nessun oggetto dà vantaggi in partita.
 - Lo svelamento di una nuova arena aspetta che si lasci il tavolo.
 
+## Le tre strade: partita veloce, classificata, computer
+
+- **Partita veloce** (trofei e arene) e **classificata** (punteggio e leghe, dal livello 10) cercano avversari con il **matchmaking**; **contro il computer** è allenamento (monete, esperienza, missioni, achievement). Le **stanze con gli amici** restano come prima e non danno trofei né lega. Ogni partita ha la sua strada (`queue` in `MatchRecord`: `quick`, `ranked`, `cpu`, `friends`).
+- **Coda** (`supabase/migrations/20261031000000_matchmaking.sql`): `mm_join` mette un biglietto, `mm_poll` (ogni 1,5 s) prova ad abbinare biglietti dello stesso gioco e modalità con punteggio vicino (trofei nella veloce, punteggio del gioco in classificata); la distanza accettata cresce con l'attesa. Nella veloce dopo 20 secondi i posti liberi li prende un **computer dichiarato** (trofei dimezzati); in classificata si aspetta una persona (dopo un minuto chiunque). Chi aspettava da più tempo apre la stanza (`openMmRoom`, posti già assegnati, parte da sola); gli altri entrano (`joinMmRoom`). Da soli con il computer si gioca in locale (`startMatch(cfg, tag)`).
+- **Verifica**: la funzione `progress` chiede a `mm_report` se la partita esiste, se c'eri, se è durata abbastanza, se non l'hai già riferita e se non contraddice gli altri; gioco, avversari, la loro forza e il computer li dice il server. Uscire a metà conta come sconfitta (`forfeit`), salvo se ha chiuso chi teneva il tavolo.
+- **Regole fisse** (`mmRules` in `online/matchmaking.ts`): Tressette a 21 con accusi (a perdere 31 con cappotto), Briscola a una mano (classificata: due), Scopa a 11.
+- Telefono: `online/matchmaking.ts` (regole, coda tra schede con `?local`, `&mmcpu=3` per accorciare l'attesa), `online/mmServer.ts` (coda vera), `online/search.ts` (dalla coda al tavolo), `app/cerca.tsx` (la ricerca), `sections/PlayModes.tsx` (le tre strade nella home). Prova: `npm run check:mm`.
+
 ## Competizione e amici
 
-- **Punteggio per gioco** (`rating.ts`): un Elo con forze fisse per gli avversari (Facile 800, Medio 1100, Esperto 1400, persona online 1300), 10 partite di calibrazione, poi K=20. Non premia il volume: oltre la propria bravura le vittorie valgono zero. Sette **leghe** con i nomi delle monete napoletane, ognuna con la sua cornice; a fine stagione il punteggio torna a metà strada da 1000. Online, contro la stessa persona contano solo 3 partite al giorno. Separato dai trofei, che restano la progressione permanente.
+- **Punteggio per gioco** (`rating.ts`): un Elo, solo in classificata, con la forza vera degli avversari (media dei loro punteggi, ricalcolata dal server), 10 partite di calibrazione, poi K=20. Non premia il volume: oltre la propria bravura le vittorie valgono zero. Sette **leghe** con i nomi delle monete napoletane, ognuna con la sua cornice; a fine stagione il punteggio torna a metà strada da 1000. Contro la stessa persona contano solo 3 partite al giorno. Separato dai trofei, che restano la progressione permanente. I punti stagione seguono i trofei (veloce) e il punteggio (classificata).
 - **Classifiche** (`Classifica.tsx`): stagione (per gioco), settimana (prestazione da 5 partite, podio con premi) e trofei; tutti, amici, vicino a te.
 - **Ricompense da riscuotere** (`meta.claims`): missioni, traguardi di stagione ed eventi, leghe, podi. Restano finché non le riscuoti, una volta sola (`meta.claimed`). Le missioni del giorno si possono cambiare una volta al giorno.
 - **Eventi** (`events.ts`): un calendario di cinque settimane che si ripete, misurato sulle statistiche che ci sono già, tre traguardi e una cornice esclusiva. Niente valute nuove.
@@ -73,7 +81,8 @@ npm run check            # tipi + lint + test (regole, partite simulate, online)
 npm run export:web       # sito in dist/
 npm run check:visual     # foto di tutte le modalità su 3 schermi in .visual/, e controllo che niente si sposti
 npm run check:online     # due schede giocano online tra loro (?local), senza server
-npm run check:hub        # foto delle cinque sezioni, del profilo e dei pannelli su 3 schermi
+npm run check:hub        # foto delle cinque sezioni, delle tre strade, del profilo e dei pannelli su 3 schermi
+npm run check:mm         # matchmaking tra schede (?local): ricerca, due persone allo stesso tavolo, computer dopo l'attesa
 npm run check:db         # migrazioni e regole del server su un Postgres vero (supabase/tests)
 ```
 

@@ -1,25 +1,33 @@
+# Quante partite servono per la trentesima arena (2900 trofei).
+# I trofei li dà solo la partita veloce: +25/−10 contro persone, +12/−5 quando al tavolo c'è un computer
+# al posto di chi non si è trovato in tempo. Il matchmaking mette insieme persone di trofei vicini, quindi
+# si vince circa una partita su due; chi è più bravo un po' di più. Non si scende sotto l'arena raggiunta.
 import random, statistics
-WIN={'facile':10,'medio':20,'esperto':30,'online':30}
-LOSS={'facile':0,'medio':5,'esperto':10,'online':10}
-def run(mix, rate, top=2900, step=100, runs=4000):
-    out=[]
+
+PERSONE = (25, 10)
+COMPUTER = (12, 5)
+
+def run(rate_people, rate_cpu, cpu_share, top=2900, step=100, runs=4000):
+    out = []
     for _ in range(runs):
-        t=best=0;n=0
-        while t<top:
-            lv=random.choices(list(mix),weights=list(mix.values()))[0]
-            n+=1
-            floor=(min(29,best//step))*step
-            if random.random()<rate[lv]: t+=WIN[lv]
-            else: t=max(floor,t-LOSS[lv])
-            best=max(best,t)
+        t = best = 0
+        n = 0
+        while t < top:
+            n += 1
+            cpu = random.random() < cpu_share
+            win, loss = COMPUTER if cpu else PERSONE
+            floor = (min(29, best // step)) * step
+            if random.random() < (rate_cpu if cpu else rate_people):
+                t += win
+            else:
+                t = max(floor, t - loss)
+            best = max(best, t)
         out.append(n)
     out.sort()
-    return statistics.mean(out), out[len(out)//10], out[9*len(out)//10]
-tipico={'facile':.70,'medio':.50,'esperto':.38,'online':.50}
-debole={'facile':.60,'medio':.42,'esperto':.30,'online':.42}
-forte ={'facile':.85,'medio':.62,'esperto':.50,'online':.58}
-profili={'solo Facile':{'facile':1},'solo Medio':{'medio':1},'solo Esperto':{'esperto':1},'misto (30/40/20/10)':{'facile':.3,'medio':.4,'esperto':.2,'online':.1}}
-for nome,r in [('tipico',tipico),('debole',debole),('forte',forte)]:
-    for p,m in profili.items():
-        a,lo,hi=run(m,r)
-        print(f"{nome:7} {p:22} media {a:5.0f}  (10%-90%: {lo}-{hi})")
+    return statistics.mean(out), out[len(out) // 10], out[9 * len(out) // 10]
+
+giocatori = {'debole': (0.45, 0.50), 'tipico': (0.50, 0.58), 'forte': (0.56, 0.68)}
+for nome, (rp, rc) in giocatori.items():
+    for share in (0.0, 0.2, 0.5):
+        a, lo, hi = run(rp, rc, share)
+        print(f"{nome:7} computer nel {int(share * 100):2}% delle partite: media {a:5.0f}  (10%-90%: {lo}-{hi})")

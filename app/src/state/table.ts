@@ -25,6 +25,7 @@ import {
 import { assignSlots } from '@/game/layout';
 import type { GuestRoom, HostRoom } from '@/online/room';
 import { recordHand, recordMatch } from '@/meta/profile';
+import type { Queue } from '@/meta/progress';
 import { cancelSfx, sfx, sfxAfter, type Sfx } from '@/ui/feedback';
 import { dur } from '@/ui/motion';
 import { dealTimes, landAt, moveAt } from '@/ui/sfxTiming';
@@ -120,6 +121,25 @@ let net: Net = null;
 /** Il distacco più grande subito nella partita in corso (per le rimonte). */
 let maxDeficit = 0;
 
+/**
+ * Una partita del matchmaking giocata qui, senza stanza: la partita veloce in cui nessuno si è trovato in
+ * tempo e i posti li prende il computer. Si gioca come contro il computer ma vale trofei (dimezzati).
+ */
+export interface MatchTag {
+  queue: 'quick' | 'ranked';
+  mm: string;
+  withCpu: boolean;
+}
+let localTag: MatchTag | null = null;
+
+/** Che strada è la partita in corso: contro il computer, tra amici, veloce o classificata. */
+export function currentQueue(): Queue {
+  const cfg = net?.room.lobby?.cfg;
+  if (cfg?.queue) return cfg.queue;
+  if (localTag) return localTag.queue;
+  return net ? 'friends' : 'cpu';
+}
+
 /** Online: gli id delle persone nella squadra avversaria (non il computer, non i compagni). */
 function opponentPeers(m: Match, myTeam: number): string[] {
   const lobby = net?.room.lobby;
@@ -177,8 +197,9 @@ export function pushFx(kind: FxKind, text: string, opts: { sub?: string; p?: num
 
 async function save() {
   const m = get().match;
-  // Una partita online non si riprende da soli (gli amici non ci sarebbero più): si salvano solo quelle locali.
-  if (!m || net) return;
+  // Una partita online non si riprende da soli (gli amici non ci sarebbero più): si salvano solo quelle
+  // locali. Nemmeno quelle del matchmaking: lasciate a metà sono abbandonate.
+  if (!m || net || localTag) return;
   try {
     await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(m));
   } catch {
@@ -210,9 +231,13 @@ export const teamLabel = (m: Match, t: number) => (m.mode === '4' ? [t, t + 2].m
 
 /* ------------------------------------------------------------------ flow */
 
-/** Una partita contro il computer: una stanza rimasta aperta (un ingresso fallito) non c'entra più. */
-export function startMatch(cfg: MatchConfig) {
+/**
+ * Una partita contro il computer: una stanza rimasta aperta (un ingresso fallito) non c'entra più. Con
+ * `tag` è una partita del matchmaking giocata qui con il computer al posto di chi manca.
+ */
+export function startMatch(cfg: MatchConfig, tag: MatchTag | null = null) {
   dropNet();
+  localTag = tag;
   beginMatch(cfg);
 }
 
@@ -239,6 +264,7 @@ export function dropNet() {
 
 export function resumeMatch(m: Match) {
   dropNet();
+  localTag = null;
   gen++;
   cancelSfx();
   // Il distacco delle mani prima non è salvato: meglio nessuna rimonta che una rimonta finta.
@@ -249,6 +275,7 @@ export function resumeMatch(m: Match) {
 
 export function quitMatch() {
   gen++;
+  localTag = null;
   cancelSfx();
   humanResolve = null;
   remoteWait = null;
@@ -267,6 +294,7 @@ export function quitMatch() {
 /** Online, as host: the friends' seats are 'remote' and their moves come from the room. */
 export function startHostMatch(room: HostRoom) {
   net = { role: 'host', room };
+  localTag = null;
   offlineSince.clear();
   room.onMove = (seat, mv) => {
     const w = remoteWait;
@@ -289,6 +317,7 @@ export function startHostMatch(room: HostRoom) {
 export function startGuest(room: GuestRoom) {
   gen++;
   net = { role: 'guest', room };
+  localTag = null;
   const g = gen;
   set({ ...initial, viewer: room.seat });
   let chain = Promise.resolve();
@@ -516,20 +545,37 @@ async function present(st: Step, g: number) {
   }
 }
 
+/**
+ * Partita veloce o classificata lasciata a metà: conta come persa (altrimenti basterebbe uscire quando
+ * si sta perdendo per non perdere trofei o punti). Non vale quando la stanza l'ha chiusa chi la teneva.
+ */
+export function forfeit() {
+  const m = get().match;
+  const q = currentQueue();
+  if (!m?.h || m.finished || m.h.over || (q !== 'quick' && q !== 'ranked')) return;
+  recordEnd(m, true);
+}
+
 /** Una partita finita va nei tuoi progressi (una volta sola per partita). */
 let recorded: Match | null = null;
-function recordEnd(m: Match) {
+function recordEnd(m: Match, forfeited = false) {
   const out = m.h?.result?.out;
-  if (!out || recorded === m) return;
+  if ((!out && !forfeited) || recorded === m) return;
   recorded = m;
   const me = get().viewer;
   const myTeam = teamOf(m, me);
   const lower = m.game === 'tressette' && m.mode === 'perdere';
   const rest = m.match.filter((_, i) => i !== myTeam);
-  const won = out.winners.includes(myTeam);
+  const won = !forfeited && !!out?.winners.includes(myTeam);
   const comebackAt = m.game === 'briscola' ? (m.target >= 2 ? 1 : Infinity) : Math.ceil(m.target * 0.4);
   // Online vale solo con almeno un'altra persona al tavolo: una stanza con soli computer è una partita locale.
-  const people = net?.room.lobby?.seats.some((s, i) => i !== me && s.type !== 'cpu') ?? false;
+  const lobby = net?.room.lobby;
+  const people = lobby?.seats.some((s, i) => i !== me && s.type !== 'cpu') ?? false;
+  const opp = people ? opponentPeers(m, myTeam) : [];
+  // La strada: il matchmaking (stanza o partita qui con il computer), gli amici, o il computer.
+  const queue: Queue = lobby?.cfg.queue ?? localTag?.queue ?? (people ? 'friends' : 'cpu');
+  const scores = lobby?.cfg.scores ?? {};
+  const oppScores = opp.map(id => scores[id]).filter((x): x is number => typeof x === 'number');
   recordMatch({
     game: m.game,
     mode: m.mode,
@@ -538,7 +584,15 @@ function recordEnd(m: Match) {
     won,
     comeback: won && maxDeficit !== Infinity && maxDeficit >= comebackAt,
     shutout: won && !lower && (m.game !== 'briscola' || m.target >= 2) && rest.every(x => x === 0),
-    opp: people ? opponentPeers(m, myTeam) : [],
+    opp,
+    queue,
+    ...(queue === 'quick' || queue === 'ranked'
+      ? {
+          mm: lobby?.cfg.mm ?? localTag?.mm,
+          withCpu: lobby ? lobby.seats.some(s => s.type === 'cpu') : !!localTag?.withCpu,
+          ...(oppScores.length ? { oppRating: Math.round(oppScores.reduce((a, b) => a + b, 0) / oppScores.length) } : {}),
+        }
+      : {}),
   });
 }
 

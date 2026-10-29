@@ -7,18 +7,48 @@ import { useProfile } from '@/meta/profile';
 import { createRoom } from '@/online/session';
 import { sendInvite } from '@/meta/social';
 import { CPU_NAMES, GAMES, MODE_INFO, targetsFor, type GameId, type Level, type Mode, type Seat } from '@/engine';
+import { leagueOf, leagueProgress, placed, RATING } from '@/meta/rating';
+import { rulesText } from '@/online/matchmaking';
+import { startSearch } from '@/online/search';
+import { LeagueCoin } from '@/ui/competition';
+import { Bar } from '@/ui/progression';
+import { BALANCE } from '@/meta/balance';
 import { FRONTS } from '@/game/cardImages';
 import { useSettings } from '@/state/settings';
 import { startMatch } from '@/state/table';
 import { BackButton, Button, Choice, Glass, Screen, Section, Toggle } from '@/ui/kit';
 import { Text } from '@/ui/Text';
-import { CARD_RATIO, cardRadius, colors, radius, shadow, space } from '@/ui/theme';
+import { CARD_RATIO, cardRadius, colors, fonts, radius, shadow, space } from '@/ui/theme';
 
 const FAN: Record<GameId, [number, number, number]> = { tressette: [12, 32, 21], briscola: [20, 3, 29], scopa: [16, 6, 26] };
 
+/** Il punteggio del gioco in classificata: la lega, quanto manca alla prossima, o la calibrazione. */
+function RankedCard({ game }: { game: GameId }) {
+  const r = useProfile(st => st.meta.ratings[game]);
+  const ok = placed(r);
+  const league = leagueOf(r.r);
+  const prog = leagueProgress(r.r);
+  return (
+    <Glass style={styles.ranked}>
+      <LeagueCoin league={league} size={44} dim={!ok} />
+      <View style={{ flex: 1 }}>
+        <Text v="label">{ok ? league.name : 'In calibrazione'}</Text>
+        <Text v="small" style={{ marginTop: 2 }}>
+          {ok
+            ? `${r.r.toLocaleString('it-IT')} punti${prog ? ` · ${prog[1] - prog[0]} alla lega dopo` : ''}`
+            : `${r.n} partite su ${RATING.placement}: poi entri in classifica con la tua lega.`}
+        </Text>
+        {ok && prog ? <Bar have={prog[0]} need={prog[1]} height={5} style={{ marginTop: 6 }} /> : null}
+      </View>
+    </Glass>
+  );
+}
+
 export default function Setup() {
-  const { game: raw, online, invite } = useLocalSearchParams<{ game: string; online?: string; invite?: string }>();
+  const { game: raw, online, invite, queue } = useLocalSearchParams<{ game: string; online?: string; invite?: string; queue?: string }>();
   const isOnline = online === '1';
+  // La strada: partita veloce e classificata cercano avversari; altrimenti computer o stanza con gli amici.
+  const mm = !isOnline && (queue === 'quick' || queue === 'ranked') ? queue : null;
   const [busy, setBusy] = useState(false);
   const [stake, setStake] = useState(0);
   const coins = useProfile(st => st.coins);
@@ -61,6 +91,12 @@ export default function Setup() {
     }
   };
 
+  const search = () => {
+    s.set({ lastGame: game });
+    void startSearch({ kind: mm!, game, mode: prefs.mode, perdN: prefs.perdN });
+    router.replace('/cerca');
+  };
+
   const cw = 50;
   const ch = cw * CARD_RATIO;
   const mini = (c: number, x: number, y: number, r: number) => (
@@ -81,6 +117,9 @@ export default function Setup() {
             {mini(FAN[game][2], cw * 1.05, 8, 11)}
           </View>
           <View style={{ flex: 1 }}>
+            <Text style={styles.kicker}>
+              {mm === 'quick' ? 'Partita veloce' : mm === 'ranked' ? 'Classificata' : isOnline ? 'Con gli amici' : 'Contro il computer'}
+            </Text>
             <Text v="h1" accessibilityRole="header">
               {info.name}
             </Text>
@@ -113,7 +152,15 @@ export default function Setup() {
           </Section>
         ) : null}
 
-        {perdere ? (
+        {mm ? (
+          <Section title="Regole" note="Uguali per tutti i tavoli, così si gioca subito.">
+            <View style={styles.fixed}>
+              <Text v="label" style={styles.fixedText}>
+                {rulesText(mm, game, prefs.mode)}
+              </Text>
+            </View>
+          </Section>
+        ) : perdere ? (
           <Section title="Punteggio" note="A perdere chi arriva a 31 perde, e vince chi ha meno punti.">
             <View style={styles.fixed}>
               <Text v="label" style={styles.fixedText}>
@@ -132,20 +179,35 @@ export default function Setup() {
           </Section>
         )}
 
-        <Section title="Computer">
-          <Choice<Level>
-            label="Livello del computer"
-            value={s.level}
-            onChange={level => s.set({ level })}
-            options={[
-              { value: 'facile', label: 'Facile' },
-              { value: 'medio', label: 'Medio' },
-              { value: 'difficile', label: 'Esperto' },
-            ]}
-          />
-        </Section>
+        {mm === 'ranked' ? (
+          <Section title="La tua lega">
+            <RankedCard game={game} />
+          </Section>
+        ) : null}
 
-        {game === 'tressette' ? (
+        {mm ? null : (
+          <Section
+            title="Computer"
+            note={
+              isOnline
+                ? 'Gioca ai posti che restano liberi.'
+                : 'Contro il computer non si vincono trofei né punti della lega: monete, esperienza e missioni sì.'
+            }
+          >
+            <Choice<Level>
+              label="Livello del computer"
+              value={s.level}
+              onChange={level => s.set({ level })}
+              options={[
+                { value: 'facile', label: 'Facile' },
+                { value: 'medio', label: 'Medio' },
+                { value: 'difficile', label: 'Esperto' },
+              ]}
+            />
+          </Section>
+        )}
+
+        {game === 'tressette' && !mm ? (
           <Glass style={styles.toggles}>
             {perdere ? (
               <Toggle
@@ -178,7 +240,14 @@ export default function Setup() {
           </Section>
         ) : null}
 
-        {isOnline ? (
+        {mm ? (
+          <Button
+            label="Cerca avversari"
+            sub={mm === 'quick' ? `Vinci ${BALANCE.trophies.quick.win} trofei, ne perdi ${BALANCE.trophies.quick.loss}` : `Vale per la tua lega a ${info.name}`}
+            onPress={search}
+            style={{ marginTop: space.xxl }}
+          />
+        ) : isOnline ? (
           <Button
             label={busy ? 'Apro la stanza…' : 'Crea la stanza'}
             sub="Poi inviti gli amici con il codice"
@@ -202,5 +271,7 @@ const styles = StyleSheet.create({
   card: { position: 'absolute', overflow: 'hidden', backgroundColor: '#FFFFFF', boxShadow: shadow.card },
   fixed: { height: 48, borderRadius: radius.pill, paddingHorizontal: 18, justifyContent: 'center', backgroundColor: '#FFFFFF', alignSelf: 'flex-start' },
   fixedText: { color: colors.ink },
+  kicker: { fontFamily: fonts.bold, fontSize: 11.5, lineHeight: 14, color: colors.sun, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 2 },
+  ranked: { flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: colors.panel, borderColor: colors.panelLine },
   toggles: { marginTop: space.xl, paddingHorizontal: space.l, paddingVertical: space.xs, backgroundColor: colors.panel, borderColor: colors.panelLine },
 });

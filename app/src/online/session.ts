@@ -6,12 +6,12 @@ import { receiveReaction, resetReactions, trySend } from '@/state/reactions';
 import { useProfile } from '@/meta/profile';
 import { teamOf as teamOfSeat } from '@/engine';
 import { dropNet, setOnRematch, startGuest, startHostMatch, useTable } from '@/state/table';
-import { GuestRoom, HostRoom, type Lobby, type RoomConfig } from './room';
+import { GuestRoom, HostRoom, type Lobby, type Reserved, type RoomConfig } from './room';
 import { onlineConfigured as supabaseReady, SupabaseTransport } from './supabase';
 import { TabTransport, type Peer, type Status, type Transport } from './transport';
 
 /** Web only, for tests: `?local` plays online between tabs of the same browser, without a server. */
-const LOCAL = typeof location !== 'undefined' && typeof BroadcastChannel !== 'undefined' && /[?&]local\b/.test(location.search ?? '');
+export const LOCAL = typeof location !== 'undefined' && typeof BroadcastChannel !== 'undefined' && /[?&]local\b/.test(location.search ?? '');
 export const onlineConfigured = supabaseReady || LOCAL;
 const transport = (): Transport => (LOCAL ? new TabTransport() : new SupabaseTransport());
 
@@ -39,7 +39,7 @@ let guest: GuestRoom | null = null;
 
 /** A stable id for this device, so a reconnection gets the same seat back. */
 let tabId = '';
-async function clientId(): Promise<string> {
+export async function clientId(): Promise<string> {
   // Tabs of the same browser share storage: in the local test mode each tab is its own player.
   if (LOCAL) return (tabId ||= 'tab' + Math.random().toString(36).slice(2, 10));
   // Signed in: your account, so the server knows who is in the pot.
@@ -63,13 +63,13 @@ async function clientId(): Promise<string> {
 
 export const roomLink = (code: string) => `https://itzrusso10.github.io/tressette/stanza/${code}`;
 
-export async function createRoom(cfg: RoomConfig, name: string): Promise<string> {
+export async function createRoom(cfg: RoomConfig, name: string, reserved: Reserved[] = [], code?: string): Promise<string> {
   await leaveRoom();
   const id = await clientId();
   const me: Peer = { id, name, host: true };
   const t = transport();
   t.onStatus(status => set({ status }));
-  host = new HostRoom(t, me, cfg);
+  host = new HostRoom(t, me, cfg, reserved);
   host.onLobby = lobby => set({ lobby });
   host.onPeers = online => set({ online: [...online] });
   host.onReact = (seat, r) => receiveReaction(seat, r);
@@ -78,7 +78,7 @@ export async function createRoom(cfg: RoomConfig, name: string): Promise<string>
     if (name) set(s => ({ rematchAsks: s.rematchAsks.includes(name) ? s.rematchAsks : [...s.rematchAsks, name] }));
   };
   set({ role: 'host', lobby: host.lobby, closed: false, me: id, hostOnline: true, rematchAsks: [], asked: false });
-  return host.open();
+  return host.open(code);
 }
 
 export function hostStart() {
@@ -88,6 +88,46 @@ export function hostStart() {
   startHostMatch(host);
   const l = host.lobby;
   payIn(l.matchId, l.cfg.stake);
+}
+
+/**
+ * Il tavolo di una partita del matchmaking, aperto da chi aspettava da più tempo: i posti sono già
+ * assegnati e la partita parte da sola appena tutti sono collegati (o dopo un po': chi non arriva lo
+ * sostituisce il computer quando tocca a lui).
+ */
+export async function openMmRoom(code: string, cfg: RoomConfig, name: string, reserved: Reserved[], waitMs = 15000): Promise<void> {
+  await createRoom(cfg, name, reserved, code);
+  const room = host;
+  if (!room) return;
+  const expected = room.expected();
+  await new Promise<void>(resolve => {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      clearInterval(tick);
+      resolve();
+    };
+    const timer = setTimeout(go, waitMs);
+    const tick = setInterval(() => {
+      const on = useOnline.getState().online;
+      if (expected.every(p => on.includes(p))) go();
+    }, 250);
+  });
+  // Un attimo perché anche gli altri ricevano la sala prima del via.
+  await new Promise(r => setTimeout(r, 400));
+  if (host === room) hostStart();
+}
+
+/** Entra al tavolo di una partita del matchmaking: chi lo apre può metterci qualche secondo. */
+export async function joinMmRoom(code: string, name: string, waitMs = 20000): Promise<'ok' | 'nohost' | 'error'> {
+  const until = Date.now() + waitMs;
+  for (;;) {
+    const r = await joinRoom(code, name);
+    if (r === 'ok' || Date.now() > until) return r;
+    await new Promise(res => setTimeout(res, 1200));
+  }
 }
 
 export function freeSeat(i: number) {

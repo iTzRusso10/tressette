@@ -21,7 +21,7 @@ import {
   type Progress,
   type BuyRefusal,
 } from './ledger';
-import type { HandRecord, MatchRecord } from './progress';
+import { queueOf, type HandRecord, type MatchRecord, type Queue } from './progress';
 import type { Slot } from './catalog';
 import { BALANCE } from './balance';
 import { achievementById } from './achievements';
@@ -41,6 +41,10 @@ export interface LastMatch {
   /** Punteggio di bravura del gioco dopo la partita, e quanto è cambiato. */
   rating?: number;
   ratingDelta?: number;
+  /** La strada della partita, e monete ed esperienza guadagnate. */
+  queue?: Queue;
+  coins?: number;
+  xp?: number;
 }
 
 export interface Account {
@@ -212,12 +216,30 @@ export function recordHand(h: HandRecord) {
   remote('hand', { hand: h, day });
 }
 
+/** I motivi delle monete che dà la partita stessa (ledger.ts, applyMatch). */
+const MATCH_COINS = ['Prima vittoria del giorno', 'Vittoria', 'Partita completata'];
+
 export function recordMatch(m: Omit<MatchRecord, 'id'>) {
   const day = today();
   const rec: MatchRecord = { ...m, id: randomSeed() };
-  const r = applyMatch(progressOf(), rec, day, Date.now());
+  const before = progressOf();
+  const r = applyMatch(before, rec, day, Date.now());
   adopt(r.p, r.gains);
-  set({ lastMatch: { delta: r.delta, cups: r.p.cups, at: Date.now(), game: m.game, rating: r.p.meta.ratings[m.game].r, ratingDelta: r.ratingDelta } });
+  // Le monete della partita (non quelle di achievement e livelli, che si festeggiano a parte).
+  const coins = r.gains.reduce((a, g) => a + (g.k === 'coins' && MATCH_COINS.includes(g.why) ? g.amount : 0), 0);
+  set({
+    lastMatch: {
+      delta: r.delta,
+      cups: r.p.cups,
+      at: Date.now(),
+      game: m.game,
+      rating: r.p.meta.ratings[m.game].r,
+      ratingDelta: r.ratingDelta,
+      queue: queueOf(rec),
+      coins,
+      xp: m.won ? BALANCE.xp.win : BALANCE.xp.loss,
+    },
+  });
   remote('match', { match: rec, day });
 }
 

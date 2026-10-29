@@ -6,7 +6,7 @@
 // manca, i trofei continuano a contare ma l'arena resta chiusa. Dopo la trentesima si sale di grado
 // nella Leggenda, ogni 200 trofei, senza fine.
 
-import type { Level } from '../engine/types.ts';
+import { queueOf, type Queue } from './progress.ts';
 import { BALANCE } from './balance.ts';
 import { legendOf, reqMet, type Req, type ReqView } from './reqs.ts';
 
@@ -137,16 +137,21 @@ export function blockedArena(v: ReqView): Arena | null {
 /** Il pavimento: il primo trofeo dell'arena raggiunta. */
 export const floorOf = (arenaIndex: number) => ARENAS[Math.max(0, Math.min(LAST_ARENA, arenaIndex))].threshold;
 
-/** Trofei per una partita: un avversario più forte vale di più; contro il Facile non se ne perdono. */
+/**
+ * Trofei per una partita: solo la partita veloce li muove. Con un computer al tavolo (nessuno trovato
+ * in tempo) valgono la metà; contro il computer, tra amici e in classificata non se ne vincono.
+ */
 export interface TrophyMatch {
   won: boolean;
-  level: Level;
   online: boolean;
+  queue?: Queue;
+  withCpu?: boolean;
 }
 
 export function trophyDelta(r: TrophyMatch): number {
-  const k = r.online ? 'online' : r.level;
-  return r.won ? BALANCE.trophies.win[k] : 0 - BALANCE.trophies.loss[k] || 0;
+  if (queueOf(r) !== 'quick') return 0;
+  const t = r.withCpu ? BALANCE.trophies.quickCpu : BALANCE.trophies.quick;
+  return r.won ? t.win : 0 - t.loss || 0;
 }
 
 /** Applica una partita ai trofei, rispettando il pavimento dell'arena raggiunta. */

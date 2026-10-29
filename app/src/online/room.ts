@@ -11,6 +11,17 @@ export interface RoomConfig {
   cappotto: boolean;
   /** Coins each person puts in the pot; 0 for a friendly game. */
   stake: number;
+  /** Una stanza del matchmaking: la strada (trofei o punteggio), l'id della partita, il punteggio di ognuno. */
+  queue?: 'quick' | 'ranked';
+  mm?: string;
+  scores?: Record<string, number>;
+}
+
+/** Un posto già assegnato dal matchmaking a una persona. */
+export interface Reserved {
+  peer: string;
+  name: string;
+  seat: number;
 }
 
 export interface LobbySeat {
@@ -81,11 +92,20 @@ export class HostRoom {
     private t: Transport,
     private me: Peer,
     cfg: RoomConfig,
+    reserved: Reserved[] = [],
   ) {
     const n = seatCount(cfg);
     const seats: LobbySeat[] = [{ name: me.name, type: 'human', peer: me.id }];
-    for (let i = 1; i < n; i++) seats.push({ name: CPU[i - 1], type: 'cpu' });
+    for (let i = 1; i < n; i++) {
+      const r = reserved.find(x => x.seat === i && x.peer !== me.id);
+      seats.push(r ? { name: r.name, type: 'remote', peer: r.peer } : { name: CPU[i - 1], type: 'cpu' });
+    }
     this.lobby = { code: '', host: me, cfg, seats, started: false, matchId: '' };
+  }
+
+  /** Le persone che il matchmaking ha messo a questo tavolo (oltre a chi l'ha aperto). */
+  expected(): string[] {
+    return this.lobby.seats.filter((s, i) => i > 0 && s.type === 'remote' && !!s.peer).map(s => s.peer!);
   }
 
   /** Finds a free code and opens the room. */
@@ -131,7 +151,8 @@ export class HostRoom {
     const had = seats.findIndex(s => s.peer === peer.id);
     if (had >= 0) {
       seats[had] = { ...seats[had], name: peer.name };
-    } else if (!this.lobby.started) {
+    } else if (!this.lobby.started && !this.lobby.cfg.mm) {
+      // Nelle stanze del matchmaking i posti sono già assegnati: chi capita qui per caso non si siede.
       const free = seatOrder(this.lobby.cfg).find(i => seats[i].type === 'cpu');
       if (free !== undefined) seats[free] = { name: peer.name, type: 'remote', peer: peer.id };
     }
@@ -168,7 +189,8 @@ export class HostRoom {
 
   start() {
     this.lobby.started = true;
-    this.lobby.matchId = `${this.lobby.code}-${Date.now().toString(36)}`;
+    // La partita del matchmaking ha già il suo id (quello che il server verifica).
+    this.lobby.matchId = this.lobby.cfg.mm ?? `${this.lobby.code}-${Date.now().toString(36)}`;
     this.sendLobby();
   }
 

@@ -11,7 +11,7 @@ import { Sheet } from '@/game/Sheet';
 import { Summary } from '@/game/Summary';
 import { useSettings } from '@/state/settings';
 import { leaveRoom, useOnline } from '@/online/session';
-import { loadSaved, nameOf, netRole, quitMatch, resumeMatch, setPaused, useTable } from '@/state/table';
+import { currentQueue, forfeit, loadSaved, nameOf, netRole, quitMatch, resumeMatch, setPaused, useTable } from '@/state/table';
 import { Backdrop, Button, Toggle } from '@/ui/kit';
 import { Text } from '@/ui/Text';
 import { CARD_RATIO, cardRadius, colors, space } from '@/ui/theme';
@@ -40,6 +40,8 @@ export default function Tavolo() {
   const closed = useOnline(s => s.closed);
   const hostOnline = useOnline(s => s.hostOnline);
   const role = netRole();
+  const queue = currentQueue();
+  const mm = queue === 'quick' || queue === 'ranked';
   // Solo all'apertura del tavolo: dopo «Esci» la partita è finita e non va ripresa quella salvata prima.
   const opened = useRef(false);
   useEffect(() => {
@@ -76,6 +78,8 @@ export default function Tavolo() {
 
   const exit = () => {
     setPanel(null);
+    // Uscire a metà di una partita veloce o classificata la fa contare come persa (non se ha chiuso chi la teneva).
+    if (!closed) forfeit();
     quitMatch();
     leaveRoom();
     router.replace('/');
@@ -100,7 +104,7 @@ export default function Tavolo() {
 
       {summary && m.h?.result ? <Summary m={m} viewer={viewer} /> : null}
 
-      {role === 'guest' && (closed || !hostOnline) && !panel ? (
+      {role === 'guest' && (closed || !hostOnline) && !panel && !(mm && m.finished && summary) ? (
         <Sheet
           title={closed ? 'La stanza è chiusa' : 'In attesa'}
           sub={closed ? 'Chi ha creato la stanza ha chiuso la partita.' : 'Chi ha creato la stanza si è disconnesso. Quando torna, la partita riprende da qui.'}
@@ -161,11 +165,15 @@ export default function Tavolo() {
         <Sheet
           title={role === 'guest' ? 'Uscire dalla stanza?' : 'Uscire dalla partita?'}
           sub={
-            role === 'guest'
-              ? 'Gli altri continuano: al tuo posto gioca il computer.'
-              : role === 'host'
-                ? 'La partita viene chiusa anche per chi gioca con te.'
-                : 'La partita in corso viene chiusa e non si può riprendere.'
+            mm
+              ? queue === 'quick'
+                ? 'La partita conta come persa, con i trofei della sconfitta.'
+                : 'La partita conta come persa per il punteggio della lega.'
+              : role === 'guest'
+                ? 'Gli altri continuano: al tuo posto gioca il computer.'
+                : role === 'host'
+                  ? 'La partita viene chiusa anche per chi gioca con te.'
+                  : 'La partita in corso viene chiusa e non si può riprendere.'
           }
           onDismiss={() => setPanel('pause')}
         >

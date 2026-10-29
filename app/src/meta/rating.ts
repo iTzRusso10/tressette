@@ -2,21 +2,20 @@
 // con il server.
 //
 // È un Elo: vincere contro chi è più forte di te vale molto, battere chi è più debole quasi niente.
-// Per questo non si accumula giocando tanto: contro il computer Facile, una volta salito, le vittorie
-// valgono zero punti. Il punteggio si ferma dove sta la tua bravura reale. Il computer ha una forza
-// fissa per livello; un avversario online vale come un giocatore medio-forte (non si può gonfiare il
-// punteggio facendosi battere da un amico: al massimo si arriva dove porta battere sempre chi è forte).
+// Si muove solo nella classificata, dove il matchmaking mette insieme persone di punteggio vicino e
+// il server usa il punteggio vero degli avversari: non si gonfia giocando tanto, né contro il
+// computer né con gli amici (che non contano).
 //
-// Le classifiche competitive sono separate dai trofei (che restano la progressione permanente): il
-// punteggio vive per stagione e, all'inizio di ognuna, si avvicina a metà strada da 1000.
+// Le classifiche competitive sono separate dai trofei (la partita veloce, la progressione permanente):
+// il punteggio vive per stagione e, all'inizio di ognuna, si avvicina a metà strada da 1000.
 
-import type { GameId, Level } from '../engine/types.ts';
+import type { GameId } from '../engine/types.ts';
 
 export const RATING = {
   start: 1000,
   floor: 100,
-  /** Forza degli avversari: il computer per livello, e una persona online. */
-  opponent: { facile: 800, medio: 1100, difficile: 1400, online: 1300 } as Record<Level | 'online', number>,
+  /** La forza degli avversari quando non si conosce (una partita riferita senza il loro punteggio). */
+  unknownOpponent: 1000,
   /** Prime partite (calibrazione): il punteggio si muove di più. */
   placement: 10,
   kPlacement: 40,

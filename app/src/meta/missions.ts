@@ -5,7 +5,7 @@
 
 import type { GameId } from '../engine/types.ts';
 import { BALANCE } from './balance.ts';
-import type { HandRecord, MatchRecord } from './progress.ts';
+import { queueOf, type HandRecord, type MatchRecord } from './progress.ts';
 
 export type Period = 'daily' | 'weekly';
 
@@ -31,7 +31,7 @@ export interface MissionDef {
   step: (e: MissionEvent, seen: string[]) => number;
   /** Il progresso è il massimo raggiunto, non la somma (vittorie di fila). */
   max?: boolean;
-  /** Serve aver già giocato online (per non dare missioni impossibili a chi gioca da solo). */
+  /** Serve aver già giocato con altre persone o vinto trofei (per non dare missioni impossibili a chi gioca solo contro il computer). */
   online?: boolean;
   /** Tiene una lista di cose viste nel periodo (per «una partita per gioco»). */
   distinct?: (e: MissionEvent) => string | null;
@@ -39,6 +39,9 @@ export interface MissionDef {
 
 const won = (g?: GameId) => (e: MissionEvent) => (e.match && e.match.won && (!g || e.match.game === g) ? 1 : 0);
 const played = (g?: GameId) => (e: MissionEvent) => (e.match && (!g || e.match.game === g) ? 1 : 0);
+/** Contro il computer scelto da te (non quello che prende il posto di chi manca nella partita veloce). */
+const vsCpu = (e: MissionEvent) => !!e.match && queueOf(e.match) === 'cpu';
+const quick = (e: MissionEvent) => (e.match && queueOf(e.match) === 'quick' ? 1 : 0);
 
 const D = (id: string, text: string, goal: number, coins: number, xp: number, step: MissionDef['step'], extra: Partial<MissionDef> = {}): MissionDef => ({
   id,
@@ -68,7 +71,8 @@ export const MISSIONS: MissionDef[] = [
   D('gioca-tressette-2', 'Completa 2 partite di Tressette.', 2, 50, 50, played('tressette')),
   D('gioca-5', 'Gioca 5 partite fino in fondo.', 5, 70, 70, played()),
   D('vinci-1', 'Vinci una partita, portandola fino in fondo.', 1, 30, 40, won()),
-  D('trofei-20', 'Guadagna 20 trofei.', 20, 60, 60, e => Math.max(0, e.match?.trophyDelta ?? 0)),
+  D('trofei-20', 'Guadagna 20 trofei.', 20, 60, 60, e => Math.max(0, e.match?.trophyDelta ?? 0), { online: true }),
+  D('veloce-2', 'Gioca 2 partite veloci.', 2, 60, 60, quick),
   D('tre-giochi', 'Completa una partita in ciascuno dei tre giochi.', 3, 100, 100, () => 0, { distinct: e => e.match?.game ?? null }),
   D(
     'cosmetico-nuovo',
@@ -78,7 +82,7 @@ export const MISSIONS: MissionDef[] = [
     50,
     e => (e.match && e.match.lastEquippedKey && e.match.equippedKey !== e.match.lastEquippedKey ? 1 : 0),
   ),
-  D('vinci-medio-2', 'Vinci 2 partite contro il Medio o l’Esperto.', 2, 80, 80, e => (e.match && e.match.won && !e.match.online && e.match.level !== 'facile' ? 1 : 0)),
+  D('vinci-medio-2', 'Vinci 2 partite contro il Medio o l’Esperto.', 2, 80, 80, e => (e.match && e.match.won && vsCpu(e) && e.match.level !== 'facile' ? 1 : 0)),
   D('vinci-quattro', 'Vinci una partita in quattro.', 1, 60, 60, e => (e.match && e.match.won && e.match.mode === '4' ? 1 : 0)),
   D('gioca-3', 'Gioca 3 partite fino in fondo.', 3, 40, 50, played()),
   D('due-giochi', 'Gioca almeno una partita in due giochi diversi.', 2, 50, 60, () => 0, { distinct: e => e.match?.game ?? null }),
@@ -90,12 +94,13 @@ export const MISSIONS: MissionDef[] = [
   W('cinque-per-gioco', 'Vinci almeno 5 partite in ciascuno dei tre giochi.', 15, 450, 400, () => 0, {
     distinct: e => (e.match?.won ? e.match.game : null),
   }),
-  W('trofei-100', 'Guadagna 100 trofei.', 100, 300, 300, e => Math.max(0, e.match?.trophyDelta ?? 0)),
+  W('trofei-100', 'Guadagna 100 trofei.', 100, 300, 300, e => Math.max(0, e.match?.trophyDelta ?? 0), { online: true }),
+  W('veloci-15', 'Gioca 15 partite veloci.', 15, 400, 300, quick),
   W('quindici-giornaliere', 'Completa 15 missioni giornaliere.', 15, 400, 400, e => (e.dailyDone ? 1 : 0)),
   W('cinque-di-fila', 'Vinci 5 partite di fila.', 5, 350, 300, e => e.match?.streak ?? 0, { max: true }),
   W('online-10', 'Completa 10 partite online.', 10, 400, 300, e => (e.match?.online ? 1 : 0), { online: true }),
   W('nuovo-oggetto', 'Ottieni un nuovo oggetto estetico.', 1, 200, 200, e => (e.newItem ? 1 : 0)),
-  W('esperto-5', 'Vinci 5 partite contro l’Esperto.', 5, 400, 400, e => (e.match && e.match.won && !e.match.online && e.match.level === 'difficile' ? 1 : 0)),
+  W('esperto-5', 'Vinci 5 partite contro l’Esperto.', 5, 400, 400, e => (e.match && e.match.won && vsCpu(e) && e.match.level === 'difficile' ? 1 : 0)),
   W('gioca-40', 'Gioca 40 partite fino in fondo.', 40, 300, 300, played()),
   W('vinci-15', 'Vinci 15 partite.', 15, 350, 300, won()),
   W('cinque-ogni-gioco', 'Completa 5 partite in ciascuno dei tre giochi.', 15, 450, 400, () => 0, { distinct: e => e.match?.game ?? null }),

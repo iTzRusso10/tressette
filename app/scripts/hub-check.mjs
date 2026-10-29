@@ -100,11 +100,18 @@ for (const sc of SCREENS) {
     await page.waitForTimeout(1200);
     await page.screenshot({ path: join(out, `hub-${sc.id}-${tab}.png`) });
     if (tab === 'gioca') {
-      await page.getByRole('button', { name: /^Gioca: scegli/ }).click();
-      await page.waitForTimeout(900);
-      await page.screenshot({ path: join(out, `hub-${sc.id}-gioca-scelta.png`) });
-      await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } });
-      await page.waitForTimeout(500);
+      // Le tre strade: partita veloce, classificata, computer. Ognuna apre la scelta del gioco.
+      for (const [name, shot] of [
+        [/^Partita veloce/, 'veloce'],
+        [/^Classificata/, 'classificata'],
+        [/^Contro il computer/, 'computer'],
+      ]) {
+        await page.getByRole('button', { name }).first().click();
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: join(out, `hub-${sc.id}-gioca-${shot}.png`) });
+        await page.getByLabel('Chiudi').first().click({ position: { x: 20, y: 24 } });
+        await page.waitForTimeout(500);
+      }
     }
     if (tab === 'trofei') {
       for (const sub of ['Achievement', 'Titoli']) {
@@ -179,8 +186,42 @@ for (const sc of SCREENS) {
     await page.waitForTimeout(800);
     await page.screenshot({ path: join(out, `hub-${sc.id}-profilo-${sub.toLowerCase()}.png`) });
   }
+  // La scelta del gioco per la partita veloce e per la classificata.
+  for (const queue of ['quick', 'ranked']) {
+    await page.goto(`${base}/gioca/scopa?queue=${queue}`);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: join(out, `hub-${sc.id}-scelta-${queue}.png`) });
+  }
   if (errors.length) problems.push(`${sc.id}: errori\n  ${errors.slice(0, 6).join('\n  ')}`);
   console.log('fatto', sc.id);
+  await ctx.close();
+}
+// Un giocatore nuovo: la classificata è chiusa fino al livello 10.
+for (const sc of SCREENS.filter(x => x.id !== 'desktop')) {
+  const ctx = await browser.newContext({ viewport: { width: sc.width, height: sc.height }, deviceScaleFactor: 2, hasTouch: sc.touch });
+  const fresh = JSON.parse(profile);
+  Object.assign(fresh.state, {
+    xp: 600,
+    cups: 40,
+    bestCups: 40,
+    stats: { played: 4, won: 2, byGame: { tressette: { played: 2, won: 1 }, briscola: { played: 1, won: 1 }, scopa: { played: 1, won: 0 } }, hands: 12, days: 1 },
+    achievements: {},
+    meta: { arena: 0, paid: { level: 4, prestige: 0, legend: 0, arena: 0 }, avatar: 'sole' },
+  });
+  await ctx.addInitScript(
+    ([s, p]) => {
+      localStorage.setItem('napoletane.impostazioni.v1', s);
+      localStorage.setItem('napoletane.profilo.v1', p);
+    },
+    [settings, JSON.stringify(fresh)],
+  );
+  const page = await ctx.newPage();
+  await page.goto(`${base}/`);
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: join(out, `hub-${sc.id}-nuovo.png`) });
+  await page.getByRole('button', { name: /^Classificata/ }).first().click();
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: join(out, `hub-${sc.id}-nuovo-classificata.png`) });
   await ctx.close();
 }
 await browser.close();

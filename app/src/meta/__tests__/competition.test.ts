@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, isSecret } from '../achievements';
+import { BALANCE } from '../balance';
 import { FRAMES, itemByKey } from '../catalog';
 import { eventAt, EVENT_TEMPLATES, nextEvent } from '../events';
 import {
@@ -10,6 +11,7 @@ import {
   claimReward,
   eventProgressOf,
   newProgress,
+  opponentStrength,
   selectAvatar,
   selectShowcase,
   showcaseOf,
@@ -23,7 +25,19 @@ import { reqText } from '../reqs';
 import { sourcesOf } from '../sources';
 
 let n = 0;
-const m = (won: boolean, extra: Partial<MatchRecord> = {}): MatchRecord => ({ id: `c${++n}`, game: 'scopa', mode: '2', level: 'difficile', online: false, won, ...extra });
+// Partite classificate contro una persona da 1400: le uniche che muovono il punteggio.
+const m = (won: boolean, extra: Partial<MatchRecord> = {}): MatchRecord => ({
+  id: `c${++n}`,
+  game: 'scopa',
+  mode: '2',
+  level: 'difficile',
+  online: true,
+  won,
+  queue: 'ranked',
+  mm: 'mm1',
+  oppRating: 1400,
+  ...extra,
+});
 function play(p: Progress, list: MatchRecord[], day = '2026-11-10') {
   let t = 5_000_000;
   for (const r of list) {
@@ -38,15 +52,15 @@ describe('punteggio di bravura', () => {
     const g = { r: 1000, n: 20, peak: 1000 };
     expect(rate(g, 1400, true).delta).toBeGreaterThan(rate(g, 800, true).delta);
     let x = { r: 1000, n: 0, peak: 1000 };
-    for (let i = 0; i < 2000; i++) x = rate(x, RATING.opponent.facile, true).g;
-    // Giocare all'infinito contro il Facile vincendo sempre non fa salire oltre un tetto.
+    for (let i = 0; i < 2000; i++) x = rate(x, 800, true).g;
+    // Battere all'infinito chi vale 800 non fa salire oltre un tetto.
     expect(x.r).toBeLessThan(1700);
-    const y = rate(x, RATING.opponent.facile, true);
+    const y = rate(x, 800, true);
     expect(y.delta).toBe(0);
   });
   it('si ferma dove sta la bravura: vincere il 50% contro l’Esperto porta intorno a 1400', () => {
     let x = newRating();
-    for (let i = 0; i < 400; i++) x = rate(x, RATING.opponent.difficile, i % 2 === 0).g;
+    for (let i = 0; i < 400; i++) x = rate(x, 1400, i % 2 === 0).g;
     expect(Math.abs(x.r - 1400)).toBeLessThan(40);
   });
   it('leghe in ordine, con un nome e una cornice ciascuna', () => {
@@ -61,6 +75,30 @@ describe('punteggio di bravura', () => {
     expect(p.meta.ratings.briscola.n).toBe(0);
     expect(p.meta.weekly.scopa).toMatchObject({ n: 3, w: 2, l: 1 });
     expect(performance(p.meta.weekly.scopa)).toBeNull();
+  });
+  it('solo la classificata muove il punteggio; trofei solo dalla partita veloce', () => {
+    const cpu = play(newProgress('r'), [m(true, { queue: 'cpu', online: false }), m(true, { queue: 'cpu', online: false })]);
+    expect(cpu.meta.ratings.scopa.n).toBe(0);
+    expect(cpu.cups).toBe(0);
+    expect(cpu.meta.season.matches).toBe(0);
+    const friends = play(newProgress('r'), [m(true, { queue: 'friends', opp: ['amico'] })]);
+    expect(friends.meta.ratings.scopa.n).toBe(0);
+    expect(friends.cups).toBe(0);
+    expect(friends.meta.rivals.amico).toBe(1);
+    const ranked = play(newProgress('r'), [m(true)]);
+    expect(ranked.meta.ratings.scopa.n).toBe(1);
+    expect(ranked.cups).toBe(0);
+    const quick = play(newProgress('r'), [m(true, { queue: 'quick', oppRating: undefined })]);
+    expect(quick.meta.ratings.scopa.n).toBe(0);
+    expect(quick.cups).toBe(BALANCE.trophies.quick.win);
+  });
+  it('la classificata usa la forza vera degli avversari', () => {
+    const strong = applyMatch(newProgress('r'), m(true, { oppRating: 1600 }), '2026-11-10', 1).ratingDelta;
+    const weak = applyMatch(newProgress('r'), m(true, { oppRating: 700 }), '2026-11-10', 1).ratingDelta;
+    expect(strong).toBeGreaterThan(weak);
+    // Una forza impossibile torna nei limiti.
+    expect(opponentStrength(m(true, { oppRating: 99999 }))).toBe(4000);
+    expect(opponentStrength(m(true, { oppRating: undefined }))).toBe(RATING.unknownOpponent);
   });
   it('online, contro la stessa persona contano al massimo 3 partite al giorno', () => {
     const list = Array.from({ length: 6 }, () => m(true, { online: true, opp: ['amico'] }));
@@ -149,7 +187,7 @@ describe('achievement segreti', () => {
     expect(p.achievements['s-tre-tavoli']).toBeTruthy();
   });
   it('battere ogni livello in ogni gioco', () => {
-    const list = (['tressette', 'briscola', 'scopa'] as const).flatMap(game => (['facile', 'medio', 'difficile'] as const).map(level => m(true, { game, level })));
+    const list = (['tressette', 'briscola', 'scopa'] as const).flatMap(game => (['facile', 'medio', 'difficile'] as const).map(level => m(true, { game, level, queue: 'cpu', online: false })));
     expect(play(newProgress('s'), list).achievements['s-ogni-avversario']).toBeTruthy();
   });
 });

@@ -3,7 +3,7 @@
 // può inventare sul telefono.
 //
 // Protezioni: una partita conta una volta sola (id), non prima di qualche secondo dalla precedente
-// contro il computer, i dati delle mani sono riportati nei limiti (cleanHand), le partite abbandonate
+// contro il computer, i trofei e il punteggio solo se il matchmaking conosce la partita (mm_report), i dati delle mani sono riportati nei limiti (cleanHand), le partite abbandonate
 // non arrivano mai. Due richieste insieme non si sovrascrivono: si scrive solo se la riga non è
 // cambiata nel frattempo (updated_at), altrimenti si rilegge e si riapplica.
 //
@@ -33,7 +33,7 @@ import {
   type Progress,
 } from '../../../src/meta/ledger.ts';
 import { levelInfo } from '../../../src/meta/levels.ts';
-import { cleanHand, normalizeStats, type MatchRecord } from '../../../src/meta/progress.ts';
+import { cleanHand, normalizeStats, type MatchRecord, type Queue } from '../../../src/meta/progress.ts';
 import { legendOf, reqMet } from '../../../src/meta/reqs.ts';
 import { ACHIEVEMENTS } from '../../../src/meta/achievements.ts';
 import { completedSets } from '../../../src/meta/sets.ts';
@@ -181,6 +181,35 @@ function importDevice(server: Progress, raw: unknown): Progress {
   return p;
 }
 
+/** Quello che il matchmaking sa di una partita veloce o classificata (mm_report). */
+interface MmCheck {
+  ok: boolean;
+  reason?: string;
+  kind?: 'quick' | 'ranked';
+  game?: MatchRecord['game'];
+  mode?: MatchRecord['mode'];
+  won?: boolean;
+  cpu?: boolean;
+  humans?: number;
+  opp?: string[];
+  opp_rating?: number | null;
+}
+
+/**
+ * Una partita veloce o classificata conta solo se il matchmaking la conosce (mm_report): tu c'eri, è
+ * durata abbastanza, non l'hai già riferita, non contraddice gli altri. Gioco, modalità, avversari, la
+ * loro forza e il computer al tavolo li dice il server. Altrimenti vale come una partita normale, senza
+ * trofei né punteggio. Si chiede una volta sola per richiesta (mm_report registra il risultato).
+ */
+async function checkMm(admin: SupabaseClient, uid: string, m: Partial<MatchRecord>): Promise<MmCheck | null> {
+  if (m.queue !== 'quick' && m.queue !== 'ranked') return null;
+  if (typeof m.mm !== 'string' || !UUID.test(m.mm)) return { ok: false, reason: 'mm' };
+  const { data, error } = await admin.rpc('mm_report', { p_user: uid, p_match: m.mm, p_won: !!m.won, p_record: String(m.id ?? '').slice(0, 40) });
+  if (error || !data) return { ok: false, reason: 'mm' };
+  const c = data as MmCheck;
+  return c.ok && c.kind !== m.queue ? { ok: false, reason: 'kind' } : c;
+}
+
 /** Le posizioni finali delle stagioni chiuse entrano nella storia (servono ai titoli di stagione). */
 async function withSeasonRanks(admin: SupabaseClient, uid: string, p: Progress): Promise<Progress> {
   const { data } = await admin.from('season_results').select('season_id, rank, points, matches').eq('user_id', uid);
@@ -204,6 +233,8 @@ Deno.serve(async req => {
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const body = await req.json().catch(() => ({}));
   const day = deviceDay(body.day);
+  // Il matchmaking si interroga prima dei tentativi di scrittura: registra il risultato una volta sola.
+  const mm = body.action === 'match' && body.match ? await checkMm(admin, uid, body.match as Partial<MatchRecord>) : null;
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const { data: row, error } = await admin.from('profiles').select(COLUMNS).eq('id', uid).single<Row>();
@@ -216,6 +247,7 @@ Deno.serve(async req => {
     let imported = row.imported;
     let refused: string | null = null;
     let delta = 0;
+    let queue: Queue | null = null;
 
     switch (body.action) {
       case 'import':
@@ -233,22 +265,43 @@ Deno.serve(async req => {
       case 'match': {
         const m = body.match as Partial<MatchRecord> | undefined;
         if (!m?.game || !['tressette', 'briscola', 'scopa'].includes(m.game) || !m.id || typeof m.id !== 'string') return json({ error: 'Partita non valida' }, 400);
+        const online = !!m.online;
         const rec: MatchRecord = {
           id: m.id.slice(0, 40),
           game: m.game,
           mode: (['2', '4', 'perdere'] as const).includes(m.mode as '2') ? (m.mode as MatchRecord['mode']) : '2',
           level: (['facile', 'medio', 'difficile'] as const).includes(m.level as 'facile') ? (m.level as MatchRecord['level']) : 'facile',
-          online: !!m.online,
+          online,
           won: !!m.won,
           comeback: !!m.comeback,
           shutout: !!m.shutout,
           // Gli avversari online sono id di account (uuid); al massimo tre.
-          opp: m.online && Array.isArray(m.opp) ? m.opp.filter(x => typeof x === 'string' && UUID.test(x) && x !== uid).slice(0, 3) : [],
+          opp: online && Array.isArray(m.opp) ? m.opp.filter(x => typeof x === 'string' && UUID.test(x) && x !== uid).slice(0, 3) : [],
+          // Senza il matchmaking: tra amici se c'erano altre persone, altrimenti contro il computer.
+          queue: (online ? 'friends' : 'cpu') as Queue,
         };
+        if (mm?.ok) {
+          // Quello che conta lo dice il matchmaking, non il telefono.
+          rec.queue = mm.kind!;
+          rec.mm = m.mm;
+          rec.game = mm.game ?? rec.game;
+          rec.mode = mm.mode ?? rec.mode;
+          rec.won = !!mm.won;
+          rec.online = (mm.humans ?? 1) >= 2;
+          rec.opp = (mm.opp ?? []).filter(x => UUID.test(x) && x !== uid).slice(0, 3);
+          rec.withCpu = !!mm.cpu;
+          if (typeof mm.opp_rating === 'number') rec.oppRating = mm.opp_rating;
+        } else if (mm && mm.reason !== 'mm') {
+          // Il matchmaking la conosce e dice di no (doppione, contraddice gli altri, non c'eri): non conta.
+          refused = `mm:${mm.reason}`;
+          p = touch(p, day).p;
+          break;
+        }
         const r = applyMatch(p, rec, day, Date.now(), { server: true });
         if (r.refused) refused = r.refused;
         p = r.p;
         delta = r.delta;
+        queue = rec.queue!;
         break;
       }
       case 'buy': {
@@ -327,7 +380,8 @@ Deno.serve(async req => {
     if (s.id && s.matches > 0) {
       await admin.from('season_scores').upsert({ season_id: s.id, user_id: uid, points: s.points, matches: s.matches, updated_at: now });
     }
-    if (body.action === 'match' && !refused) {
+    // Il punteggio per gioco e la settimana si muovono solo con la classificata.
+    if (body.action === 'match' && queue === 'ranked' && !refused) {
       const game = (body.match as MatchRecord).game;
       const g = p.meta.ratings[game];
       const w = p.meta.weekly[game];

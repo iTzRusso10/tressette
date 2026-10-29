@@ -2,7 +2,9 @@ import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ARENAS, arenaProgress } from '@/meta/arenas';
 import { useProfile } from '@/meta/profile';
-import { leagueOf, RATING } from '@/meta/rating';
+import { leagueOf, leagueProgress, RATING } from '@/meta/rating';
+import { startSearch } from '@/online/search';
+import { CoinIcon } from '@/ui/meta';
 import { LeagueCoin } from '@/ui/competition';
 import { Bar } from '@/ui/progression';
 import { TrophyIcon } from '@/ui/icons';
@@ -10,7 +12,7 @@ import { dur } from '@/ui/motion';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { fmtThirds, GAMES, isScopaRow, isTressetteRow, teamOf, type BriscolaRow, type HandRow, type Match } from '@/engine';
 import { askRematch, leaveRoom, useOnline } from '@/online/session';
-import { hostName, netRole, nextHand, quitMatch, rematch, teamLabel } from '@/state/table';
+import { currentQueue, hostName, netRole, nextHand, quitMatch, rematch, teamLabel } from '@/state/table';
 import { Button } from '@/ui/kit';
 import { Text } from '@/ui/Text';
 import { colors, fonts, radius, space } from '@/ui/theme';
@@ -37,7 +39,7 @@ function details(m: Match, r: HandRow): string[] {
   return [`Punti ${b.pts}`, `Prese ${b.tricks}`];
 }
 
-/** Trophies won or lost with the match, and how far the next arena is. */
+/** Trophies won or lost with the match (partita veloce), and how far the next arena is. */
 function TrophyLine() {
   const last = useProfile(s => s.lastMatch);
   const arenaIdx = useProfile(s => s.meta.arena);
@@ -56,13 +58,12 @@ function TrophyLine() {
           {arena.name}, {Math.min(have, need)} su {need}
         </Text>
         <Bar have={have} need={need} height={6} style={{ marginTop: 4 }} />
-        <RatingLine />
       </View>
     </Animated.View>
   );
 }
 
-/** Il punteggio di bravura del gioco: quanto si è mosso e in che lega sei. */
+/** La classificata: quanto si è mosso il punteggio del gioco, la lega e quanto manca alla prossima. */
 function RatingLine() {
   const last = useProfile(s => s.lastMatch);
   const g = useProfile(s => (last?.game ? s.meta.ratings[last.game] : null));
@@ -70,15 +71,47 @@ function RatingLine() {
   const d = last.ratingDelta ?? 0;
   const placedNow = g.n >= RATING.placement;
   const league = leagueOf(last.rating);
+  const prog = leagueProgress(last.rating);
   return (
-    <View style={styles.rating}>
-      <LeagueCoin league={league} size={22} dim={!placedNow} />
-      <Text v="small" numberOfLines={1} style={{ flex: 1 }}>
-        {placedNow ? `${league.name}: ${last.rating.toLocaleString('it-IT')} punti` : `Calibrazione: ${g.n} su ${RATING.placement} partite`}
-      </Text>
-      <Text style={[styles.ratingDelta, d < 0 && { color: colors.coral }]}>{d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0'}</Text>
-    </View>
+    <Animated.View entering={FadeIn.delay(300).duration(dur.enter)} style={[styles.cups, styles.league]}>
+      <LeagueCoin league={league} size={34} dim={!placedNow} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cupsDelta, { color: colors.text }, d < 0 && { color: colors.coral }]}>
+          {d > 0 ? `+${d} punti` : d < 0 ? `−${-d} punti` : 'Punteggio invariato'}
+        </Text>
+        <Text v="small" numberOfLines={1}>
+          {placedNow ? `${league.name}, ${last.rating.toLocaleString('it-IT')} punti` : `Calibrazione: ${g.n} su ${RATING.placement} partite`}
+        </Text>
+        {placedNow && prog ? <Bar have={prog[0]} need={prog[1]} height={6} color={league.colors[1]} style={{ marginTop: 4 }} /> : null}
+      </View>
+    </Animated.View>
   );
+}
+
+/** Contro il computer e tra amici: monete ed esperienza (niente trofei né lega). */
+function RewardLine() {
+  const last = useProfile(s => s.lastMatch);
+  if (!last) return null;
+  return (
+    <Animated.View entering={FadeIn.delay(300).duration(dur.enter)} style={[styles.cups, styles.reward]}>
+      <CoinIcon size={34} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cupsDelta, { color: colors.text }]}>
+          +{last.coins ?? 0} monete · +{last.xp ?? 0} esperienza
+        </Text>
+        <Text v="small" numberOfLines={2}>
+          {last.queue === 'friends'
+            ? 'Tra amici non si vincono trofei né punti della lega.'
+            : 'Trofei e lega si vincono online, nella partita veloce e in classificata.'}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+function MatchReward() {
+  const q = useProfile(s => s.lastMatch?.queue);
+  return q === 'quick' ? <TrophyLine /> : q === 'ranked' ? <RatingLine /> : <RewardLine />;
 }
 
 export function Summary({ m, viewer }: { m: Match; viewer: number }) {
@@ -91,6 +124,9 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
   const perdere = m.mode === 'perdere';
   const four = m.mode === '4';
   const meWin = !!out && out.winners.includes(teamOf(m, viewer));
+  // Partita veloce e classificata: niente rivincita, si cerca una partita nuova.
+  const q = currentQueue();
+  const mm = q === 'quick' || q === 'ranked' ? q : null;
   let title = `Fine della mano ${m.handNo}`;
   let sub = perdere
     ? `Si perde a ${m.target}.`
@@ -150,9 +186,31 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
             Accusi: {h.accusi.map(a => `${m.seats[a.p].name}, ${a.label.toLowerCase()} (+${a.pts})`).join('; ')}
           </Text>
         ) : null}
-        {out ? <TrophyLine /> : null}
+        {out ? <MatchReward /> : null}
         <View style={{ marginTop: space.xl, gap: space.s }}>
-          {netRole() === 'guest' ? (
+          {out && mm ? (
+            <>
+              <Button
+                label="Nuova partita"
+                sub={`${mm === 'quick' ? 'Partita veloce' : 'Classificata'}, ${GAMES[m.game].name}`}
+                onPress={() => {
+                  quitMatch();
+                  void leaveRoom();
+                  void startSearch({ kind: mm, game: m.game, mode: m.mode, perdN: m.n === 2 ? 2 : 4 });
+                  router.replace('/cerca');
+                }}
+              />
+              <Button
+                kind="secondary"
+                label="Torna alla home"
+                onPress={() => {
+                  quitMatch();
+                  void leaveRoom();
+                  router.replace('/');
+                }}
+              />
+            </>
+          ) : netRole() === 'guest' ? (
             <>
               <Text v="lead" style={{ textAlign: 'center' }}>
                 {out ? (asked ? `Hai chiesto la rivincita: decide ${hostName()}.` : `Aspetta che ${hostName()} faccia ripartire la partita.`) : `Aspetta che ${hostName()} distribuisca la prossima mano.`}
@@ -192,8 +250,6 @@ export function Summary({ m, viewer }: { m: Match; viewer: number }) {
 }
 
 const styles = StyleSheet.create({
-  rating: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  ratingDelta: { fontFamily: fonts.display, fontSize: 13, lineHeight: 16, color: colors.mint, fontVariant: ['tabular-nums'] },
   row: {
     padding: space.m,
     paddingHorizontal: space.l,
@@ -225,5 +281,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,224,102,0.45)',
   },
+  league: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: colors.glassLine },
+  reward: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: colors.glassLineSoft },
   cupsDelta: { fontFamily: fonts.display, fontSize: 19, lineHeight: 24, color: colors.sun },
 });

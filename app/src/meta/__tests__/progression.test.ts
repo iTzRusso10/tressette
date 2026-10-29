@@ -20,7 +20,8 @@ const ARENA_NAMES = `Il Bar del Paese|La Piazza del Borgo|Il Circolo degli Amici
 
 const DAY = '2026-10-28';
 let n = 0;
-const match = (won: boolean, extra: Partial<MatchRecord> = {}): MatchRecord => ({ id: `m${++n}`, game: 'scopa', mode: '2', level: 'medio', online: false, won, ...extra });
+// Partite veloci, le uniche che danno trofei (+25, −10).
+const match = (won: boolean, extra: Partial<MatchRecord> = {}): MatchRecord => ({ id: `m${++n}`, game: 'scopa', mode: '2', level: 'medio', online: false, won, queue: 'quick', ...extra });
 /** Gioca partite una dopo l'altra (un minuto tra l'una e l'altra). */
 function playMany(p: Progress, list: MatchRecord[], day = DAY, server = false) {
   let t = 1_000_000;
@@ -86,15 +87,18 @@ describe('arene', () => {
     // Mai tre arene di fila con le sole monete.
     expect(kinds.join(',')).not.toMatch(/monete,monete,monete/);
   });
-  it('trofei: +10 +20 +30, sconfitte 0 −5 −10', () => {
-    expect(trophyDelta({ won: true, level: 'facile', online: false })).toBe(10);
-    expect(trophyDelta({ won: true, level: 'medio', online: false })).toBe(20);
-    expect(trophyDelta({ won: true, level: 'difficile', online: false })).toBe(30);
-    expect(trophyDelta({ won: true, level: 'facile', online: true })).toBe(30);
-    expect(trophyDelta({ won: false, level: 'facile', online: false })).toBe(0);
-    expect(trophyDelta({ won: false, level: 'medio', online: false })).toBe(-5);
-    expect(trophyDelta({ won: false, level: 'difficile', online: false })).toBe(-10);
-    expect(trophyDelta({ won: false, level: 'medio', online: true })).toBe(-10);
+  it('trofei solo dalla partita veloce: +25/−10, con un computer al tavolo +12/−5', () => {
+    expect(trophyDelta({ won: true, online: true, queue: 'quick' })).toBe(25);
+    expect(trophyDelta({ won: false, online: true, queue: 'quick' })).toBe(-10);
+    expect(trophyDelta({ won: true, online: false, queue: 'quick', withCpu: true })).toBe(12);
+    expect(trophyDelta({ won: false, online: true, queue: 'quick', withCpu: true })).toBe(-5);
+    for (const queue of ['cpu', 'friends', 'ranked'] as const) {
+      expect(trophyDelta({ won: true, online: queue !== 'cpu', queue })).toBe(0);
+      expect(trophyDelta({ won: false, online: queue !== 'cpu', queue })).toBe(0);
+    }
+    // Le partite salvate prima delle strade: contro il computer o tra amici, niente trofei.
+    expect(trophyDelta({ won: true, online: false })).toBe(0);
+    expect(trophyDelta({ won: true, online: true })).toBe(0);
   });
   it('un requisito chiude la strada finché non c’è, i trofei continuano a contare', () => {
     const p = newProgress('x');
@@ -153,8 +157,8 @@ describe('achievement e titoli', () => {
 describe('registro', () => {
   it('una partita vinta: prima vittoria del giorno, trofei, statistiche', () => {
     const { p, delta } = applyMatch(newProgress('s'), match(true), DAY, 1);
-    expect(delta).toBe(20);
-    expect(p.cups).toBe(20);
+    expect(delta).toBe(25);
+    expect(p.cups).toBe(25);
     // 1000 di partenza + 100 prima vittoria + 3 achievement da 100 (prima partita, prima vittoria, prima a scopa)
     // + 60 del livello 2 (l'esperienza degli achievement basta a salire).
     expect(p.coins).toBe(1000 + 100 + 300 + 60);
@@ -172,7 +176,7 @@ describe('registro', () => {
     expect(c.refused).toBe('tooSoon');
   });
   it('una sconfitta finita paga 5 monete; i trofei non scendono sotto l’arena raggiunta', () => {
-    let p = playMany(newProgress('s'), Array.from({ length: 5 }, () => match(true)));
+    let p = playMany(newProgress('s'), Array.from({ length: 4 }, () => match(true)));
     expect(p.cups).toBe(100);
     expect(p.meta.arena).toBe(1);
     const before = p.coins;
@@ -269,13 +273,13 @@ describe('stagioni', () => {
   });
   it('la fine di una stagione azzera solo i punti stagione', () => {
     let p = playMany(newProgress('s'), Array.from({ length: 6 }, () => match(true)), '2026-11-10');
-    expect(p.meta.season.points).toBe(120);
+    expect(p.meta.season.points).toBe(150);
     const cups = p.cups;
     const owned = p.owned.length;
     p = touch(p, '2027-01-02').p;
     expect(p.meta.season.id).toBe('trionfo-degli-assi');
     expect(p.meta.season.points).toBe(0);
-    expect(p.meta.seasonHistory).toEqual([{ id: 'stagione-dei-re', points: 120, matches: 6 }]);
+    expect(p.meta.seasonHistory).toEqual([{ id: 'stagione-dei-re', points: 150, matches: 6 }]);
     expect(p.cups).toBe(cups);
     expect(p.owned.length).toBe(owned);
     expect(p.stats.seasonsPlayed).toBe(1);

@@ -31,6 +31,8 @@ La migrazione `20261029000000_competizione_social.sql` aggiunge competizione e a
 - **Inviti** (`send_invite`, `my_invites`, `respond_invite`): solo tra amici, venti all'ora, ognuno vale dieci minuti.
 - **Sfide** (`report_duel`, `my_rivals`, `duels_with`): a fine partita online ognuno dice chi ha vinto; conta quando la maggioranza dei giocatori è d'accordo. Corregge anche il pagamento della posta online (`stake_report`).
 
+La migrazione `20261031000000_matchmaking.sql` aggiunge il **matchmaking** della partita veloce e della classificata: la coda (`mm_tickets`), le partite trovate (`mm_matches`) e i risultati riferiti (`mm_reports`). Dall'app si usano `mm_join`, `mm_poll` e `mm_cancel`; la funzione `progress` chiama `mm_report` per verificare ogni partita veloce o classificata prima di dare trofei o punteggio. Ogni notte pg_cron toglie le partite trovate più vecchie di due giorni. Va pubblicata insieme alla funzione `progress` nuova (regole v3).
+
 Prima di pubblicare, `npm run check:db` prova tutte le migrazioni e le regole su un Postgres vero (serve `postgres` installato sul computer).
 
 Classifiche: `leaderboard('mondo' | 'amici')` (prime 100 posizioni per trofei; a parità chi ci è arrivato prima, poi l'esperienza) e `my_rank()` (la tua posizione nel mondo). Restituiscono solo nome, foto, trofei, esperienza e posizione, e solo a chi ha fatto l'accesso.
