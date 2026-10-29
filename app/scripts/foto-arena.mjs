@@ -12,7 +12,8 @@
 //   scostarsi di 8 e al massimo lo 0,1% dei pixel di più);
 // - /arena/club-dei-signori: gli elementi fisso- non si spostano; con riduci movimento lo stesso fotogramma a 1 s e
 //   a 4 s; senza, qualcosa vive (fotogrammi diversi);
-// - svelamento (profilo da 1260 a 1300 trofei): «Esplora l'arena» e «Continua» visibili entro 2,5 s; un tocco a
+// - svelamento (profilo da 1260 a 1300 trofei, Sala di Cristallo, senza piani): solo «Continua», visibile entro 2,5 s
+//   (lo svelamento del Club ha anche «Esplora l'arena», che apre /arena/club-dei-signori); un tocco a
 //   0,8 s porta allo stato finale; con riduci movimento lo stato finale arriva entro 300 ms; niente coriandoli.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -146,19 +147,21 @@ async function fotoSvelamento(s) {
     await page.waitForFunction(() => window.__t1, null, { timeout: 6000 });
     const pronto = Math.round(await page.evaluate(() => window.__t1 - window.__t0));
     if (pronto > 2500) s.problemi.push(`svelamento ${sc.id}: pulsanti a ${pronto} ms (> 2500)`);
-    if (!(await continua.isVisible()) || !(await esplora.isVisible())) s.problemi.push(`svelamento ${sc.id}: mancano i pulsanti`);
+    // La Sala di Cristallo non ha la scena a piani: solo «Continua», niente «Esplora l'arena» (B-3).
+    if (!(await continua.isVisible())) s.problemi.push(`svelamento ${sc.id}: manca «Continua»`);
+    if (await esplora.count()) s.problemi.push(`svelamento ${sc.id}: «Esplora l'arena» c'è anche per un'arena senza piani`);
     await page.waitForTimeout(800);
     await fotografa(page, 'svelamento-fine', sc);
     console.log(`svelamento ${sc.id}: pulsanti pronti a ~${pronto} ms`);
     // Coriandoli: la vecchia sequenza li lanciava davanti al nome.
     const coriandoli = await page.evaluate(() => document.querySelectorAll('[data-testid="coriandolo"]').length);
     if (coriandoli) s.problemi.push(`svelamento ${sc.id}: ${coriandoli} coriandoli`);
-    // «Esplora l'arena» apre la rotta.
+    // Un indirizzo scritto a mano per un'arena senza piani torna alla strada delle arene.
     if (sc.id === 'telefono') {
-      await esplora.click();
-      await page.waitForTimeout(1500);
-      if (!page.url().includes('/arena/sala-di-cristallo')) s.problemi.push(`svelamento: Esplora porta a ${page.url()}`);
-      await fotografa(page, 'svelamento-esplora', sc);
+      await page.goto(`${s.base}/arena/sala-di-cristallo`);
+      await page.waitForTimeout(2500);
+      if (page.url().includes('/arena/')) s.problemi.push(`/arena/sala-di-cristallo resta aperta (${page.url()})`);
+      await fotografa(page, 'svelamento-esplora-piatta', sc);
     }
     await page.context().close();
 
@@ -207,6 +210,15 @@ async function fotoSvelamentoClub(s) {
       await page.waitForTimeout(Math.max(0, ms - (Date.now() - t0)));
       await fotografa(page, nome, sc);
     }
+    // Il Club ha la scena a piani: «Esplora l'arena» c'è e apre la rotta.
+    const esplora = page.getByRole('button', { name: /Esplora l/ });
+    if (!(await esplora.isVisible())) s.problemi.push(`svelamento del Club ${sc.id}: manca «Esplora l'arena»`);
+    else if (sc.id === 'telefono') {
+      await esplora.click();
+      await page.waitForTimeout(1500);
+      if (!page.url().includes(`/arena/${CLUB}`)) s.problemi.push(`svelamento del Club: Esplora porta a ${page.url()}`);
+      await fotografa(page, 'svelamento-esplora', sc);
+    }
     await page.context().close();
   }
 }
@@ -224,6 +236,10 @@ async function fotoTrofei(s) {
     await page.waitForTimeout(1500);
     if (!page.url().includes(`/arena/${CLUB}`)) s.problemi.push(`trofei: la scheda del Club porta a ${page.url()}`);
   } else s.problemi.push('trofei: nessuna scheda del Club da toccare');
+  // Le arene raggiunte senza scena a piani non si aprono.
+  await page.goto(`${s.base}/trofei`);
+  await page.waitForTimeout(2500);
+  if (await page.getByRole('button', { name: /Il Bar del Paese: esplora/ }).count()) s.problemi.push('trofei: la scheda del Bar del Paese (senza piani) si apre');
   await page.context().close();
 }
 

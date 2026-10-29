@@ -7,6 +7,7 @@
 // Export:
 // - `ARENE_ARTE`      { [id]: ArteArena }   capitolo, palette, le due luci, gli elementi di vita e il loro budget
 // - `arteArena(id)`   l'ArteArena o undefined (le arene vettoriali di prima)
+// - `siEsplora(id)`   true se l'arena ha la scena a piani: «Esplora l'arena» esiste solo per queste
 // - `ArteArena`
 // Puro, nessun React.
 import { primitivi } from './token';
@@ -36,3 +37,7 @@ export const ARENE_ARTE: Record<string, ArteArena> = {
 };
 
 export const arteArena = (id: string): ArteArena | undefined => ARENE_ARTE[id];
+
+/** L'arena ha la scena a piani: solo queste si esplorano a tutto schermo (/arena/[id]). Le illustrazioni piatte di
+ *  prima, ingrandite, sarebbero l'immagine più povera del gioco proprio nel momento del premio. */
+export const siEsplora = (id: string): boolean => !!ARENE_ARTE[id]?.piani;

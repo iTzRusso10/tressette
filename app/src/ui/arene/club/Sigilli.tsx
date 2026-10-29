@@ -22,9 +22,11 @@ export function SigilliCapitoli({ capitolo, raggiunto, misura = 34 }: { capitolo
 }
 
 
-/** Il nome in Bodoni su una riga: 40 pt se ci sta, altrimenti più piccolo (adjustsFontSizeToFit non c'è sul web). */
+/** Il nome in Bodoni su una riga: 40 pt se ci sta, altrimenti più piccolo (adjustsFontSizeToFit non c'è sul web).
+ *  0,55 em per lettera è per eccesso: misurati in Bodoni Moda 700, i 30 nomi delle arene stanno tra 0,465 e 0,542,
+ *  quindi il nome non si tronca mai. Mai sotto i 20 pt (i filetti sottili del Bodoni spariscono). */
 export function misuraNome(nome: string, larghezza: number) {
-  const size = Math.max(26, Math.min(40, Math.floor(larghezza / (nome.length * 0.5))));
+  const size = Math.max(20, Math.min(40, Math.floor(larghezza / (nome.length * 0.55))));
   return { fontSize: size, lineHeight: Math.round(size * 1.15) };
 }
 

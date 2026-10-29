@@ -2,12 +2,12 @@
 // Ci si arriva dallo svelamento («Esplora l'arena») e dalla strada delle arene (una scheda raggiunta).
 //
 // La scena a piani con la vita ambientale e il TUO tavolino (tavolino, panno, dorso equipaggiati) dentro la sala,
-// in prospettiva. Trascinando in orizzontale si guarda intorno: i piani scorrono a velocità diverse (parallasse);
+// in prospettiva. Solo per le arene a piani (siEsplora in arte/arene.ts): le altre tornano alla strada delle arene. Trascinando in orizzontale si guarda intorno: i piani scorrono a velocità diverse (parallasse);
 // lasciato, lo sguardo torna piano al centro. Sotto, la targa: «Arena 13 · Capitolo III», il nome in Bodoni, la
 // frase, i cinque sigilli dei capitoli (pieni quelli raggiunti). Con riduci movimento: niente vita, niente
 // parallasse, la scena ferma. Un'arena non ancora raggiunta si vede con le «luci spente».
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -17,6 +17,7 @@ import { ARENAS } from '@/meta/arenas';
 import { roman } from '@/meta/levels';
 import { useProfile } from '@/meta/profile';
 import { Filetto, useRiduciMovimento } from '@/ui/arte';
+import { siEsplora } from '@/ui/arte/arene';
 import { misuraNome, SigilliCapitoli } from '@/ui/arene/club/Sigilli';
 import { ease } from '@/ui/arte/movimento';
 import { fontArte, testo, tipografia } from '@/ui/arte/token';
@@ -27,6 +28,13 @@ import { Text } from '@/ui/Text';
 
 export default function Esplora() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Si esplorano solo le arene con la scena a piani (siEsplora): le illustrazioni piatte di prima, ingrandite a tutto
+  // schermo, si troncano e si sgranano. Un indirizzo vecchio o scritto a mano torna alla strada delle arene.
+  if (!siEsplora(id ?? '')) return <Redirect href={{ pathname: '/', params: { tab: 'trofei' } }} />;
+  return <EsploraArena id={id!} />;
+}
+
+function EsploraArena({ id }: { id: string }) {
   const { width, height } = useWindowDimensions();
   const ins = useSafeAreaInsets();
   const arena = ARENAS.find(a => a.id === id) ?? ARENAS[0];

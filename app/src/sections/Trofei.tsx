@@ -13,6 +13,7 @@ import { legendOf, reqProgress, reqText } from '@/meta/reqs';
 import { LEGEND_GIFTS } from '@/meta/rewards';
 import { TITLES, type Title } from '@/meta/titles';
 import { ArenaScene } from '@/ui/ArenaScene';
+import { siEsplora } from '@/ui/arte/arene';
 import { ItemPreview } from '@/ui/cosmetics';
 import { Icon, TrophyIcon } from '@/ui/icons';
 import { Choice, Squish } from '@/ui/kit';
@@ -54,16 +55,18 @@ function ArenaStop({ arena, width }: { arena: Arena; width: number }) {
   const { have, need } = arenaProgress(p.cups, arena.index);
   const next = ARENAS[arena.index + 1];
   const blocked = blockedArena(p);
-  // Una scheda raggiunta si apre: «Esplora l'arena» a tutto schermo (/arena/[id]). Quelle chiuse non si toccano.
-  const apri = reached ? () => router.push({ pathname: '/arena/[id]', params: { id: arena.id } }) : undefined;
+  // Una scheda raggiunta con la scena a piani si apre: «Esplora l'arena» a tutto schermo (/arena/[id]). Le altre
+  // (illustrazioni piatte, finché non sono rifatte) e quelle chiuse non si toccano.
+  const esplorabile = reached && siEsplora(arena.id);
+  const apri = esplorabile ? () => router.push({ pathname: '/arena/[id]', params: { id: arena.id } }) : undefined;
   return (
     <View style={[styles.stop, { width, height: (current ? CURRENT_H : ARENA_H) - space.m }, current && styles.stopCurrent]}>
       <Squish
-        disabled={!reached}
+        disabled={!esplorabile}
         onPress={apri}
         scaleTo={0.985}
-        accessibilityRole={reached ? 'button' : undefined}
-        accessibilityLabel={reached ? `${arena.name}: esplora l’arena` : undefined}
+        accessibilityRole={esplorabile ? 'button' : undefined}
+        accessibilityLabel={esplorabile ? `${arena.name}: esplora l’arena` : undefined}
         style={{ height: sceneH }}
       >
         <ArenaScene id={arena.id} width={width} height={sceneH} dim={!reached} />

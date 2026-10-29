@@ -8,7 +8,8 @@
 //                                       la scena che si avvicina appena)
 //   passo 4   nome e prestigio 1700–2300 «Arena 14 · Capitolo III», il nome in Bodoni con un riflesso che passa una
 //                                       volta sola, i cinque sigilli dei capitoli (pieni quelli raggiunti), «14 di 30»
-//   passo 5   esplora o continua da 2300 le ricompense; «Esplora l'arena» (apre /arena/[id]) e «Continua»
+//   passo 5   esplora o continua da 2300 le ricompense; «Esplora l'arena» (apre /arena/[id], solo per le arene a
+//             piani: siEsplora) e «Continua»
 //
 // Tempi effettivi (T qui sotto): pulsanti pieni a 2,0 s, con margine per i telefoni lenti.
 // Un tocco in qualsiasi momento porta tutto allo stato finale. Con riduci movimento lo stato finale arriva con una
@@ -24,6 +25,7 @@ import { BALANCE } from '@/meta/balance';
 import { roman } from '@/meta/levels';
 import { useProfile } from '@/meta/profile';
 import { Filetto, Pulsante, Riflesso, Sala, Superficie } from './arte';
+import { siEsplora } from './arte/arene';
 import { ease, mov } from './arte/movimento';
 import { fontArte, testo, tipografia } from './arte/token';
 import { misuraNome, SigilliCapitoli } from './arene/club/Sigilli';
@@ -92,7 +94,8 @@ export function ArenaReveal({ arena, onClose }: { arena: Arena; onClose: () => v
   // La scena: a tutta larghezza (fino a 760), alta quanto lascia libero il resto, mai meno di 3:2 sul telefono.
   const sceneW = Math.min(width, desktop ? 760 : width);
   const sceneH = Math.round(Math.min(height * (desktop ? 0.48 : 0.42), sceneW * (desktop ? 0.56 : 0.9)));
-  const club = arena.id === 'club-dei-signori';
+  // La scena a piani (oggi solo il Club): il tavolino dentro la sala, l'entrata dei piani e «Esplora l'arena».
+  const club = siEsplora(arena.id);
 
   useEffect(() => {
     sfx('arena', { haptic: true });
@@ -181,8 +184,15 @@ export function ArenaReveal({ arena, onClose }: { arena: Arena; onClose: () => v
           <RewardRow reward={arena.reward} extraCoins={arena.chapterEnd ? BALANCE.coins.chapter : 0} size={52} />
           {arena.chapterEnd ? <Text style={[styles.capitolo, styles.testoCentro]}>{`Capitolo ${roman(arena.chapter.n)} completato · +${BALANCE.coins.chapter}`}</Text> : null}
           <View style={styles.azioni}>
-            <Pulsante tipo="secondario" etichetta="Continua" onPress={onClose} style={{ flex: 1 }} />
-            <Pulsante tipo="principale" etichetta="Esplora l’arena" onPress={esplora} style={{ flex: 1.3 }} />
+            {club ? (
+              <>
+                <Pulsante tipo="secondario" etichetta="Continua" onPress={onClose} style={{ flex: 1 }} />
+                <Pulsante tipo="principale" etichetta="Esplora l’arena" onPress={esplora} style={{ flex: 1.3 }} />
+              </>
+            ) : (
+              // Senza scena a piani non c'è niente da esplorare: «Continua» diventa l'azione principale.
+              <Pulsante tipo="principale" etichetta="Continua" onPress={onClose} style={{ flex: 1 }} />
+            )}
           </View>
         </Animated.View>
       </View>
