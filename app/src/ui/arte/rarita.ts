@@ -15,7 +15,7 @@
 // - `PAUSE_RIFLESSO`, `MINIMO_ANIMATO`  pause del riflesso per rarità e misura minima per animarsi (gli stessi
 //                         oggetti di mov.pausaRiflesso e BUDGET.minimoAnimato)
 //
-// Solo dati, nessun componente: TarghettaRarita sta in Rarita.tsx.
+// Solo dati, nessun componente: TarghettaRarita sta in TarghettaRarita.tsx.
 import { RARITIES, RARITY_NAMES, type Rarity } from '@/meta/rarity';
 
 // Questi due numeri nascono qui (movimento.ts li riprende in mov.pausaRiflesso e BUDGET.minimoAnimato), così

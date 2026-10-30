@@ -35,7 +35,7 @@ import { ombra } from './luce';
 import { Lampada, Superficie } from './materiali';
 import { ACCENSIONE, dur, ease, mov } from './movimento';
 import { rarita } from './rarita';
-import { TarghettaRarita } from './Rarita';
+import { TarghettaRarita } from './TarghettaRarita';
 import { Riflesso } from './Riflesso';
 import { Scintille } from './Scintille';
 import { LIVELLI, primitivi, tipografia } from './token';

@@ -40,7 +40,7 @@
 //   Sigillo                   ceralacca seminata con testo o simbolo; `timbro` per l'entrata
 //   Lampada                   pozza di luce (con `accendi`)
 //   Sala                      il fondo completo di una schermata di vetrina
-// Rarita.tsx
+// TarghettaRarita.tsx
 //   TarghettaRarita           targhetta di metallo con il nome della rarità
 //   MedagliaRarita            campione tondo della rarità (riflesso dall'epico, ≥ 48 pt)
 // Riflesso.tsx      Riflesso, RiflessoProps      banda di luce dentro rettangolo, cerchio o path
@@ -59,7 +59,7 @@ export * from './rarita';
 export * from './useAmbient';
 export * from './trame';
 export * from './materiali';
-export * from './Rarita';
+export * from './TarghettaRarita';
 export * from './Riflesso';
 export * from './Respiro';
 export * from './Scintille';

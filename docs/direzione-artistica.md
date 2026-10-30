@@ -654,7 +654,7 @@ Confini con l'altro agente (da `regole-comuni.md`), validi per tutti: non si toc
 - `src/ui/arte/token.ts`: palette a tre livelli (5.1), tipografia (5.2), raggi nuovi (superficie 14, targa 10, carta 4, biglietto 3), livelli e ombre (5.4, 5.5).
 - `src/ui/arte/luce.ts`: direzione della luce, `ombra(livello)`, colori di lampada e rimbalzo.
 - `src/ui/arte/materiali.tsx`: `Superficie` (`materiale = noce | ottone | carta | velluto | cuoio | marmo | sughero | smalto`), `Filetto`, `Targa` (ottone con testo inciso), `Cartiglio` (nastro del titolo), `Sigillo` (ceralacca con testo o simbolo), `Lampada` (pozza di luce), `Sala` (fondo completo, con `tinta` opzionale).
-- `src/ui/arte/rarita.ts` e `src/ui/arte/Rarita.tsx`: la scala 5.7 come dati (materiale, quattro stop di metallo, quanti movimenti, quante particelle, misura della presentazione) e la `TarghettaRarita`.
+- `src/ui/arte/rarita.ts` e `src/ui/arte/TarghettaRarita.tsx`: la scala 5.7 come dati (materiale, quattro stop di metallo, quanti movimenti, quante particelle, misura della presentazione) e la `TarghettaRarita`.
 - `src/ui/arte/movimento.ts`: i token 5.8 (importa `dur` ed `ease` da `motion.ts`).
 - `src/ui/arte/useAmbient.ts`: l'interruttore unico delle animazioni ambientali (riduci movimento, fuoco, `AppState`, prop `attivo`).
 - `src/ui/arte/Riflesso.tsx` (banda di luce che passa dentro una sagoma: rettangolo arrotondato, cerchio o path), `Parallasse.tsx` (strati con fattore, guidati da uno scorrimento o fermi), `Scintille.tsx` (≤ 24, `seeded`), `Respiro.tsx` (ciclo lento di opacità o spostamento).
