@@ -18,7 +18,7 @@ import { keyOf, type Item, type Slot } from '@/meta/catalog';
 import { RARITY_NAMES } from '@/meta/rarity';
 import { priceOf } from '@/meta/shop';
 import { AvatarCornice } from '@/ui/avatar';
-import { BackPreview, ComingPreview, FondoRarita, TablePreview } from '@/ui/cosmetics';
+import { BackPreview, ComingPreview, FondoRarita, TablePreview, TavolinoCampione } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
 import { Squish } from '@/ui/kit';
@@ -38,8 +38,9 @@ function Miniatura({ item, w, h, avatar, nome, foto, equipped }: { item: Item; w
   if (item.status === 'coming') return <ComingPreview item={item} width={w} height={h} />;
   if (item.slot === 'frame') return <AvatarCornice avatar={avatar} photo={foto} name={nome} frame={item.id} size={Math.floor(Math.min(w, h))} vivo={false} />;
   if (item.slot === 'back') return <BackPreview id={item.id} width={Math.floor(Math.min(w * 0.62, (h - 3) / CARD_RATIO))} />;
-  // Nelle caselle il tavolino si mostra sul panno in uso e il panno sul tavolino in uso: come nel negozio.
-  if (item.slot === 'table') return <TablePreview table={item.id} felt={equipped.felt} width={w} height={Math.round(w * 0.6)} />;
+  // Il tavolino come campione di materiale (sponda grande e illuminata, panno neutro): legno, cuoio, vetro e metallo
+  // si distinguono a colpo d'occhio. Il panno si mostra sul tavolino in uso.
+  if (item.slot === 'table') return <TavolinoCampione table={item.id} width={w} height={Math.round(w * 0.6)} />;
   return <TablePreview table={equipped.table} felt={item.id} width={w} height={Math.round(w * 0.6)} />;
 }
 

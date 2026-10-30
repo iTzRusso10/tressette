@@ -11,7 +11,7 @@ import { RARITIES, rarityRank, RARITY_NAMES, type Rarity } from '@/meta/rarity';
 import { completedSets, setOf, setParts, setReady, SETS, type CosmeticSet } from '@/meta/sets';
 import { buyable, ownsKey, priceOf, todayOffer } from '@/meta/shop';
 import { sourcesOf, sourceText } from '@/meta/sources';
-import { ComingPreview, DorsoVetrina, FondoRarita, FramePreview, ItemPreview, TavoloVetrina } from '@/ui/cosmetics';
+import { ComingPreview, DorsoVetrina, FondoRarita, FramePreview, ItemPreview, TavolinoCampione, TavoloVetrina } from '@/ui/cosmetics';
 import { sfx } from '@/ui/feedback';
 import { Icon } from '@/ui/icons';
 import { Button, Choice, Squish } from '@/ui/kit';
@@ -95,7 +95,12 @@ function ItemCard({ item, width, artH, day, onOpen }: { item: Item; width: numbe
           <View style={StyleSheet.absoluteFill}>
             <FondoRarita rarita={item.rarity} width={width - 20} height={artH} raggio={radius.m} />
           </View>
-          <ItemPreview item={item} width={width - 20} height={artH - 14} />
+          {item.slot === 'table' && item.status === 'ready' ? (
+            // il tavolino come campione di materiale: la sponda grande e illuminata dice legno, cuoio, vetro o metallo
+            <TavolinoCampione table={item.id} width={width - 20} height={artH - 14} />
+          ) : (
+            <ItemPreview item={item} width={width - 20} height={artH - 14} />
+          )}
         </View>
         <RarityChip rarity={item.rarity} style={{ marginTop: space.s }} />
         <Text style={styles.cardName} numberOfLines={1}>

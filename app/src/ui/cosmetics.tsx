@@ -21,6 +21,9 @@
 // - `TavoloVetrina`{ table, felt, back?, width, height, vivo? }  come TablePreview grande, e se la sponda è di
 //                  metallo, vetro, pietra o lacca di rarità epica o più alta, il riflesso passa sulla sponda.
 // - `DorsoVetrina` { id, width, vivo? }  come BackPreview, e dall'epico il riflesso passa sulla carta.
+// - `TavolinoCampione` { table, width, height }  il tavolino come campione di materiale per le griglie (negozio,
+//                  personalizzazione): sponda spessa ≥ 15% dell'altezza con la grana in grande, panno neutro, luce
+//                  della lampada sulla sponda, due luci nette su vetro e metallo. Statico.
 // - `FondoRarita`  { rarita, width, height, raggio?, children }  il fondo di una scheda secondo la rarità (negozio,
 //                  camerino): comune e non comune legno scuro liscio; raro velluto blu con il filo d'argento; epico
 //                  velluto porpora con il filo dorato; leggendario velluto bordeaux, filo d'oro e cantonali d'oro;
@@ -190,6 +193,58 @@ export const TablePreview = memo(function TablePreview({ table, felt, back, widt
       <FeltArt table={table} felt={felt} width={width} height={height} scale={g.s} boost={big ? 1.25 : 1.6} />
       {big ? <Vetrina table={table} felt={felt} width={width} height={height} B={g.B} rad={g.rad} R0={g.R0} s={g.s} /> : null}
       {cards ? <CarteInAngolo width={width} height={height} back={back} B={g.B} rad={g.rad} iw={g.iw} ih={g.ih} /> : null}
+    </View>
+  );
+});
+
+/** Il panno neutro dei campioni: lo smeraldo di partenza, scuro, su cui ogni sponda si legge per quello che è. */
+const PANNO_CAMPIONE = 'verde-smeraldo';
+
+/**
+ * Il tavolino come campione di materiale, per le griglie (negozio, personalizzazione): la sponda è la protagonista.
+ * Spessa almeno il 15% dell'altezza (in scala vera sarebbe il 5%) con la sua grana disegnata in grande (venatura del
+ * legno, cuoio cucito, metallo spazzolato con le due bande, vene del marmo), sul panno neutro e senza carte. La luce
+ * della lampada da ore 11 la illumina in alto a sinistra e la lascia in ombra in basso a destra; il vetro e il
+ * cristallo prendono due luci nette, la lacca e la pietra una riga lucida. Statico.
+ */
+export const TavolinoCampione = memo(function TavolinoCampione({ table, width, height }: { table: string; width: number; height: number }) {
+  const id = 'tc' + uidOf(useId());
+  const B = Math.max(10, Math.round(Math.min(height * 0.16, width * 0.11)));
+  const s = B / RAIL;
+  const iw = width - 2 * B;
+  const rad = Math.min(34 * s, iw * 0.09);
+  const R0 = rad + B;
+  const t = vetrinaTavolino(table);
+  const lucido = t.riflesso === 'netto';
+  const sponda = rr(0, 0, width, height, R0) + rr(B, B, width - 2 * B, height - 2 * B, rad);
+  return (
+    <View
+      style={{ width, height, borderRadius: R0, boxShadow: '0px 3px 0px rgba(14,6,4,0.85), 0px 5px 4px rgba(8,3,4,0.5), 4px 10px 16px rgba(8,3,4,0.45)' }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <FeltArt table={table} felt={PANNO_CAMPIONE} width={width} height={height} scale={s} boost={1.25} />
+      <Vetrina table={table} felt={PANNO_CAMPIONE} width={width} height={height} B={B} rad={rad} R0={R0} s={Math.min(1, s * 0.7)} />
+      <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id={id + 'l'} x1="0" y1="0" x2={width} y2={height} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#FFE6B8" stopOpacity={0.3} />
+            <Stop offset="0.38" stopColor="#FFE6B8" stopOpacity={0} />
+            <Stop offset="0.72" stopColor="#000000" stopOpacity={0} />
+            <Stop offset="1" stopColor="#000000" stopOpacity={0.32} />
+          </LinearGradient>
+        </Defs>
+        {/* la lampada sulla sponda: luce in alto a sinistra, ombra in basso a destra */}
+        <Path d={sponda} fill={`url(#${id}l)`} fillRule="evenodd" />
+        {lucido ? (
+          // vetro, cristallo e metallo: due luci nette sul tratto in alto, vicino all'angolo che guarda la lampada
+          <>
+            <Path d={`M${R0 + B * 0.2} ${B * 0.32}H${R0 + width * 0.2}`} stroke="#FFFFFF" strokeOpacity={0.85} strokeWidth={Math.max(1.2, B * 0.14)} strokeLinecap="round" />
+            <Path d={`M${R0 + width * 0.25} ${B * 0.32}H${R0 + width * 0.31}`} stroke="#FFFFFF" strokeOpacity={0.7} strokeWidth={Math.max(1, B * 0.1)} strokeLinecap="round" />
+            <Path d={`M${B * 0.32} ${R0 + B * 0.2}V${R0 + height * 0.18}`} stroke="#FFFFFF" strokeOpacity={0.55} strokeWidth={Math.max(1, B * 0.1)} strokeLinecap="round" />
+          </>
+        ) : null}
+      </Svg>
     </View>
   );
 });
