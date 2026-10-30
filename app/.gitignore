@@ -47,3 +47,11 @@ yarn-error.*
 .visual/
 .felts/
 .backs/
+
+# Supabase CLI e Studio in locale (contengono segreti)
+supabase/.temp/
+supabase/.branches/
+supabase/snippets/
+
+# Il progetto usa npm: niente lockfile di bun
+bun.lock
