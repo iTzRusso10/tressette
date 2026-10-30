@@ -74,6 +74,10 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 - Proporzioni: la mano piena non deve sovrastare il tavolo; i compagni laterali in quattro sono al 62% (`SIDE` in `layout.ts`) e restano dentro il panno, sotto i loro nomi.
 - Per le modifiche al design si usano le regole della skill ui-ux-pro-max (github.com/nextlevelbuilder/ui-ux-pro-max-skill).
 
+## Skill di ingegneria
+
+In `.claude/` ci sono le Agent Skills di Addy Osmani (25 skill, checklist, comandi /spec /plan /build /test /review /ship e quattro agenti di revisione; vedi `.claude/skills/AGENT-SKILLS.md`). Valgono come metodo di lavoro; le regole di questo file (regole della casa, qualità visiva, design) vengono prima.
+
 ## Comandi (da `app/`)
 
 ```bash
