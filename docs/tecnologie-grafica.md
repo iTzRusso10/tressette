@@ -179,7 +179,7 @@ Un solo hook, per esempio `useAmbient()` in `src/ui/arte/`, che tutte le animazi
 - **l'elemento è fuori dalla lista visibile**: `onViewableItemsChanged` delle liste. Nelle griglie si anima solo l'oggetto selezionato o in evidenza, mai tutte le miniature;
 - **l'app è in background**: `AppState`, che sul web segue `document.visibilityState`.
 
-Ogni ciclo ambientale dura almeno 4 s, con pause lunghe (il riflesso passa in 1,2 s ogni 6–8 s). Usa le curve di `motion.ts`, senza molle né rimbalzi, e non cambia mai il layout: solo `transform` e `opacity`. Con il movimento ridotto restano gli stati finali e le dissolvenze brevi.
+Ogni ciclo ambientale dura almeno 4 s, con pause lunghe (il riflesso passa in 1,2 s ogni 6–8 s). Usa le curve di `motion.ts` e non cambia mai il layout: solo `transform` e `opacity`. Con il movimento ridotto restano gli stati finali e le dissolvenze brevi.
 
 ## Budget di prestazioni
 

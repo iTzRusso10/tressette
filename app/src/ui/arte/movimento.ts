@@ -1,8 +1,7 @@
 // «Lampara»: i tempi del movimento (docs/direzione-artistica.md §5.8).
 //
 // Le curve sono quelle di src/ui/motion.ts: `ease.in` per ciò che arriva, `ease.out` per ciò che esce,
-// `ease.move` per ciò che si sposta. Niente molle, rimbalzi, oltre-e-ritorno. Qui si aggiungono i tempi
-// della vetrina.
+// `ease.move` per ciò che si sposta. Qui si aggiungono i tempi della vetrina.
 //
 // Export:
 // - `dur`, `ease`         rinviati da motion.ts (stesso oggetto, per importare tutto da un posto)

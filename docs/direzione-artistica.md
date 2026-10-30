@@ -404,7 +404,7 @@ Regole:
 
 ### 5.8 Movimento
 
-Le curve sono quelle di `motion.ts`: `ease.in` per ciò che arriva, `ease.out` per ciò che esce, `ease.move` per ciò che si sposta. Niente molle, niente rimbalzi, niente oltre-e-ritorno. Ai tempi esistenti (`press` 110, `quick` 180, `enter` 280, `exit` 180, `card` 380) si aggiungono, in `src/ui/arte/movimento.ts`:
+Le curve sono quelle di `motion.ts`: `ease.in` per ciò che arriva, `ease.out` per ciò che esce, `ease.move` per ciò che si sposta. Ai tempi esistenti (`press` 110, `quick` 180, `enter` 280, `exit` 180, `card` 380) si aggiungono, in `src/ui/arte/movimento.ts`:
 
 | Token | ms | Curva | Uso |
 |---|---|---|---|

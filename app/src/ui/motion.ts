@@ -1,9 +1,8 @@
 import { Easing } from 'react-native-reanimated';
 
 /**
- * One motion language for the whole app (ui-ux-pro-max: easing, exit-faster-than-enter, motion-consistency;
- * project rule: no bounce, no overshoot). Things arrive decelerating and leave accelerating; nothing
- * goes past its place and comes back.
+ * One motion language for the whole app (ui-ux-pro-max: easing, exit-faster-than-enter, motion-consistency).
+ * Things arrive decelerating and leave accelerating.
  */
 export const ease = {
   /** Arriving: fast start, soft landing. */
