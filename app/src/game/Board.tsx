@@ -25,7 +25,7 @@ function statusOf(m: Match, p: number) {
   const h = m.h!;
   if (m.game === 'scopa') {
     const sc = h.scope[p];
-    const cards = `${h.capt[p].length} carte`;
+    const cards = `prese ${h.capt[p].length}`;
     return sc ? `${cards}, ${sc} ${sc === 1 ? 'scopa' : 'scope'}` : cards;
   }
   return `prese ${h.tricks[p]}`;

@@ -53,15 +53,17 @@ function Float({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: nu
   );
 }
 
-/** A signal (Busso, Striscio, Volo) above a player's name. */
+/** A signal (Busso, Striscio, Volo) above a player's name; below it for the player across, whose name is at the top edge. */
 function Bubble({ fx, g, m, viewer }: { fx: Fx; g: Geometry; m: Match; viewer: number }) {
-  const a = anchor(g, m, viewer, fx.p ?? 0);
+  const p = fx.p ?? 0;
+  const a = anchor(g, m, viewer, p);
+  const top = sideOf(m, viewer, p) === 't' ? a.y + TAG_H + 6 : a.y - 32;
   return (
     <Animated.View
       entering={FadeInDown.duration(dur.enter).easing(ease.in)}
       exiting={FadeOut.duration(dur.exit)}
       pointerEvents="none"
-      style={[styles.bubble, { left: a.x - 50, top: a.y - 32 }]}
+      style={[styles.bubble, { left: a.x - 50, top }]}
     >
       <Text allowFontScaling={false} style={styles.bubbleText}>
         {fx.text}

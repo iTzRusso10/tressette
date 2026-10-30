@@ -28,7 +28,7 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 ## Layout
 
 - La geometria (`measure()`) dipende solo dallo schermo e dal tipo di partita: panno, nomi, mazzo e tabellone sono calcolati per la mano piena e non si spostano mai durante la mano.
-- I nomi hanno larghezza fissa (`TAG_W`). Il mazzo (e la briscola) sta fuori dal panno, in alto a sinistra.
+- I nomi hanno larghezza fissa (`TAG_W`). Il mazzo (e la briscola, di traverso sotto il mazzo) sta fuori dal panno, in alto a destra; l'angolo sinistro è del tasto del menu.
 - A Scopa ogni carta in tavola tiene il suo posto finché non viene presa (`assignSlots`).
 - Dieci carte in mano stanno su due file da cinque: le napoletane non hanno gli indici negli angoli.
 
