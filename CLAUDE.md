@@ -78,6 +78,8 @@ Gioco di carte napoletane: un'app React Native con Expo (`app/`) che produce l'a
 
 In `.claude/` ci sono le Agent Skills di Addy Osmani (25 skill, checklist, comandi /spec /plan /build /test /review /ship e quattro agenti di revisione; vedi `.claude/skills/AGENT-SKILLS.md`). Valgono come metodo di lavoro; le regole di questo file (regole della casa, qualità visiva, design) vengono prima.
 
+Accanto ci sono le 16 skill di Emil Kowalski su design e animazioni (vedi `.claude/skills/EMIL-SKILLS.md`): per l'app contano soprattutto `animate-expo`, `emil-design-eng`, `apple-design`, `review-animations`, `improve-animations`, `break-ui`. Anche qui le regole di questo file vengono prima: dove le skill suggeriscono molle, rimbalzi o oltre-e-ritorno, valgono le curve a tempo di `src/ui/motion.ts` (e i token di movimento di «Lampara»).
+
 ## Comandi (da `app/`)
 
 ```bash
