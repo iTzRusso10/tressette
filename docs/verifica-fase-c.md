@@ -133,3 +133,56 @@ Prima della Fase D, nell'ordine:
 - `app/.visual/verifica/06-svelamento-cristallo-telefono.png`: la prossima arena (I-2)
 - `app/.visual/verifica/01-home-tramonto-telefono.png`, `10-home-bacheca-tramonto-telefono.png`, `11-negozio-scheda-tramonto-telefono.png`: i due mondi (I-1)
 - `app/.visual/verifica/08-personalizza-tavolini-telefono.png`: tavolini poco distinti e testo falso (I-3, I-4)
+
+---
+
+## Correzioni fatte
+
+Dopo la verifica, sul ramo `direzione-artistica`, un commit per punto (`3d706f5`…`debf4fa`). Foto in `app/.visual/correzioni/` (cartella non nel repo). Non toccati, perché decisioni di Giuseppe o lavoro dell'altro agente: I-1 (Lampara in hub, home e negozio), I-2 (arena 14), I-7 (teca e riepilogo), `publicOf`.
+
+| Punto | Esito | Cosa è cambiato |
+|---|---|---|
+| **B-1** riflesso della cornice nel profilo | **fatto** | `VetrinaProfilo` usa `AvatarCornice` con `vivo` e `soloRiflesso` (niente gemme, madreperla e granelli: il budget della schermata resta 4 movimenti) e passa a `riflesso` la pausa comune e il ritardo, così resta sfasato da quello della vetrina. Tolti `anello()` e il `Riflesso` a mano. Il riflesso ora corre sulla banda di metallo (`Rm = foro + spessore/2`): fermato a metà passaggio su «stelle», «lega-oncia», «corona», «lega-re» non entra nel disco e non esce fuori, sui tre schermi (`b1-*.png`) |
+| **B-2** console e script | **fatto** | `Bordi` non disegna niente sotto i 12 pt (le superfici dell'hub nascosto): 0 errori di console aprendo `/missioni`, `/personalizza`, `/personalizza?posto=frame&id=lega-re`, `/arena/club-dei-signori`, `/profilo` sui tre schermi. `foto-arena.mjs` senza `.visual/arena/prima` salta il confronto con un avviso (provato spostando la cartella). `foto-arena` e `foto-camerino` escono con 0 |
+| **B-3** «Esplora» sulle illustrazioni vecchie | **fatto** | `siEsplora(id)` in `arte/arene.ts` (vero solo per le arene a piani, oggi il Club). Svelamento di un'arena senza piani: solo «Continua», in ottone come azione principale (`b3-svelamento-cristallo-*.png`); il Club ha ancora «Continua» ed «Esplora l'arena». In Trofei le schede delle arene piatte non si aprono; `/arena/<arena piatta>` torna alla strada delle arene. Scelta: non aprire la rotta con l'illustrazione nella sua proporzione, perché sarebbe stata lo svelamento ripetuto con meno contenuto. `misuraNome` stima 0,55 em per lettera (i 30 nomi misurati in Bodoni Moda 700: 0,465–0,542) e scende fino a 20 pt: nessun nome si tronca. `foto-arena` controlla i tre casi |
+| **I-3** testo falso | **fatto** | «Il tuo tavolo, come lo vedi in partita.» |
+| **I-5** tre «indietro», tre contatori | **fatto** | `src/ui/arte/Testata.tsx` (esportato in fondo al barile): `Testata`, `TESTATA`, `Indietro` (il tondo di noce, spostato da `profilo/comuni`), `ContatoreMonete` (pillola di noce alta 40, cifre tabellari, conta in 160 ms, dissolvenza con riduci movimento). Usati da arena, profilo, personalizza, bacheca (il contatore della bacheca è lo stesso componente, registrato per i voli) e dal profilo di un altro. Misurato: «indietro» 44×44 a (16, 6) e contatore a 16 dal bordo destro, alto 40, in tutte e quattro le rotte sui tre schermi (`i5-testata-quattro-rotte-*.png`) |
+| **I-6** JS oltre il budget | **fatto** | vedi sotto |
+| **I-4** tavolini poco distinti | **fatto** | `TavolinoCampione` in `cosmetics.tsx` (firme esistenti invariate, `Felt.tsx` e `feltDesigns.ts` non toccati) nelle caselle di `/personalizza` e del negozio: sponda spessa ≥ 15% dell'altezza con la grana in grande, panno smeraldo neutro, niente carte, luce della lampada sulla sponda e due luci nette su vetro e metallo (`i4-*.png`). Legno, cuoio, vetro, marmo, lacca e metallo si riconoscono anche sul 375×667 |
+
+### I-6: il peso del JS
+
+Somma gzip -9 dei `.js` in `dist/_expo/static/js/web` (stesso metodo di §1).
+
+| Build | Totale | Caricato all'apertura (runtime, `__common`, `entry`, `_layout`, `index`) |
+|---|---|---|
+| `funzioni-social`, export di prima | 852 843 | 816 238 |
+| `direzione-artistica` prima delle correzioni | 946 671 (**+93,8 KB**) | 891 290 |
+| dopo B-1…I-5, export di prima | 949 137 | — |
+| **dopo I-6 e I-4** (tree shaking) | **849 238** (**−3,6 KB** sul ramo di partenza, −97,4 KB rispetto alla verifica) | **793 818** |
+
+Cosa pesava: con le source map, file per file contro `funzioni-social`, +94 KB gzip erano tutti in `src/` (Club a piani 9 KB, `avatar.tsx` +7,8, `materiali.tsx` 6,1, bacheca 8,8, profilo 15…); nessuna dipendenza nuova. Le pagine `/dev` sono già chunk separati, scaricati solo se si aprono (async routes di Expo Router 58, attive di default sul web): 11 KB in tutto, non contano all'apertura. Expo Router 58 non ha un'opzione documentata per escludere rotte dalla build.
+
+Cosa ho fatto:
+1. **Tree shaking di Metro** per il sito (`EXPO_UNSTABLE_TREE_SHAKING=1` con `EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH=1`, docs.expo.dev/guides/tree-shaking) in `npm run export:web` e nel workflow `sito.yml`. Toglie gli export mai usati in tutto il bundle. È marcato sperimentale dalla doc: con la nuova build passano `check:visual` (8 modalità × 3 schermi), `check:online`, `check:hub`, i quattro script foto e il confronto pixel per pixel delle 29 arene vecchie (58 su 58 identiche). Le build native non cambiano (la variabile è solo nell'export del sito).
+2. **«Esplora» trascina con il `PanResponder`** di React Native invece di `react-native-gesture-handler`: con il tree shaking il gestore intero (≈ 57 KB gzip) restava nel bundle solo per quel gesto. Il trascinamento sposta lo sguardo e torna al centro come prima (provato sui tre schermi). `GestureHandlerRootView` resta in `_layout.tsx` (non è codice mio).
+3. **Codice morto**: il vecchio Club dei Signori piatto di `reggia.tsx` (e `MoonWindow`, usata solo da lui), che `ArenaScene` non disegnava più da B1.
+
+Da sapere: senza il tree shaking (un `npx expo export -p web` a mano) il sito pesa 944 807 byte; il budget vale per `npm run export:web` e per il workflow.
+
+### Prestazioni dopo le correzioni
+
+Web, 393×852, DPR 2, CPU 4× più lenta, 3 s misurati dopo 2,5 s dall'apertura (`node scripts/perf-arena.mjs 3 <url>`), sulla build finale.
+
+| Schermata | p95 delle 3 prove (ms) | task lunghi |
+|---|---|---|
+| `/arena/club-dei-signori` | 16,7 · 16,7 · 16,8 | 0 |
+| `/profilo` (profilo di prova di `foto-lib`) | 16,8 · 16,8 · 16,8 | 0 |
+| `/personalizza?posto=frame&id=lega-re` (mitica in prova) | 16,7 · 16,8 · 16,7 | 0 |
+| `/missioni` | 16,7 · 16,7 · 16,7 | 0 |
+
+Budget p95 ≤ 20 ms rispettato ovunque. Il riflesso della cornice nel profilo ora è un'animazione CSS di Reanimated (opacità e rotazione su un livello proprio) invece di un `Rect` SVG ridisegnato a ogni fotogramma: costa meno, soprattutto sul nativo.
+
+### Controlli finali (build con il tree shaking)
+
+`npm run check` (214 test) · `npm run export:web` · `npm run check:hub` «nessun errore» · `npm run check:visual` «nessun movimento e nessun errore» (il tavolo in partita non è cambiato) · `npm run check:online` · `foto-arena` (58 su 58 arene vecchie identiche alle foto «prima», svelamento con i pulsanti a 2,0–2,2 s) · `foto-profilo` · `foto-camerino` · `foto-missioni`: tutti con uscita 0. `package-lock.json` non è cambiato.
